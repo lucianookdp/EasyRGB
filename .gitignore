@@ -13,3 +13,4 @@ __pycache__/
 *.pyc
 app/pc.json
 app/automations.json
+app/meurgb.log

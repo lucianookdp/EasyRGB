@@ -550,7 +550,7 @@ class TestUi(unittest.TestCase):
         body = self.html[self.html.index("<body>"):self.html.index("<script>")]
         texts = {" ".join(m.split()) for m in re.findall(r">([^<>]*[A-Za-zÀ-ú][^<>]*)<", body)}
         texts |= set(re.findall(r'(?:placeholder|title|aria-label)="([^"]+)"', body))
-        keep = {"MeuRGB", "v1", "Presets", "Mouse"}
+        keep = {"MeuRGB", "v1", "Presets", "Mouse", "Ctrl", "Alt", "E", "L", "°C"}   # iguais nos dois idiomas
         self.assertEqual(sorted(t for t in texts if t and t not in en and t not in keep), [],
                          "texto fixo da página sem tradução para inglês")
 

@@ -376,8 +376,55 @@ def turn_off():
 
 # ---------------------------------------------------------------- efeitos animados pelo app
 # Funcionam em qualquer dispositivo, mas só enquanto o MeuRGB está aberto.
-EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris")
+EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris", "musica", "temperatura")
 RAINBOW = [(255, 0, 0), (255, 140, 0), (255, 255, 0), (0, 255, 60), (0, 200, 255), (60, 0, 255), (220, 0, 255)]
+TEMP_SCALE = [(0, 110, 255), (0, 220, 190), (255, 200, 0), (255, 40, 0)]   # frio -> quente
+
+
+class AudioMeter:
+    """Volume que está saindo nas caixas de som (0..1), lido do Windows. Leve: só um número por quadro."""
+
+    def __init__(self):
+        import comtypes
+        from ctypes import POINTER, cast
+        from comtypes import CLSCTX_ALL
+        from pycaw.pycaw import AudioUtilities, IAudioMeterInformation
+        comtypes.CoInitialize()
+        dev = AudioUtilities.GetSpeakers()
+        dev = getattr(dev, "_dev", dev)
+        self._meter = cast(dev.Activate(IAudioMeterInformation._iid_, CLSCTX_ALL, None), POINTER(IAudioMeterInformation))
+
+    def peak(self):
+        try:
+            return float(self._meter.GetPeakValue())
+        except Exception:
+            return 0.0
+
+
+def read_temperature(source="gpu"):
+    """Temperatura em °C da placa de vídeo NVIDIA (nvidia-smi) ou do processador (sensor ACPI). None se não der."""
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    if source in ("gpu", "auto"):
+        try:
+            out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
+                                 capture_output=True, text=True, timeout=5, creationflags=flags).stdout
+            return float(out.split()[0])
+        except Exception:
+            if source == "gpu":
+                return None
+    try:
+        out = subprocess.run(["powershell", "-NoProfile", "-Command",
+                              "(Get-CimInstance -Namespace root/wmi MSAcpi_ThermalZoneTemperature | "
+                              "Select-Object -First 1).CurrentTemperature"],
+                             capture_output=True, text=True, timeout=8, creationflags=flags).stdout
+        return round(float(out.strip()) / 10 - 273.15, 1)
+    except Exception:
+        return None
+
+
+def temp_color(t, lo=40, hi=80):
+    pos = max(0.0, min(1.0, (t - lo) / max(1, hi - lo)))
+    return gradient(TEMP_SCALE, 1, pos or 1e-6)[0]
 
 
 def _frame(kind, palette, brightness, t, speed):
@@ -402,6 +449,37 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
     def run():
         apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw)
         t0 = time.time()
+        if kind == "musica":
+            try:
+                meter = AudioMeter()
+            except Exception:
+                meter = None
+            level, shift = 0.0, 0.0
+            while not ev.is_set():
+                p = meter.peak() if meter else 0.0
+                level = max(p, level * 0.82)            # sobe na hora, desce suave
+                shift = (shift + level * speed * 0.004) % 1.0
+                try:
+                    apply(palette, brightness * (0.1 + 0.9 * level ** 0.7), mode, devices, offset=shift or 1e-6,
+                          fast=True, overrides=overrides, groups=groups, persist=False, hw=hw)
+                except Exception:
+                    pass
+                ev.wait(0.05)
+            return
+        if kind == "temperatura":
+            ex = (load_auto().get("extras") or {})
+            src, lo, hi = ex.get("temp_source", "gpu"), float(ex.get("temp_min", 40)), float(ex.get("temp_max", 80))
+            while not ev.is_set():
+                t = read_temperature(src)
+                if t is not None:
+                    _effect["temp"] = t
+                    try:
+                        apply([temp_color(t, lo, hi)], brightness, mode, devices, fast=True, overrides=overrides,
+                              groups=groups, persist=False, hw=hw)
+                    except Exception:
+                        pass
+                ev.wait(2.0)   # temperatura muda devagar: 1 leitura a cada 2 s
+            return
         while not ev.is_set():
             pal, bri, off = _frame(kind, palette, brightness, time.time() - t0, speed)
             try:
@@ -699,11 +777,17 @@ def load_auto():
     a.setdefault("enabled", True)
     a.setdefault("games", [])
     a.setdefault("schedule", [])
+    a.setdefault("hotkeys", False)
+    a.setdefault("extras", {})
     return a
 
 
 def save_auto(a):
+    ex = a.get("extras") or {}
     clean = {"enabled": bool(a.get("enabled", True)),
+             "hotkeys": bool(a.get("hotkeys", False)),
+             "extras": {"temp_source": ex.get("temp_source", "gpu") if ex.get("temp_source") in ("gpu", "cpu") else "gpu",
+                        "temp_min": int(ex.get("temp_min", 40)), "temp_max": int(ex.get("temp_max", 80))},
              "games": [{"process": str(g["process"]).strip(), "preset": g.get("preset", ""),
                         "enabled": g.get("enabled", True)} for g in a.get("games", []) if g.get("process")],
              "schedule": [{"time": str(s["time"])[:5], "action": s.get("action", "preset"), "value": s.get("value"),
@@ -872,6 +956,8 @@ def needs_running():
     if a.get("enabled", True) and (any(g.get("enabled", True) for g in a.get("games", []))
                                    or any(s.get("enabled", True) for s in a.get("schedule", []))):
         return True
+    if a.get("hotkeys"):   # atalhos de teclado precisam do MeuRGB aberto (escondido, na bandeja)
+        return True
     return ((load_state() or {}).get("ui") or {}).get("effect") in EFFECTS
 
 
@@ -929,6 +1015,166 @@ def read_share_code(code):
             "speed": data.get("s", 3), "links": data.get("l", {})}
 
 
+# ---------------------------------------------------------------- ações rápidas (atalhos e bandeja)
+_rev = {"n": 0, "off": False, "msg": ""}   # a interface recarrega quando "n" muda
+_FX_CYCLE = ("static", "fluir", "respirar", "musica")
+
+
+def _pt():
+    """Idioma do Windows é português? (para os textos da bandeja e avisos)"""
+    try:
+        import ctypes
+        return (ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF) == 0x16
+    except Exception:
+        return True
+
+
+def _bump(msg=""):
+    _rev["n"] += 1
+    _rev["msg"] = msg
+    tray = _tray.get("icon")
+    if tray and msg:
+        try:
+            tray.notify(msg, APP_NAME)
+        except Exception:
+            pass
+
+
+def quick(action, value=None):
+    """Ações rápidas usadas pelos atalhos de teclado e pela bandeja. Salvam o visual."""
+    L = load_state() or {"palette": ["#FF2E88", "#00D9C8"], "brightness": 100, "ui": {}}
+    ui = dict(L.get("ui") or {})
+    pt = _pt()
+    if action in ("next", "prev", "preset"):
+        names = list(load_palettes())
+        if not names:
+            return
+        if action == "preset":
+            name = value
+        else:
+            cur = ui.get("preset")
+            i = names.index(cur) if cur in names else -1
+            name = names[(i + (1 if action == "next" else -1)) % len(names)]
+        ui["preset"] = name
+        _rev["off"] = False
+        apply_saved(L, persist=True, palette=load_palettes()[name], overrides={}, hw={}, ui=ui)
+        _bump(("Preset: " if pt else "Preset: ") + name)
+    elif action == "toggle":
+        if _rev["off"]:
+            _rev["off"] = False
+            apply_saved(L)
+            _bump("Luzes acesas" if pt else "Lights on")
+        else:
+            _rev["off"] = True
+            stop_effect()
+            turn_off()
+            _bump("Luzes apagadas" if pt else "Lights off")
+    elif action in ("brighter", "dimmer"):
+        b = max(5, min(100, int(L.get("brightness", 100)) + (10 if action == "brighter" else -10)))
+        _rev["off"] = False
+        apply_saved(L, persist=True, brightness=b)
+        _bump(("Brilho " if pt else "Brightness ") + f"{b}%")
+    elif action in ("effect", "next_effect"):
+        cur = ui.get("effect", "static")
+        ui["effect"] = value if action == "effect" else _FX_CYCLE[(_FX_CYCLE.index(cur) + 1) % len(_FX_CYCLE)
+                                                                  if cur in _FX_CYCLE else 0]
+        _rev["off"] = False
+        apply_saved(L, persist=True, ui=ui)
+        names = {"static": ("Estático", "Static"), "fluir": ("Fluir", "Flow"), "respirar": ("Respirar", "Breathe"),
+                 "musica": ("Música", "Music"), "ciclo": ("Ciclo de cores", "Color cycle"),
+                 "arcoiris": ("Arco-íris", "Rainbow"), "temperatura": ("Temperatura", "Temperature")}
+        _bump(("Efeito: " if pt else "Effect: ") + names.get(ui["effect"], (ui["effect"],) * 2)[0 if pt else 1])
+
+
+# Ctrl+Alt + tecla
+HOTKEYS = {1: (0x27, "next"), 2: (0x25, "prev"), 3: (0x4C, "toggle"), 4: (0x26, "brighter"), 5: (0x28, "dimmer"),
+           6: (0x45, "next_effect")}   # → ← L ↑ ↓ E
+_hk = {"thread": None, "tid": None}
+
+
+def start_hotkeys():
+    """Atalhos globais do Windows (funcionam com qualquer janela em foco). Custo: uma thread parada esperando."""
+    if _hk["thread"] and _hk["thread"].is_alive():
+        return
+
+    def loop():
+        import ctypes
+        from ctypes import wintypes
+        user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+        _hk["tid"] = kernel32.GetCurrentThreadId()
+        for hid, (vk, _) in HOTKEYS.items():
+            user32.RegisterHotKey(None, hid, 0x0002 | 0x0001 | 0x4000, vk)   # Ctrl + Alt, sem repetir
+        msg = wintypes.MSG()
+        while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+            if msg.message == 0x0312 and msg.wParam in HOTKEYS:   # WM_HOTKEY
+                try:
+                    quick(HOTKEYS[msg.wParam][1])
+                except Exception:
+                    pass
+        for hid in HOTKEYS:
+            user32.UnregisterHotKey(None, hid)
+
+    _hk["thread"] = threading.Thread(target=loop, daemon=True)
+    _hk["thread"].start()
+
+
+def stop_hotkeys():
+    if _hk["thread"] and _hk["tid"]:
+        import ctypes
+        ctypes.windll.user32.PostThreadMessageW(_hk["tid"], 0x0012, 0, 0)   # WM_QUIT
+        _hk["thread"].join(timeout=2)
+    _hk.update(thread=None, tid=None)
+
+
+def sync_hotkeys():
+    (start_hotkeys if load_auto().get("hotkeys") else stop_hotkeys)()
+
+
+# ícone ao lado do relógio
+_tray = {"icon": None}
+
+
+def start_tray(url):
+    """Ícone na bandeja: abrir, presets, efeitos, brilho, apagar e sair. Não abre navegador sozinho."""
+    try:
+        import pystray
+        from PIL import Image
+    except Exception:
+        return
+    pt = _pt()
+    T = (lambda p, e: p) if pt else (lambda p, e: e)
+
+    def act(a, v=None):
+        return lambda icon, item: threading.Thread(target=quick, args=(a, v), daemon=True).start()
+
+    def presets_menu():
+        return pystray.Menu(*[pystray.MenuItem(n, act("preset", n)) for n in load_palettes()])
+
+    fx = [("static", T("Estático", "Static")), ("fluir", T("Fluir", "Flow")), ("respirar", T("Respirar", "Breathe")),
+          ("musica", T("Música", "Music")), ("ciclo", T("Ciclo de cores", "Color cycle")),
+          ("arcoiris", T("Arco-íris", "Rainbow"))]
+
+    def quit_app(icon, item):
+        icon.stop()
+        stop_effect()
+        os._exit(0)
+
+    menu = pystray.Menu(
+        pystray.MenuItem(T("Abrir MeuRGB", "Open MeuRGB"), lambda i, it: webbrowser.open(url), default=True),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(T("Presets", "Presets"), pystray.Menu(lambda: presets_menu().items)),
+        pystray.MenuItem(T("Efeito", "Effect"), pystray.Menu(*[pystray.MenuItem(n, act("effect", k)) for k, n in fx])),
+        pystray.MenuItem(T("Mais brilho", "Brighter"), act("brighter")),
+        pystray.MenuItem(T("Menos brilho", "Dimmer"), act("dimmer")),
+        pystray.MenuItem(T("Apagar / acender", "Lights off / on"), act("toggle")),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(T("Sair do MeuRGB", "Quit MeuRGB"), quit_app),
+    )
+    icon = pystray.Icon(APP_NAME, Image.open(HERE / "icon.ico"), APP_NAME, menu)
+    _tray["icon"] = icon
+    threading.Thread(target=icon.run, daemon=True).start()
+
+
 # ---------------------------------------------------------------- servidor web local
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -965,7 +1211,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/claude":
             return self._send(200, dict(load_claude(), effect=_effect["on"],
                                         effect_kind=_effect.get("kind") if _effect["on"] else "static",
-                                        pc_configured=(load_pc() or {}).get("configured")))
+                                        pc_configured=(load_pc() or {}).get("configured"),
+                                        state_rev=_rev["n"], temp=_effect.get("temp")))
         if self.path == "/api/detect":
             return self._send(200, detect_system())
         if self.path == "/api/auto":
@@ -1013,7 +1260,14 @@ class Handler(BaseHTTPRequestHandler):
                 turn_off()
                 return self._send(200, {"ok": True})
             if self.path == "/api/auto":
-                return self._send(200, {"ok": True, "auto": save_auto(body)})
+                a = save_auto(body)
+                sync_hotkeys()
+                return self._send(200, {"ok": True, "auto": a})
+            if self.path == "/api/quick":
+                quick(body.get("action"), body.get("value"))
+                return self._send(200, {"ok": True})
+            if self.path == "/api/temp":
+                return self._send(200, {"ok": True, "temp": read_temperature(body.get("source", "gpu"))})
             if self.path == "/api/autostart":
                 return self._send(200, {"ok": True, "autostart": set_autostart(bool(body.get("on")))})
             if self.path == "/api/share":
@@ -1066,6 +1320,8 @@ def serve():
     elif "--no-browser" not in sys.argv:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     start_auto_engine()
+    start_tray(url)
+    sync_hotkeys()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -1167,6 +1423,10 @@ def cli(argv):
 
 
 if __name__ == "__main__":
+    if sys.stderr is None or sys.stdout is None:   # aberto com pythonw (sem janela): erros vão para o log
+        _log = open(HERE / "meurgb.log", "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = _log
+        print(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {APP_NAME} v{VERSION}")
     args = [a for a in sys.argv[1:] if a not in ("--no-browser", "--background")]
     if args:
         cli(args)

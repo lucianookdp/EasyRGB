@@ -93,7 +93,7 @@
   .seg button svg{width:14px;height:14px}
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:9px;background:var(--border2);outline:0;margin:13px 0}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--text);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--border2)}
-  .fxgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .fxgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
   @media(max-width:700px){.fxgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
   .fxgrid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:62px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;font-weight:500;padding:0 4px;text-align:center}
   .fxgrid button:hover{color:var(--text);border-color:var(--border2)}
@@ -144,6 +144,21 @@
   .persist{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);padding:8px 12px 10px;margin-top:auto;border-top:1px solid var(--border)}
   .persist .i{width:13px;height:13px}
   .persist.auto{color:var(--ok-text)} .persist.none{color:var(--warn-text)}
+  .tile.hk{margin-top:10px}
+  .keys{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+  .keys span{display:inline-flex;align-items:center;gap:3px}
+  .keys em{font-style:normal;margin-left:4px}
+  kbd{font:600 10.5px Inter,system-ui,sans-serif;color:var(--text);background:var(--surface2);border:1px solid var(--border2);border-bottom-width:2px;border-radius:5px;padding:1px 5px}
+  .tile.hk:not(.on) .keys{opacity:.55}
+  .extras{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+  .extras summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;font-size:12.5px;color:var(--dim);font-weight:500}
+  .extras summary::-webkit-details-marker{display:none}
+  .extras summary:hover{color:var(--text)}
+  .extras summary .i{width:14px;height:14px;transition:transform .15s}
+  .extras[open] summary .i{transform:rotate(90deg)}
+  .extras .tile{margin-top:10px}
+  .nightcfg select{height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:0 6px;font-size:12.5px}
+  .tnow{margin-left:auto;font-weight:600;color:var(--text)}
   .noitems{font-size:12.5px;color:var(--dim);padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;text-align:center}
   .astatus{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ok-strong);background:color-mix(in srgb,var(--ok) 9%,transparent);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent);border-radius:9px;padding:7px 10px;margin-bottom:12px}
   .astatus .i{width:14px;height:14px}
@@ -369,6 +384,7 @@
               <button data-v="respirar"><span data-i="wind"></span>Respirar</button>
               <button data-v="ciclo"><span data-i="repeat"></span>Ciclo de cores</button>
               <button data-v="arcoiris"><span data-i="rainbow"></span>Arco-íris</button>
+              <button data-v="musica"><span data-i="music"></span>Música</button>
             </div>
             <div class="speedrow" id="speedrow"><span class="dim">Velocidade</span><input type="range" id="spd" min="1" max="10" value="3"><span id="spdv" class="dim">3</span></div>
           </div>
@@ -401,6 +417,18 @@
           </div>
         </div>
 
+        <div class="tile hk" id="hkTile">
+          <div class="thd"><div class="tic"><span data-i="keyboard"></span></div><div class="ttl"><b>Atalhos de teclado</b><small>Troque cores sem abrir o app. O MeuRGB fica no ícone ao lado do relógio.</small></div>
+            <span class="switch"><input type="checkbox" id="hkOn" aria-label="Atalhos de teclado"><span></span></span></div>
+          <div class="keys">
+            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>→</kbd> <em>Próximo preset</em></span>
+            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>←</kbd> <em>Preset anterior</em></span>
+            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>↑</kbd><kbd>↓</kbd> <em>Brilho</em></span>
+            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>E</kbd> <em>Trocar efeito</em></span>
+            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>L</kbd> <em>Apagar / acender</em></span>
+          </div>
+        </div>
+
         <div class="block">
           <div class="bhead"><div class="tic"><span data-i="gamepad"></span></div><div class="ttl"><b>Modo jogo</b><small>Abriu o jogo, o PC usa o preset dele. Fechou, volta ao seu visual.</small></div>
             <button class="btn sm" id="findGames" title="Procura jogos na Steam, Epic, Riot e Xbox"><span data-i="search"></span>Achar meus jogos</button></div>
@@ -419,6 +447,20 @@
             <button class="btn sm" id="addSched"><span data-i="plus"></span>Novo horário</button></div>
           <div id="schedRules"></div>
         </div>
+
+        <details class="extras" id="extras">
+          <summary><span data-i="chevron"></span>Extras</summary>
+          <div class="tile">
+            <div class="thd"><div class="tic"><span data-i="thermo"></span></div><div class="ttl"><b>Temperatura do PC na cor</b><small>Azul quando está frio, vermelho quando esquenta. Também serve de alerta.</small></div>
+              <button class="btn sm" id="tempGo">Usar</button></div>
+            <div class="nightcfg" style="display:flex">
+              <label>Sensor <select id="tempSrc"><option value="gpu">Placa de vídeo</option><option value="cpu">Processador</option></select></label>
+              <label>Frio até <input type="number" id="tempMin" min="20" max="90" step="5"> °C</label>
+              <label>Quente a partir de <input type="number" id="tempMax" min="30" max="110" step="5"> °C</label>
+              <span class="tnow" id="tempNow"></span>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
   </div>
@@ -480,6 +522,8 @@ const I = {
   sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
   message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  thermo:'<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
   copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   gamepad:'<path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="6"/>',
   moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
@@ -607,6 +651,15 @@ const EN={
   "Código copiado. Mande para quem quiser o mesmo visual.":"Code copied. Send it to anyone who wants the same look.","Copie o código no campo abaixo":"Copy the code from the field below",
   "{x} importado. Clique em Aplicar para manter.":"{x} imported. Click Apply to keep it.","Visual":"Look",
   "O MeuRGB está fechado. Abra o MeuRGB.bat de novo.":"MeuRGB is closed. Open MeuRGB.bat again.","O servidor do MeuRGB não respondeu.":"The MeuRGB server didn't respond.","Erro desconhecido":"Unknown error",
+  // atalhos, música e extras
+  "Música":"Music","Temperatura":"Temperature","Atalhos de teclado":"Keyboard shortcuts",
+  "Troque cores sem abrir o app. O MeuRGB fica no ícone ao lado do relógio.":"Change colors without opening the app. MeuRGB stays in the icon next to the clock.",
+  "Próximo preset":"Next preset","Preset anterior":"Previous preset","Trocar efeito":"Change effect","Apagar / acender":"Lights off / on",
+  "Atalhos ligados: Ctrl+Alt+setas, E e L":"Shortcuts on: Ctrl+Alt+arrows, E and L","Atalhos desligados":"Shortcuts off",
+  "Extras":"Extras","Temperatura do PC na cor":"PC temperature as color",
+  "Azul quando está frio, vermelho quando esquenta. Também serve de alerta.":"Blue when cool, red when hot. Works as an alert too.",
+  "Sensor":"Sensor","Processador":"Processor","Frio até":"Cool up to","Quente a partir de":"Hot from",
+  "Não consegui ler a temperatura desse sensor":"Couldn't read this sensor's temperature","Temperatura agora: {t} °C":"Temperature now: {t} °C",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
   "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com MEURGB1-":"Invalid code: it must start with MEURGB1-",
@@ -906,7 +959,7 @@ function renderPresets(){
 }
 
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
-const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris"};
+const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris",musica:"Música",temperatura:"Temperatura"};
 /* o mesmo prompt fica no COMECE-AQUI.txt e no README */
 const SETUP_PROMPT = LANG==="pt" ? `Configure o MeuRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
 Se ainda não estiver instalado, instale primeiro (vou aceitar o pedido de administrador do Windows).
@@ -1059,6 +1112,10 @@ function renderAuto(){
     +(A.needs_running?tr("Fica aberto em segundo plano (~30 MB) por causa das automações ou do efeito animado."):tr("Devolve suas cores e fecha sozinho."));
   const st=$("#astatus"); st.hidden=!A.status; st.innerHTML=A.status?icon("gamepad")+esc(A.status):"";
 
+  // atalhos e extras
+  $("#hkOn").checked=!!A.auto.hotkeys; $("#hkTile").classList.toggle("on",!!A.auto.hotkeys);
+  const ex=A.auto.extras||{}; $("#tempSrc").value=ex.temp_source||"gpu"; $("#tempMin").value=ex.temp_min||40; $("#tempMax").value=ex.temp_max||80;
+
   // modo noite
   const n=night(); $("#nightOn").checked=n.on; $("#nightTile").classList.toggle("on",n.on);
   $("#nightFrom").value=n.dim?.time||"23:00"; $("#nightTo").value=n.back?.time||"08:00"; $("#nightBri").value=n.dim?.value||20;
@@ -1115,6 +1172,14 @@ function setNight(on){
 $("#nightOn").onchange=e=>{ setNight(e.target.checked);
   toast(e.target.checked?tr("Modo noite ligado: brilho {b}% das {f} às {t}",{b:$("#nightBri").value,f:$("#nightFrom").value,t:$("#nightTo").value}):tr("Modo noite desligado")); };
 ["nightFrom","nightTo","nightBri"].forEach(id=>$("#"+id).onchange=()=>{ if(night().on) setNight(true); });
+$("#hkOn").onchange=e=>{ A.auto.hotkeys=e.target.checked; renderAuto(); saveAuto();
+  toast(e.target.checked?tr("Atalhos ligados: Ctrl+Alt+setas, E e L"):tr("Atalhos desligados")); };
+function saveExtras(){ A.auto.extras={temp_source:$("#tempSrc").value,temp_min:+$("#tempMin").value||40,temp_max:+$("#tempMax").value||80}; saveAuto(); }
+["tempSrc","tempMin","tempMax"].forEach(id=>$("#"+id).onchange=()=>{ saveExtras(); if(S.fx==="temperatura") preview(); });
+$("#tempGo").onclick=e=>run(e.currentTarget,async()=>{ saveExtras(); await new Promise(r=>setTimeout(r,400));
+  S.fx="temperatura"; render(); await api("/api/effect",payload({on:true}));
+  const j=await api("/api/temp",{source:$("#tempSrc").value});
+  toast(j.temp==null?tr("Não consegui ler a temperatura desse sensor"):tr("Temperatura agora: {t} °C",{t:Math.round(j.temp)}), j.temp==null?"err":"ok"); });
 $("#autostart").onchange=e=>run(null,async()=>{ const want=e.target.checked;
   toast(tr("Aceite o pedido de administrador do Windows"),"busy",0);
   const j=await api("/api/autostart",{on:want}); A.autostart=j.autostart; renderAuto();
@@ -1169,6 +1234,9 @@ setInterval(async()=>{
       S.claudeSeen=created; S.claude=c; closePicker(); await loadState(true);
       toast(tr("IA aplicou: {x}",{x:c.active.name||tr("Perfil da IA")}),"ai",4500);
     }
+    if(c.temp!=null) $("#tempNow").textContent=`${Math.round(c.temp)} °C`;
+    if(S.revSeen===undefined) S.revSeen=c.state_rev;
+    else if(c.state_rev!==S.revSeen){ S.revSeen=c.state_rev; if(!S.applied||snap()===S.applied) await loadState(true); }
     if(S.pcSeen!==null && c.pc_configured && c.pc_configured!==S.pcSeen){
       S.pcSeen=c.pc_configured; await loadState(!S.applied || snap()===S.applied);
       toast("A IA configurou o MeuRGB para o seu PC","ai",4500);

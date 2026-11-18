@@ -34,11 +34,14 @@ set "SETUP=%~dp01-Configurar (admin).ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList ('-NoProfile -ExecutionPolicy Bypass -File \"' + $env:SETUP + '\"')"
 
 :abrir
+rem Abre escondido (fica no icone ao lado do relogio) e abre a pagina no navegador.
 cd /d "%~dp0app"
-echo Opening MeuRGB... keep this window open. / Abrindo o MeuRGB... deixe esta janela aberta.
-python rgb_controller.py
-echo.
-echo MeuRGB closed. If you see an error above, take a screenshot. / O MeuRGB fechou. Se apareceu um erro acima, tire um print.
+start "" pythonw rgb_controller.py
+timeout /t 4 /nobreak >nul
+powershell -NoProfile -Command "if (-not (Get-NetTCPConnection -State Listen -LocalPort 6750 -ErrorAction SilentlyContinue)) { exit 1 }"
+if not errorlevel 1 exit /b
+echo MeuRGB didn't start. Last log lines: / O MeuRGB nao abriu. Ultimas linhas do log:
+powershell -NoProfile -Command "Get-Content '%~dp0app\meurgb.log' -Tail 15 -ErrorAction SilentlyContinue"
 pause
 exit /b
 

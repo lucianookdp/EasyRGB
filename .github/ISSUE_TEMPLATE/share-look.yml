@@ -1,0 +1,33 @@
+name: Share a look / Compartilhar um visual
+description: Send your MeuRGB look to the community gallery.
+title: "[Look] "
+labels: ["gallery"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        In MeuRGB click **Share** to copy your code, then paste it below. / No MeuRGB clique em **Compartilhar** e cole o código abaixo.
+  - type: input
+    id: name
+    attributes:
+      label: Name / Nome
+      placeholder: "Neon Tokyo"
+    validations:
+      required: true
+  - type: input
+    id: code
+    attributes:
+      label: Share code / Código
+      placeholder: "MEURGB1-..."
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / Descrição
+      placeholder: "Pink and cyan neon, keyboard white, RAM continuous."
+  - type: textarea
+    id: photo
+    attributes:
+      label: Photo of your setup (optional) / Foto do setup (opcional)
+      description: Drag an image here. / Arraste uma imagem aqui.
