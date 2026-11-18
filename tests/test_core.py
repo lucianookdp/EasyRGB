@@ -554,12 +554,10 @@ class TestUi(unittest.TestCase):
         self.assertEqual(sorted(t for t in texts if t and t not in en and t not in keep), [],
                          "texto fixo da página sem tradução para inglês")
 
-    def test_light_and_dark_themes(self):
+    def test_dark_theme_only(self):
         css = self.html[self.html.index("<style>"):self.html.index("</style>")]
-        self.assertIn("prefers-color-scheme: light", css)
-        dark = set(re.findall(r"(--[\w-]+):", css[:css.index("prefers-color-scheme")]))
-        light = set(re.findall(r"(--[\w-]+):", css[css.index("prefers-color-scheme"):]))
-        self.assertEqual(sorted(dark - light - {"--r"}), [], "variáveis do tema escuro sem versão clara")
+        self.assertNotIn("prefers-color-scheme: light", css, "o app usa só o tema escuro")
+        self.assertIn("color-scheme:dark", css)
 
     def test_ids_exist(self):
         ids = set(re.findall(r'id="([\w-]+)"', self.html))

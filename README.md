@@ -18,13 +18,10 @@
   <img alt="MIT" src="https://img.shields.io/badge/license-MIT-71717a?style=flat-square">
 </p>
 
-<p align="center"><sub>English · <a href="#resumo-em-português">Resumo em português</a> · The app switches language and light/dark theme from your system.</sub></p>
+<p align="center"><sub>English · <a href="#resumo-em-português">Resumo em português</a> · The app follows your system language (English or Portuguese).</sub></p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: light)" srcset="docs/screenshot-light.png">
-    <img src="docs/screenshot.png" alt="MeuRGB" width="920">
-  </picture>
+  <img src="docs/screenshot.png" alt="MeuRGB" width="920">
 </p>
 
 > [!NOTE]
@@ -64,7 +61,7 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 | **Night mode & schedules** | Dim at night, back to normal in the morning, presets at set times. |
 | **Restore on PC start** | Brings colors back after a reboot (even on RAM that can't store them) and **exits by itself**: nothing stays in memory. |
 | **14 presets & share codes** | Popular themes plus a few games you know by their colors; share looks with `MEURGB1-...` codes. |
-| **Light/dark & EN/PT** | Follows your system theme and language. |
+| **English / Português** | Follows your system language. Dark theme, like most RGB apps, so LED colors look true. |
 
 <details>
 <summary><b>Manual install, commands and tests</b></summary>
@@ -86,7 +83,7 @@ python -m unittest discover -s tests -v      # 48 tests, no hardware needed
 
 ## Resumo em português
 
-O **MeuRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `MeuRGB.bat`. O app fica em português ou inglês e no tema claro ou escuro conforme o seu sistema.
+O **MeuRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `MeuRGB.bat`. O app fica em português ou inglês conforme o idioma do seu sistema.
 
 ---
 

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* tema escuro (padrão) */
+  /* tema escuro (único: padrão dos apps de RGB, mostra melhor as cores) */
   :root{
     color-scheme:dark;
     --bg:#09090b; --surface:#111113; --surface2:#18181b; --surface3:#1f1f23;
@@ -19,19 +19,6 @@
     --warn:#f59e0b; --warn-text:#fcd34d; --warn-strong:#fde68a;
     --ai:#a78bfa; --ai-bg:#a78bfa14; --ai-text:#ddd6fe; --ai-border:#a78bfa40; --ai-hover:#c4b5fd;
     --r:12px;
-  }
-  /* tema claro: segue o tema do sistema */
-  @media (prefers-color-scheme: light){
-    :root{
-      color-scheme:light;
-      --bg:#f4f4f5; --surface:#ffffff; --surface2:#f4f4f5; --surface3:#e9e9ec;
-      --border:#e4e4e7; --border2:#d4d4d8; --text:#18181b; --muted:#52525b; --dim:#71717a;
-      --on-text:#ffffff; --primary-hover:#3f3f46; --hover-border:#a1a1aa; --sel-border:#a1a1aa;
-      --line-soft:#00000024; --top-bg:#ffffffd9; --shadow:#18181b40; --knob-off:#ffffff;
-      --ok:#16a34a; --ok-text:#15803d; --ok-strong:#166534; --err:#dc2626;
-      --warn:#d97706; --warn-text:#b45309; --warn-strong:#92400e;
-      --ai:#7c3aed; --ai-bg:#7c3aed10; --ai-text:#6d28d9; --ai-border:#7c3aed40; --ai-hover:#5b21b6;
-    }
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
