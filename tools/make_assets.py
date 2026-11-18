@@ -46,6 +46,21 @@ def _sparkle(s, cx, cy, R, pinch=0.08):
     return m
 
 
+def tray_logo(size=64):
+    """Versão da bandeja: mesmo desenho, mas contorno grosso, ocupando o quadrado e sem brilho difuso,
+    para continuar nítido em 16-32 px (o Windows desenha os ícones da bandeja bem pequenos)."""
+    s = 512
+    cx = cy = s / 2
+    R, w = s * 0.5, s * 0.13
+    outline = ImageChops.subtract(_sparkle(s, cx, cy, R, pinch=0.22), _sparkle(s, cx, cy, R - w * 1.9, pinch=0.22))
+    ball = Image.new("L", (s, s), 0)
+    r = s * 0.11
+    ImageDraw.Draw(ball).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    out.paste(_conic(s), (0, 0), ImageChops.lighter(outline, ball))
+    return out.resize((size, size), Image.LANCZOS)
+
+
 def logo(size=256, background=True):
     s = 512
     cx, cy, R, w = s * 0.5, s * 0.5, s * 0.36, s * 0.05
@@ -110,7 +125,7 @@ if __name__ == "__main__":
     icon = logo(256)
     icon.save(ROOT / "app" / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     icon.save(ROOT / "app" / "icon.png")     # favicon e logo do topo da página
-    logo(256, background=False).save(ROOT / "app" / "tray.png")   # bandeja: só o brilho, sem o fundo escuro
+    tray_logo(64).save(ROOT / "app" / "tray.png")   # bandeja: só o brilho, sem fundo, traço grosso
     icon.save(ROOT / "docs" / "icon.png")    # logo do README
     social_preview().save(ROOT / "docs" / "social-preview.png", optimize=True)
     print("ok: app/icon.ico, app/icon.png, docs/icon.png, docs/social-preview.png")
