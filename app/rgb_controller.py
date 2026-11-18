@@ -707,7 +707,7 @@ def save_auto(a):
              "games": [{"process": str(g["process"]).strip(), "preset": g.get("preset", ""),
                         "enabled": g.get("enabled", True)} for g in a.get("games", []) if g.get("process")],
              "schedule": [{"time": str(s["time"])[:5], "action": s.get("action", "preset"), "value": s.get("value"),
-                           "enabled": s.get("enabled", True)}
+                           "enabled": s.get("enabled", True), **({"tag": s["tag"]} if s.get("tag") else {})}
                           for s in a.get("schedule", []) if re.fullmatch(r"\d{2}:\d{2}", str(s.get("time", ""))[:5])]}
     AUTO_FILE.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
     return clean
