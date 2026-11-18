@@ -49,6 +49,7 @@ flowchart LR
 |---|---|
 | *"Configure o MeuRGB no meu PC."* | Detecta placa-mãe, BIOS, RAMs, GPU, periféricos e os efeitos que cada chip suporta. Acha programas RGB que brigam com o OpenRGB e pergunta antes de desativar. Salva um perfil do PC com apelidos e preferências. |
 | *"Quero um visual cyberpunk roxo e azul, teclado branco e RAMs contínuas."* | Monta a paleta, ajusta cada dispositivo e zona, escolhe efeitos e aplica na hora. O perfil aparece no app com histórico. |
+| *"Quando eu abrir o Valorant, deixa tudo vermelho. E à noite diminui o brilho."* | Acha os jogos instalados, cria as regras de modo jogo e os horários. |
 
 As instruções para os agentes ficam no [`AGENTS.md`](AGENTS.md).
 
@@ -65,6 +66,10 @@ As instruções para os agentes ficam no [`AGENTS.md`](AGENTS.md).
 | **30 presets** | Paletas de jogos e clássicos, com busca. |
 | **Paleta de imagem** | Arraste, cole ou escolha uma imagem e as cores saem dela. |
 | **Gravar na placa** | As cores continuam depois de reiniciar, sem nada aberto. |
+| **Modo jogo** | Abriu o jogo, o PC troca para o preset dele; fechou, volta ao seu visual. Acha os jogos instalados sozinho (Steam, Epic, Riot, Xbox). |
+| **Horários** | Modo noite com um clique (brilho baixo às 23:00, normal às 08:00), presets por horário, apagar e restaurar. |
+| **Iniciar com o Windows** | Abre escondido e devolve as cores depois de reiniciar, até nas RAMs que não gravam cor. |
+| **Compartilhar visual** | Gera um código `MEURGB1-...` para mandar para alguém; quem recebe importa com um clique. |
 
 <details>
 <summary><b>Presets incluídos</b></summary>
@@ -109,9 +114,23 @@ python rgb_controller.py configurar pc.json  # salva o perfil do PC
 python rgb_controller.py ia perfil.json      # aplica um visual criado pela IA
 python rgb_controller.py listar              # dispositivos, zonas e efeitos do chip
 python rgb_controller.py aplicar valorant    # aplica um preset
+python rgb_controller.py jogos               # jogos conhecidos instalados
+python rgb_controller.py automacao regras.json   # modo jogo e horários
+python rgb_controller.py iniciar-com-windows sim
+python rgb_controller.py compartilhar        # código MEURGB1-... do visual atual
+python rgb_controller.py importar MEURGB1-...
 python rgb_controller.py desligar
 ```
 </details>
+
+### Testes
+
+```bash
+python -m unittest discover -s tests -v                    # 41 testes, sem precisar de hardware
+set MEURGB_HW=1 && python -m unittest tests.test_hardware   # +5 no hardware real (as luzes piscam e voltam)
+```
+
+Cobrem a lógica de cores, hardware simulado (placa, RAMs e teclado), efeitos do chip, modo jogo e horários, a API local, a interface (sem emojis, ícones e elementos existentes) e a paridade entre a lógica do navegador e a do servidor (com Node.js).
 
 ---
 
@@ -135,6 +154,9 @@ Agent instructions live in [`AGENTS.md`](AGENTS.md).
 - **App effects** (Flow, Breathe, Color cycle, Rainbow) on any device.
 - **Chip effects**: each device's built-in effects, read from the hardware itself; they keep running with the app closed.
 - **30 presets** (games and classics) with search, **palette from image**, and **save to board** so colors survive reboots.
+- **Game mode**: open a game and the PC switches to its preset; close it and your look comes back. Finds installed games on its own.
+- **Schedules** (one-click night mode), **start with Windows** (restores colors after reboot, even on RAM that can't store them) and **share codes** (`MEURGB1-...`) to swap looks with friends.
+- **41 automated tests** plus 5 opt-in real-hardware tests: `python -m unittest discover -s tests -v`.
 
 ### Install
 

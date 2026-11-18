@@ -71,11 +71,42 @@ No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perf
 - Prefira cores vivas e saturadas: cinza e tons escuros ficam feios em LED.
 - Presets prontos (jogos e clássicos) ficam em `app/palettes.json`; dá para usar como ponto de partida.
 
+## 3. Automação: jogos, horários e iniciar com o Windows
+
+Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" ou "à noite diminui o brilho":
+
+1. `python rgb_controller.py jogos` lista os jogos conhecidos instalados (Steam, Epic, Riot, Xbox) e o preset sugerido.
+2. `python rgb_controller.py automacao` mostra as regras atuais. Para salvar, **leia as atuais e mande a lista completa**
+   (o comando substitui tudo):
+   ```bash
+   python rgb_controller.py automacao - <<'EOF'
+   {"enabled": true,
+    "games": [{"process": "VALORANT-Win64-Shipping.exe", "preset": "Valorant"},
+              {"process": "cs2.exe", "preset": "Counter-Strike 2"}],
+    "schedule": [{"time": "23:00", "action": "brightness", "value": 20},
+                 {"time": "08:00", "action": "restore"},
+                 {"time": "19:00", "action": "preset", "value": "Synthwave"}]}
+   EOF
+   ```
+   - `games`: enquanto o executável estiver aberto, usa o preset; ao fechar, volta ao visual do usuário.
+     O preset precisa existir em `app/palettes.json` (crie um antes, se for novo).
+   - `schedule[].action`: `preset` (value = nome), `brightness` (value = %), `off` (apaga) ou `restore` (visual salvo).
+   - Funciona enquanto o MeuRGB está aberto (ou iniciado com o Windows).
+3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que abre o MeuRGB escondido e devolve as
+   cores depois de reiniciar (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema. `nao` remove.
+
 ## Outros comandos
 
 - `python rgb_controller.py listar`: dispositivos, zonas e efeitos do chip.
 - `python rgb_controller.py aplicar <preset ou cores> [--brilho 80] [--modo zona] [--gravar]`
+- `python rgb_controller.py compartilhar` / `importar MEURGB1-...`: código para trocar visuais entre pessoas.
 - `python rgb_controller.py desligar`
+
+## Testes
+
+- `python -m unittest discover -s tests -v`: lógica de cores, hardware simulado, automação, API, interface e
+  paridade Python x JavaScript (precisa do Node.js para esta última). Rode depois de qualquer mudança.
+- `MEURGB_HW=1 python -m unittest tests.test_hardware -v`: teste no hardware real (as luzes piscam e voltam no final).
 
 ## Notas para agentes
 
@@ -86,4 +117,4 @@ No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perf
 
 - Interface com ícones SVG (estilo Lucide), nunca emojis. Visual sóbrio: fundo zinc escuro, botão primário branco.
 - A lógica de cores existe em dois lugares e precisa ficar igual: `plan_colors` no Python e `plan()` no `index.html`.
-- `.gitignore` deixa de fora o estado de cada PC (`last_state.json`, `claude_color.json`, `pc.json`).
+- `.gitignore` deixa de fora o estado de cada PC (`last_state.json`, `claude_color.json`, `pc.json`, `automations.json`).

@@ -15,6 +15,7 @@
     --r:12px;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   button,input{font:inherit;color:inherit}
   button{cursor:pointer}
@@ -116,6 +117,29 @@
   .pcchip .i{width:13px;height:13px}
   .pcchip.ai{color:#ddd6fe;border-color:#a78bfa40;background:var(--ai-bg)}
   .presearch{margin-bottom:10px}
+  .autocb{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px}
+  .autocb .arow,.autocb .astatus{grid-column:1/-1}
+  @media(max-width:760px){.autocb{grid-template-columns:1fr}}
+  .arow{display:flex;align-items:center;gap:12px;cursor:pointer}
+  .atxt{flex:1;min-width:0}
+  .atxt b{display:block;font-size:13px;font-weight:500}
+  .atxt small{display:block;font-size:12px;color:var(--dim)}
+  .astatus{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#bbf7d0;background:#22c55e14;border:1px solid #22c55e33;border-radius:9px;padding:7px 10px}
+  .astatus .i{width:14px;height:14px}
+  .asec{border-top:1px solid var(--border);padding-top:12px}
+  .ahead{display:flex;align-items:center;gap:8px;font-size:13px}
+  .ahead b{font-weight:600}
+  .ahead .i{width:15px;height:15px;color:var(--muted)}
+  .ahint{margin:4px 0 8px;font-size:12px;color:var(--dim)}
+  .rule{display:flex;align-items:center;gap:6px;padding:5px 0}
+  .rule .exe{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .rule .fxsel{flex:0 0 auto;width:auto;max-width:150px;height:28px;font-size:12px}
+  .rule input[type=time]{height:28px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:0 6px;font-size:12.5px;color-scheme:dark}
+  .rule input[type=number]{width:56px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:0 6px;font-size:12.5px}
+  .rule .sp{flex:1}
+  .rule.off .exe{color:var(--dim);text-decoration:line-through}
+  .addrow{display:flex;gap:8px;margin-top:6px}
+  .noitems{font-size:12px;color:var(--dim);padding:4px 0}
   .presets{max-height:360px;overflow:auto;padding-right:2px}
   .uh{display:flex;align-items:center;gap:10px;padding:12px 12px 0}
   .uic{width:34px;height:34px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;color:var(--muted);flex:none}
@@ -255,12 +279,15 @@
         <div><h2>Paleta</h2><p>Clique numa cor para editar. O PC já mostra a mudança enquanto você escolhe.</p></div>
         <div class="sp"></div>
         <button class="btn sm" id="imgBtn" title="Extrair cores de uma imagem (também dá para arrastar ou colar com Ctrl+V)"><span data-i="image"></span>Da imagem</button>
+        <button class="btn sm" id="shareBtn" title="Copiar um código do visual para mandar para alguém"><span data-i="share"></span>Compartilhar</button>
+        <button class="btn sm ghost" id="importBtn" title="Usar o visual de outra pessoa"><span data-i="download"></span>Importar</button>
         <input type="file" id="file" accept="image/*" hidden>
       </div>
       <div class="cb">
         <div class="strip" id="strip"></div>
         <div class="swatches" id="swatches"></div>
         <div class="hexline"><div class="field"><span data-i="hash"></span><input id="hex" class="mono" spellcheck="false" placeholder="Cole uma paleta: #FF2E88, 9B3DFF, rgb(0,217,200)"></div></div>
+        <div class="hexline" id="importRow" hidden><div class="field"><span data-i="download"></span><input id="importCode" class="mono" spellcheck="false" placeholder="Cole aqui um código MEURGB1-..."></div><button class="btn" id="importGo">Usar</button></div>
 
         <div class="controls">
           <div class="ctl">
@@ -294,6 +321,36 @@
       <div class="ch"><div><h2>Dispositivos</h2><p>Clique numa zona para dar uma cor só para ela.</p></div><div class="sp"></div><div id="pcinfo"></div></div>
       <div class="cb"><div class="devs" id="devs"></div></div>
     </section>
+
+    <section class="card" id="autoCard">
+      <div class="ch"><div><h2>Automação</h2><p>O PC muda sozinho quando você joga ou na hora certa.</p></div></div>
+      <div class="cb autocb">
+        <label class="arow">
+          <div class="atxt"><b>Iniciar com o Windows</b><small>Abre escondido e devolve suas cores depois de reiniciar.</small></div>
+          <span class="switch"><input type="checkbox" id="autostart"><span></span></span>
+        </label>
+        <div class="astatus" id="astatus" hidden></div>
+
+        <div class="asec">
+          <div class="ahead"><span data-i="gamepad"></span><b>Modo jogo</b><span class="sp"></span>
+            <button class="btn sm" id="findGames" title="Procura jogos conhecidos na Steam, Epic, Riot e Xbox"><span data-i="search"></span>Achar jogos</button></div>
+          <p class="ahint">Abriu o jogo, o PC troca para o preset dele. Fechou, volta ao seu visual.</p>
+          <div id="gameRules"></div>
+          <div class="addrow">
+            <div class="field"><span data-i="plus"></span><input id="gameExe" list="knownExe" placeholder="Executável (ex.: VALORANT-Win64-Shipping.exe)"></div>
+            <button class="btn" id="addGame">Adicionar</button>
+          </div>
+          <datalist id="knownExe"></datalist>
+        </div>
+
+        <div class="asec">
+          <div class="ahead"><span data-i="clock"></span><b>Horários</b><span class="sp"></span>
+            <button class="btn sm" id="nightMode" title="Brilho baixo às 23:00 e volta ao normal às 08:00"><span data-i="moon"></span>Modo noite</button></div>
+          <div id="schedRules"></div>
+          <button class="btn sm ghost" id="addSched"><span data-i="plus"></span>Adicionar horário</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="col">
@@ -319,6 +376,7 @@
     </section>
   </div>
 </main>
+
 
 <div class="dirty" id="dirty">
   <div class="msg"><span class="pulse"></span><span><b>Pré-visualizando no PC.</b> As alterações ainda não foram aplicadas.</span></div>
@@ -353,6 +411,10 @@ const I = {
   sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
   message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  gamepad:'<path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="6"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
   wind:'<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
   repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
   rainbow:'<path d="M22 17a10 10 0 0 0-20 0"/><path d="M6 17a6 6 0 0 1 12 0"/><path d="M10 17a2 2 0 0 1 4 0"/>',
@@ -425,7 +487,11 @@ const byType = () => { const m={}; S.devices.forEach(d=>(m[d.type] ||= []).push(
 function groups(){ const g=[]; Object.entries(byType()).forEach(([t,ds])=>{ const lm=S.links[t];
   if(ds.length>1 && (lm==="mirror"||lm==="span")) g.push({ids:ds.map(d=>d.id),mode:lm}); }); return g; }
 function plan(){
-  const ids=enabledIds(), res={}, done=new Set(), ov=S.overrides;
+  const ids=enabledIds(), res={}, done=new Set(), ov={...S.overrides};
+  for(const g of groups()){   // dentro de um grupo, as cores fixas por zona seguem o primeiro módulo (igual ao servidor)
+    const mem=g.ids.filter(i=>ids.includes(i)); if(mem.length<2) continue;
+    mem.slice(1).forEach(i=>{ if(ov[mem[0]]) ov[i]={...ov[mem[0]]}; else delete ov[i]; });
+  }
   for(const g of groups()){
     const mem=g.ids.filter(i=>ids.includes(i)); if(mem.length<2 || g.mode!=="span") continue;
     const devs=mem.map(i=>S.devices.find(d=>d.id===i)); mem.forEach(i=>res[i]=[]);
@@ -766,6 +832,76 @@ function fromImage(file){
   img.src=URL.createObjectURL(file);
 }
 
+/* ===================== automação ===================== */
+const A={auto:{enabled:true,games:[],schedule:[]}, known:{}, status:"", autostart:false};
+const ACTIONS={preset:"Aplicar preset",brightness:"Brilho",off:"Apagar",restore:"Meu visual"};
+let autoT=null;
+function saveAuto(){ clearTimeout(autoT); autoT=setTimeout(()=>api("/api/auto",A.auto).then(j=>{ A.auto=j.auto; }).catch(e=>toast(e.message,"err")),300); }
+function presetOptions(sel){ return Object.keys(S.palettes).map(n=>`<option ${n===sel?"selected":""}>${esc(n)}</option>`).join(""); }
+function renderAuto(){
+  $("#autostart").checked=A.autostart;
+  const st=$("#astatus"); st.hidden=!A.status; st.innerHTML=A.status?icon("gamepad")+esc(A.status):"";
+  $("#knownExe").innerHTML=Object.keys(A.known).map(k=>`<option value="${esc(k)}">${esc(A.known[k])}</option>`).join("");
+  const g=$("#gameRules");
+  g.innerHTML=A.auto.games.length?A.auto.games.map((r,i)=>`<div class="rule ${r.enabled===false?"off":""}">
+      <span class="exe mono" title="${esc(r.process)}">${esc(r.process)}</span>
+      <select class="fxsel" data-gp="${i}" title="Preset usado enquanto o jogo estiver aberto">${presetOptions(r.preset)}</select>
+      <label class="switch" title="Ligar ou desligar esta regra"><input type="checkbox" data-ge="${i}" ${r.enabled===false?"":"checked"}><span></span></label>
+      <button class="ib sm" data-gx="${i}" title="Remover">${icon("x")}</button></div>`).join("")
+    :`<div class="noitems">Nenhum jogo ainda. Clique em "Achar jogos" ou adicione o executável.</div>`;
+  g.querySelectorAll("[data-gp]").forEach(s=>s.onchange=()=>{ A.auto.games[+s.dataset.gp].preset=s.value; saveAuto(); });
+  g.querySelectorAll("[data-ge]").forEach(c=>c.onchange=()=>{ A.auto.games[+c.dataset.ge].enabled=c.checked; renderAuto(); saveAuto(); });
+  g.querySelectorAll("[data-gx]").forEach(b=>b.onclick=()=>{ A.auto.games.splice(+b.dataset.gx,1); renderAuto(); saveAuto(); });
+  const s=$("#schedRules");
+  s.innerHTML=A.auto.schedule.length?A.auto.schedule.map((r,i)=>`<div class="rule ${r.enabled===false?"off":""}">
+      <input type="time" value="${esc(r.time)}" data-st="${i}">
+      <select class="fxsel" data-sa="${i}">${Object.entries(ACTIONS).map(([k,v])=>`<option value="${k}" ${k===r.action?"selected":""}>${v}</option>`).join("")}</select>
+      ${r.action==="preset"?`<select class="fxsel" data-sv="${i}">${presetOptions(r.value)}</select>`:r.action==="brightness"?`<input type="number" min="5" max="100" value="${+r.value||30}" data-sv="${i}" title="Brilho em %">`:`<span class="sp"></span>`}
+      <button class="ib sm" data-sx="${i}" title="Remover">${icon("x")}</button></div>`).join("")
+    :`<div class="noitems">Nenhum horário.</div>`;
+  s.querySelectorAll("[data-st]").forEach(el=>el.onchange=()=>{ A.auto.schedule[+el.dataset.st].time=el.value; saveAuto(); });
+  s.querySelectorAll("[data-sa]").forEach(el=>el.onchange=()=>{ const r=A.auto.schedule[+el.dataset.sa]; r.action=el.value;
+    r.value=el.value==="preset"?Object.keys(S.palettes)[0]:el.value==="brightness"?30:null; renderAuto(); saveAuto(); });
+  s.querySelectorAll("[data-sv]").forEach(el=>el.onchange=()=>{ const r=A.auto.schedule[+el.dataset.sv]; r.value=r.action==="brightness"?+el.value:el.value; saveAuto(); });
+  s.querySelectorAll("[data-sx]").forEach(b=>b.onclick=()=>{ A.auto.schedule.splice(+b.dataset.sx,1); renderAuto(); saveAuto(); });
+}
+async function loadAuto(){ const j=await api("/api/auto"); Object.assign(A,{auto:j.auto,known:j.known,status:j.status,autostart:j.autostart}); renderAuto(); }
+function addGame(exe,preset){
+  exe=exe.trim(); if(!exe) return false; if(!/\.exe$/i.test(exe)) exe+=".exe";
+  if(A.auto.games.some(g=>g.process.toLowerCase()===exe.toLowerCase())) return false;
+  A.auto.games.push({process:exe,preset:preset||A.known[exe]||Object.keys(S.palettes)[0],enabled:true}); return true;
+}
+$("#addGame").onclick=()=>{ if(addGame($("#gameExe").value)){ $("#gameExe").value=""; renderAuto(); saveAuto(); } };
+$("#gameExe").onkeydown=e=>{ if(e.key==="Enter") $("#addGame").click(); };
+$("#findGames").onclick=e=>run(e.currentTarget,async()=>{
+  toast("Procurando jogos instalados...","busy",0);
+  const j=await api("/api/games"); const n=j.games.filter(g=>addGame(g.process,g.preset)).length;
+  renderAuto(); saveAuto();
+  toast(j.games.length?(n?`${plural(n,"jogo adicionado","jogos adicionados")}: ${j.games.map(g=>g.preset).join(", ")}`:"Os jogos encontrados já estão na lista"):"Nenhum jogo conhecido encontrado. Adicione o executável à mão.", j.games.length?"ok":"err", 4500); });
+$("#addSched").onclick=()=>{ A.auto.schedule.push({time:"22:00",action:"brightness",value:30,enabled:true}); renderAuto(); saveAuto(); };
+$("#nightMode").onclick=()=>{ A.auto.schedule=A.auto.schedule.filter(r=>!(r.time==="23:00"&&r.action==="brightness")&&!(r.time==="08:00"&&r.action==="restore"));
+  A.auto.schedule.push({time:"23:00",action:"brightness",value:20,enabled:true},{time:"08:00",action:"restore",enabled:true}); renderAuto(); saveAuto();
+  toast("Modo noite: brilho 20% às 23:00 e seu visual de volta às 08:00"); };
+$("#autostart").onchange=e=>run(null,async()=>{ const want=e.target.checked;
+  toast(want?"Ativando... aceite o pedido de administrador":"Desativando... aceite o pedido de administrador","busy",0);
+  const j=await api("/api/autostart",{on:want}); A.autostart=j.autostart; renderAuto();
+  toast(j.autostart===want?(want?"O MeuRGB vai iniciar com o Windows e devolver suas cores":"Não inicia mais com o Windows"):"Não foi possível mudar (o pedido de administrador foi recusado?)", j.autostart===want?"ok":"err", 4500); });
+
+/* ---- compartilhar / importar ---- */
+$("#shareBtn").onclick=e=>run(e.currentTarget,async()=>{
+  const j=await api("/api/share",{palette:S.colors,mode:S.mode,brightness:S.bri,name:S.preset||"",ui:{effect:S.fx,speed:S.speed,links:S.links}});
+  try{ await navigator.clipboard.writeText(j.code); toast("Código copiado. Mande para quem quiser o mesmo visual."); }
+  catch{ $("#importRow").hidden=false; $("#importCode").value=j.code; $("#importCode").select(); toast("Copie o código no campo abaixo"); } });
+$("#importBtn").onclick=()=>{ const r=$("#importRow"); r.hidden=!r.hidden; if(!r.hidden) $("#importCode").focus(); };
+async function importCode(){ const code=$("#importCode").value.trim(); if(!code) return;
+  const {look}=await api("/api/share",{code});
+  S.colors=look.colors; S.mode=look.mode; S.bri=look.brightness; S.fx=look.effect||"static"; S.speed=look.speed||3;
+  S.links={...S.links,...(look.links||{})}; S.overrides={}; S.hw={}; S.preset=null;
+  $("#importRow").hidden=true; $("#importCode").value=""; changed();
+  toast(`${look.name||"Visual"} importado. Clique em Aplicar para manter.`); }
+$("#importGo").onclick=e=>run(e.currentTarget,importCode);
+$("#importCode").onkeydown=e=>{ if(e.key==="Enter") run(null,importCode); };
+
 /* ===================== estado do servidor ===================== */
 async function loadState(useLast){
   const s=await api("/api/state");
@@ -809,7 +945,8 @@ setInterval(async()=>{
 },3000);
 
 render(); renderAI();
-loadState(true).catch(e=>toast(e.message,"err",6000));
+loadState(true).then(loadAuto).catch(e=>toast(e.message,"err",6000));
+setInterval(()=>api("/api/auto").then(j=>{ if(j.status!==A.status || j.autostart!==A.autostart){ A.status=j.status; A.autostart=j.autostart; renderAuto(); } }).catch(()=>{}),5000);
 </script>
 </body>
 </html>

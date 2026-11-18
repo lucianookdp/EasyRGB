@@ -9,9 +9,15 @@ Uso:
   python rgb_controller.py detectar        -> relatório JSON do PC para um agente de IA configurar tudo
   python rgb_controller.py configurar pc.json   (ou "-") -> salva o perfil do PC feito pelo agente
   python rgb_controller.py conectar        -> abre o OpenRGB (servidor SDK)
+  python rgb_controller.py automacao [regras.json | -]  -> mostra ou salva jogos e horários automáticos
+  python rgb_controller.py jogos           -> jogos conhecidos instalados (Steam, Epic, Riot...)
+  python rgb_controller.py iniciar-com-windows [sim|nao]
+  python rgb_controller.py compartilhar    -> código MEURGB1-... do visual atual
+  python rgb_controller.py importar MEURGB1-...
   python rgb_controller.py desligar
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -269,7 +275,10 @@ def apply_hw(idx, dev, name, speed_pct, led_colors, palette, save, RGBColor):
     if int(m.flags or 0) & _HW_FLAG_SPEED and m.speed_min is not None:
         m.speed = round(m.speed_min + (m.speed_max - m.speed_min) * max(0, min(100, speed_pct)) / 100)
     if save or _hw_cache.get(idx) != key or dev.modes[dev.active_mode].name != m.name:
-        dev.set_mode(m, save=save)
+        import warnings
+        with warnings.catch_warnings():  # alguns teclados não "confirmam" o modo, mas aplicam normalmente
+            warnings.simplefilter("ignore")
+            dev.set_mode(m, save=save)
         _hw_cache[idx] = key
     if cm == _HW_PER_LED and led_colors:
         dev.set_colors([RGBColor(*c) for c in led_colors])
@@ -453,6 +462,22 @@ def _match_devices(sel, devs):
     return hit or [i for i, d in enumerate(devs) if s in d.name.lower()]
 
 
+def _match_zones(q, zones):
+    """Zonas pedidas: vazio = todas; índice; nome exato; início de palavra; por último, trecho do nome.
+    (Evita que "io" pegue "Audio" quando existe "IO Cover".)"""
+    q = str(q or "").strip().lower()
+    if not q:
+        return list(range(len(zones)))
+    if q.isdigit():
+        return [int(q)] if int(q) < len(zones) else []
+    names = [z.name.lower() for z in zones]
+    for test in (lambda n: n == q, lambda n: re.search(r"\b" + re.escape(q), n), lambda n: q in n):
+        hit = [i for i, n in enumerate(names) if test(n)]
+        if hit:
+            return hit
+    return []
+
+
 def resolve_profile(p, devs):
     excluded = set()
     for sel in p.get("exclude", []):
@@ -464,10 +489,8 @@ def resolve_profile(p, devs):
         if not color:
             continue
         for di in _match_devices(z.get("device", ""), devs):
-            zq = str(z.get("zone", "")).strip().lower()
-            for zi, zone in enumerate(devs[di].zones):
-                if not zq or zq == str(zi) or zq in zone.name.lower():
-                    overrides.setdefault(str(di), {})[str(zi)] = to_hex(color[0])
+            for zi in _match_zones(z.get("zone", ""), devs[di].zones):
+                overrides.setdefault(str(di), {})[str(zi)] = to_hex(color[0])
     groups, links = [], {}
     for sel, lm in (p.get("links") or {}).items():
         members = _match_devices(sel, devs)
@@ -615,6 +638,264 @@ def save_pc(p):
     return p
 
 
+# ---------------------------------------------------------------- estado salvo
+def load_state():
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def apply_saved(state=None, persist=False, **changes):
+    """Reaplica o último estado salvo (ou outro), com mudanças opcionais (ex.: palette, brightness)."""
+    L = dict(state or load_state() or {})
+    L.update({k: v for k, v in changes.items() if v is not None})
+    pal = parse_colors(L.get("palette") or ["#FFFFFF"])
+    ui = L.get("ui") or {}
+    stop_effect()
+    rep = apply(pal, int(L.get("brightness", 100)), L.get("mode", "gradiente"), L.get("devices"), False,
+                overrides=L.get("overrides"), groups=L.get("groups"), hw=L.get("hw"), persist=persist, ui=ui)
+    if ui.get("effect") in EFFECTS:
+        start_effect(pal, int(L.get("brightness", 100)), L.get("mode", "gradiente"), L.get("devices"),
+                     float(ui.get("speed", 3)), L.get("overrides"), L.get("groups"), ui["effect"], L.get("hw"))
+    return rep
+
+
+# ---------------------------------------------------------------- automação: jogos e horários
+AUTO_FILE = HERE / "automations.json"
+# executável -> preset sugerido (o usuário pode trocar ou adicionar outros pela interface)
+KNOWN_GAMES = {
+    "VALORANT-Win64-Shipping.exe": "Valorant", "Cyberpunk2077.exe": "Cyberpunk 2077", "cs2.exe": "Counter-Strike 2",
+    "FortniteClient-Win64-Shipping.exe": "Fortnite - Raridades", "Minecraft.Windows.exe": "Minecraft",
+    "League of Legends.exe": "League of Legends - Hextech", "RocketLeague.exe": "Rocket League",
+    "Overwatch.exe": "Overwatch", "eldenring.exe": "Elden Ring", "hollow_knight.exe": "Hollow Knight",
+    "DOOMEternalx64vk.exe": "DOOM", "DOOMTheDarkAges.exe": "DOOM", "HaloInfinite.exe": "Halo",
+    "MCC-Win64-Shipping.exe": "Halo", "destiny2.exe": "Destiny 2 - Elementos",
+    "GenshinImpact.exe": "Genshin Impact - Elementos", "Hades.exe": "Hades", "Hades2.exe": "Hades",
+    "Among Us.exe": "Among Us", "portal2.exe": "Portal", "GTA5.exe": "GTA VI - Vice City Sunset",
+    "GTA5_Enhanced.exe": "GTA VI - Vice City Sunset",
+}
+_auto = {"game": None, "fired": {}, "status": "", "thread": None}
+
+
+def load_auto():
+    try:
+        a = json.loads(AUTO_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        a = {}
+    a.setdefault("enabled", True)
+    a.setdefault("games", [])
+    a.setdefault("schedule", [])
+    return a
+
+
+def save_auto(a):
+    clean = {"enabled": bool(a.get("enabled", True)),
+             "games": [{"process": str(g["process"]).strip(), "preset": g.get("preset", ""),
+                        "enabled": g.get("enabled", True)} for g in a.get("games", []) if g.get("process")],
+             "schedule": [{"time": str(s["time"])[:5], "action": s.get("action", "preset"), "value": s.get("value"),
+                           "enabled": s.get("enabled", True)}
+                          for s in a.get("schedule", []) if re.fullmatch(r"\d{2}:\d{2}", str(s.get("time", ""))[:5])]}
+    AUTO_FILE.write_text(json.dumps(clean, indent=2, ensure_ascii=False), encoding="utf-8")
+    return clean
+
+
+def running_processes():
+    """Nomes dos executáveis abertos (em minúsculas)."""
+    out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    return {line.split('","')[0].strip('"').lower() for line in out.splitlines() if line.startswith('"')}
+
+
+def game_rule(auto, running):
+    """Primeira regra de jogo ativa cujo executável está aberto (ou None)."""
+    if not auto.get("enabled", True):
+        return None
+    for g in auto.get("games", []):
+        if g.get("enabled", True) and str(g.get("process", "")).lower() in running:
+            return g
+    return None
+
+
+def due_schedules(auto, now_hm, today, fired):
+    """Horários que devem disparar agora; 'fired' guarda {índice: data} para disparar uma vez por dia."""
+    if not auto.get("enabled", True):
+        return []
+    due = []
+    for i, s in enumerate(auto.get("schedule", [])):
+        if s.get("enabled", True) and s.get("time") == now_hm and fired.get(i) != today:
+            fired[i] = today
+            due.append(s)
+    return due
+
+
+def run_schedule(s):
+    act, val = s.get("action"), s.get("value")
+    if act == "off":
+        stop_effect()
+        turn_off()
+    elif act == "restore":
+        apply_saved()
+    elif act == "brightness":
+        apply_saved(brightness=int(val or 30))
+    elif act == "preset":
+        _, hexes = find_preset(str(val or ""))
+        if hexes:
+            apply_saved(persist=True, palette=hexes, overrides={}, hw={})
+
+
+def auto_tick():
+    """Um passo do motor de automação (chamado a cada poucos segundos)."""
+    auto = load_auto()
+    if not openrgb_running():
+        return
+    rule = game_rule(auto, running_processes()) if auto.get("games") else None
+    cur = _auto["game"]
+    if rule and (not cur or cur["process"] != rule["process"]):
+        _, hexes = find_preset(rule.get("preset", ""))
+        if hexes:
+            apply_saved(palette=hexes, overrides={}, hw={})   # não salva: ao fechar o jogo volta ao normal
+            _auto["game"] = rule
+            _auto["status"] = f"{rule['process']} aberto: usando {rule['preset']}"
+    elif not rule and cur:
+        _auto["game"] = None
+        _auto["status"] = ""
+        apply_saved()
+    now = time.localtime()
+    for s in due_schedules(auto, time.strftime("%H:%M", now), time.strftime("%Y-%m-%d", now), _auto["fired"]):
+        if not _auto["game"]:  # jogando, o jogo tem prioridade
+            run_schedule(s)
+
+
+def start_auto_engine(interval=4):
+    def loop():
+        while True:
+            try:
+                auto_tick()
+            except Exception as e:
+                _auto["status"] = f"erro na automação: {e}"
+            time.sleep(interval)
+    if not _auto["thread"]:
+        _auto["thread"] = threading.Thread(target=loop, daemon=True)
+        _auto["thread"].start()
+
+
+def find_installed_games():
+    """Procura executáveis de jogos conhecidos nas pastas da Steam, Epic e Riot (até 3 níveis)."""
+    roots = [Path(r"C:\Program Files (x86)\Steam\steamapps\common"), Path(r"C:\Program Files\Epic Games"),
+             Path(r"C:\Riot Games"), Path(r"C:\XboxGames"), Path(r"C:\Program Files (x86)\Battle.net")]
+    vdf = Path(r"C:\Program Files (x86)\Steam\steamapps\libraryfolders.vdf")
+    try:  # outras bibliotecas da Steam (outros discos)
+        for p in re.findall(r'"path"\s+"([^"]+)"', vdf.read_text(encoding="utf-8", errors="ignore")):
+            roots.append(Path(p.replace("\\\\", "\\")) / "steamapps" / "common")
+    except Exception:
+        pass
+    wanted = {k.lower(): k for k in KNOWN_GAMES}
+    found = {}
+    for root in dict.fromkeys(roots):
+        if not root.exists():
+            continue
+        base = len(root.parts)
+        for dirpath, dirnames, filenames in os.walk(root):
+            if len(Path(dirpath).parts) - base >= 4:
+                dirnames[:] = []
+            for f in filenames:
+                if f.lower() in wanted:
+                    found[wanted[f.lower()]] = str(Path(dirpath) / f)
+    return [{"process": exe, "preset": KNOWN_GAMES[exe], "path": path} for exe, path in sorted(found.items())]
+
+
+# ---------------------------------------------------------------- iniciar com o Windows
+TASK_NAME = "MeuRGB"
+
+
+_autostart_cache = {"t": 0.0, "v": False}
+
+
+def autostart_installed(fresh=False):
+    if not fresh and time.time() - _autostart_cache["t"] < 30:
+        return _autostart_cache["v"]
+    r = subprocess.run(["schtasks", "/query", "/tn", TASK_NAME], capture_output=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    _autostart_cache.update(t=time.time(), v=r.returncode == 0)
+    return _autostart_cache["v"]
+
+
+def set_autostart(on):
+    """Cria/remove uma tarefa no logon (como admin, para o OpenRGB acessar o chip sem pedir UAC a cada boot).
+    Pede administrador uma vez."""
+    pyw = Path(sys.executable).with_name("pythonw.exe")
+    exe = pyw if pyw.exists() else Path(sys.executable)
+    import tempfile
+    user = os.environ.get("USERDOMAIN", "") + "\\" + os.environ.get("USERNAME", "")
+    if on:
+        ps = (f"$a = New-ScheduledTaskAction -Execute '{exe}' -Argument '\"{HERE / 'rgb_controller.py'}\" --background' "
+              f"-WorkingDirectory '{HERE}'\n"
+              f"$t = New-ScheduledTaskTrigger -AtLogOn -User '{user}'\n"
+              f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
+              f"-ExecutionTimeLimit ([TimeSpan]::Zero)\n"
+              f"$p = New-ScheduledTaskPrincipal -UserId '{user}' -LogonType Interactive -RunLevel Highest\n"
+              f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s -Principal $p -Force\n")
+    else:
+        ps = f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false\n"
+    script = Path(tempfile.gettempdir()) / "meurgb_autostart.ps1"
+    script.write_text(ps, encoding="utf-8-sig")
+    subprocess.run(["powershell", "-NoProfile", "-Command",
+                    f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
+                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{script}'"],
+                   check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        script.unlink()
+    except OSError:
+        pass
+    return autostart_installed(fresh=True)
+
+
+def restore_on_boot():
+    """Modo --background: abre o OpenRGB, espera o hardware e reaplica o último visual."""
+    for _ in range(3):
+        if start_openrgb():
+            break
+        time.sleep(5)
+    for _ in range(30):
+        try:
+            client(refresh=True)
+            if load_state():
+                apply_saved()
+            return
+        except Exception:
+            time.sleep(2)
+
+
+# ---------------------------------------------------------------- compartilhar visual
+def share_code(L):
+    """Código curto para compartilhar um visual (independente do hardware de quem recebe)."""
+    import base64
+    ui = L.get("ui") or {}
+    data = {"v": 1, "c": [to_hex(c) for c in parse_colors(L.get("palette") or L.get("colors") or [])],
+            "m": L.get("mode", "gradiente"), "b": int(L.get("brightness", 100)),
+            "e": ui.get("effect", "static"), "s": ui.get("speed", 3), "l": ui.get("links") or {}}
+    if L.get("name"):
+        data["n"] = L["name"]
+    raw = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()
+    return "MEURGB1-" + base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def read_share_code(code):
+    import base64
+    code = str(code).strip()
+    if not code.upper().startswith("MEURGB1-"):
+        raise ValueError("Código inválido: precisa começar com MEURGB1-")
+    b = code[8:]
+    data = json.loads(base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)).decode("utf-8"))
+    cols = [to_hex(c) for c in parse_colors(data.get("c", []))]
+    if not cols:
+        raise ValueError("Código sem cores")
+    return {"name": data.get("n", ""), "colors": cols, "mode": data.get("m", "gradiente"),
+            "brightness": int(data.get("b", 100)), "effect": data.get("e", "static"),
+            "speed": data.get("s", 3), "links": data.get("l", {})}
+
+
 # ---------------------------------------------------------------- servidor web local
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -654,6 +935,17 @@ class Handler(BaseHTTPRequestHandler):
                                         pc_configured=(load_pc() or {}).get("configured")))
         if self.path == "/api/detect":
             return self._send(200, detect_system())
+        if self.path == "/api/auto":
+            return self._send(200, {"auto": load_auto(), "status": _auto["status"],
+                                    "game": _auto["game"], "autostart": autostart_installed(),
+                                    "known": KNOWN_GAMES})
+        if self.path == "/api/games":
+            return self._send(200, {"games": find_installed_games()})
+        if self.path == "/api/share":
+            L = load_state()
+            if not L:
+                return self._send(400, {"ok": False, "error": "Aplique um visual antes de compartilhar"})
+            return self._send(200, {"code": share_code(L)})
         self._send(404, {"error": "não encontrado"})
 
     def do_POST(self):
@@ -687,6 +979,14 @@ class Handler(BaseHTTPRequestHandler):
                 stop_effect()
                 turn_off()
                 return self._send(200, {"ok": True})
+            if self.path == "/api/auto":
+                return self._send(200, {"ok": True, "auto": save_auto(body)})
+            if self.path == "/api/autostart":
+                return self._send(200, {"ok": True, "autostart": set_autostart(bool(body.get("on")))})
+            if self.path == "/api/share":
+                if body.get("code"):
+                    return self._send(200, {"ok": True, "look": read_share_code(body["code"])})
+                return self._send(200, {"ok": True, "code": share_code(body)})
             if self.path == "/api/claude":
                 rep, prof = apply_claude(body)
                 return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
@@ -719,15 +1019,20 @@ class Server(ThreadingHTTPServer):
 
 def serve():
     url = f"http://127.0.0.1:{UI_PORT}/"
+    background = "--background" in sys.argv   # iniciado com o Windows: sem janela e sem navegador
     try:
         srv = Server(("127.0.0.1", UI_PORT), Handler)
     except OSError:  # já tem um MeuRGB aberto: só abre a página dele
-        print(f"O {APP_NAME} já está aberto, abrindo no navegador...")
-        webbrowser.open(url)
+        if not background:
+            print(f"O {APP_NAME} já está aberto, abrindo no navegador...")
+            webbrowser.open(url)
         return
     print(f"{APP_NAME} v{VERSION} rodando em {url}  (Ctrl+C para sair)")
-    if "--no-browser" not in sys.argv:
+    if background:
+        threading.Thread(target=restore_on_boot, daemon=True).start()
+    elif "--no-browser" not in sys.argv:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    start_auto_engine()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -772,6 +1077,27 @@ def cli(argv):
     elif cmd == "configurar":
         p = save_pc(_read_json_arg(argv))
         print(f"Perfil do PC salvo em {PC_FILE} ({len(p.get('nicknames') or {})} apelidos). O app atualiza sozinho.")
+    elif cmd == "automacao":
+        if len(argv) > 1:
+            a = save_auto(_read_json_arg(argv))
+            print(f"Automação salva: {len(a['games'])} jogos, {len(a['schedule'])} horários. O app aplica sozinho.")
+        else:
+            print(json.dumps(load_auto(), indent=2, ensure_ascii=False))
+    elif cmd == "jogos":
+        print(json.dumps(find_installed_games(), indent=2, ensure_ascii=False))
+    elif cmd == "iniciar-com-windows":
+        on = (argv[1] if len(argv) > 1 else "sim").lower() not in ("nao", "não", "off", "0", "false")
+        print("Inicia com o Windows: " + ("sim" if set_autostart(on) else "não"))
+    elif cmd == "compartilhar":
+        L = load_state()
+        print(share_code(L) if L else "Aplique um visual antes de compartilhar.")
+    elif cmd == "importar":
+        look = read_share_code(argv[1] if len(argv) > 1 else "")
+        rep = apply_saved(persist=True, palette=look["colors"], mode=look["mode"], brightness=look["brightness"],
+                          overrides={}, hw={}, ui={"effect": look["effect"], "speed": look["speed"],
+                                                    "links": look["links"]})
+        print(f"Importado: {look.get('name') or 'visual'} -> {' '.join(look['colors'])}")
+        _print_report(rep)
     elif cmd == "desligar":
         turn_off()
         print("Tudo apagado.")
@@ -808,7 +1134,7 @@ def cli(argv):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--no-browser"]
+    args = [a for a in sys.argv[1:] if a not in ("--no-browser", "--background")]
     if args:
         cli(args)
     else:
