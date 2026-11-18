@@ -82,23 +82,48 @@
   .seg button svg{width:14px;height:14px}
   input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:9px;background:var(--border2);outline:0;margin:13px 0}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--text);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--border2)}
-  .speed{margin-top:8px}
+  .fxgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  @media(max-width:700px){.fxgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .fxgrid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:62px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:12px;font-weight:500;padding:0 4px;text-align:center}
+  .fxgrid button:hover{color:var(--text);border-color:var(--border2)}
+  .fxgrid button.sel{color:var(--text);background:var(--surface3);border-color:#52525b}
+  .fxgrid svg{width:18px;height:18px}
+  .speedrow{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px}
+  .speedrow input{flex:1;margin:0}
+  .speedrow.hide{display:none}
   .drophint{position:absolute;inset:0;border-radius:var(--r);border:2px dashed var(--text);background:#09090bcc;display:none;place-items:center;font-weight:500;z-index:3}
   .card.dragging .drophint{display:grid}
 
   /* ---------- dispositivos ---------- */
-  .devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-  .unit{border:1px solid var(--border);border-radius:11px;background:var(--bg);min-width:0}
-  .unit.wide{grid-column:1/-1}
+  .devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-items:stretch}
+  .unit{border:1px solid var(--border);border-radius:11px;background:var(--bg);min-width:0;display:flex;flex-direction:column}
+  .unit .body{flex:1}
   .unit.off .body{opacity:.4}
+  .empty.unit{grid-column:1/-1}
+  .hwrow{display:flex;align-items:center;gap:8px;padding:10px 12px 0;color:var(--dim)}
+  .hwrow .i{width:15px;height:15px;flex:none}
+  .fxsel{flex:1;min-width:0;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center/14px;
+    color:var(--text);font-size:12.5px;padding:0 28px 0 9px;appearance:none;-webkit-appearance:none;cursor:pointer;outline:0}
+  .fxsel:hover{border-color:var(--border2)}
+  .fxsel option,.fxsel optgroup{background:#18181b;color:var(--text)}
+  .hwspdrow{display:flex;align-items:center;gap:10px;padding:8px 12px 0 35px;font-size:11.5px;color:var(--dim)}
+  .hwspdrow input{flex:1;margin:0}
+  .hwnote{padding-left:35px!important}
+  .hwnote{font-size:11.5px;color:var(--dim);padding:6px 12px 0}
+  .muted-leds{opacity:.45}
+  #pcinfo{display:flex}
+  .pcchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:99px;padding:3px 10px;white-space:nowrap}
+  .pcchip .i{width:13px;height:13px}
+  .pcchip.ai{color:#ddd6fe;border-color:#a78bfa40;background:var(--ai-bg)}
+  .presearch{margin-bottom:10px}
+  .presets{max-height:360px;overflow:auto;padding-right:2px}
   .uh{display:flex;align-items:center;gap:10px;padding:12px 12px 0}
   .uic{width:34px;height:34px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;color:var(--muted);flex:none}
   .un{flex:1;min-width:0}
   .un b{display:block;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .un small{display:block;color:var(--dim);font-size:12px}
-  .linkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 12px 0}
-  .linkbar .seg{flex:0 1 360px}
-  .linkbar .hint{font-size:12px;color:var(--dim)}
+  .linkbar{padding:12px 12px 0}
+  .linkbar .seg{width:100%}
   .leds{display:flex;flex-wrap:wrap;gap:3px;padding:12px 12px 2px}
   .leds i{width:9px;height:9px;border-radius:2.5px}
   .leds.dense i{width:5px;height:9px;border-radius:1.5px}
@@ -110,7 +135,7 @@
   .zone .zn{flex:1;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .zone .zt{font-size:11.5px;color:var(--dim)}
   .tag{font-size:10.5px;font-weight:600;color:var(--text);background:var(--surface3);border:1px solid var(--border2);border-radius:5px;padding:0 5px}
-  .subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:12px}
+  .subs{display:grid;grid-template-columns:1fr;gap:8px;padding:10px}
   .sub{border:1px solid var(--border);border-radius:10px;background:var(--surface)}
   .sub.off .leds,.sub.off .zones{opacity:.4}
   .sub .uh{padding:10px 10px 0}
@@ -247,23 +272,26 @@
             </div>
           </div>
           <div class="ctl">
-            <label class="lb">Efeito <span id="spdv" class="dim"></span></label>
-            <div class="seg" id="fxseg">
-              <button data-v="0"><span data-i="square"></span>Estático</button>
-              <button data-v="1"><span data-i="waves"></span>Fluir</button>
-            </div>
-            <input type="range" class="speed" id="spd" min="1" max="10" value="3" title="Velocidade">
+            <label class="lb">Brilho <span id="briv" class="dim">100%</span></label>
+            <input type="range" id="bri" min="5" max="100" value="100" style="margin:12px 0 0">
           </div>
           <div class="ctl full">
-            <label class="lb">Brilho <span id="briv" class="dim">100%</span></label>
-            <input type="range" id="bri" min="5" max="100" value="100" style="margin:6px 0 0">
+            <label class="lb">Efeito <span class="dim" id="fxhint">Os animados rodam enquanto o MeuRGB está aberto</span></label>
+            <div class="fxgrid" id="fxseg">
+              <button data-v="static"><span data-i="square"></span>Estático</button>
+              <button data-v="fluir"><span data-i="waves"></span>Fluir</button>
+              <button data-v="respirar"><span data-i="wind"></span>Respirar</button>
+              <button data-v="ciclo"><span data-i="repeat"></span>Ciclo de cores</button>
+              <button data-v="arcoiris"><span data-i="rainbow"></span>Arco-íris</button>
+            </div>
+            <div class="speedrow" id="speedrow"><span class="dim">Velocidade</span><input type="range" id="spd" min="1" max="10" value="3"><span id="spdv" class="dim">3</span></div>
           </div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <div class="ch"><div><h2>Dispositivos</h2><p>Clique numa zona para dar uma cor só para ela.</p></div></div>
+      <div class="ch"><div><h2>Dispositivos</h2><p>Clique numa zona para dar uma cor só para ela.</p></div><div class="sp"></div><div id="pcinfo"></div></div>
       <div class="cb"><div class="devs" id="devs"></div></div>
     </section>
   </div>
@@ -279,8 +307,9 @@
     </section>
 
     <section class="card">
-      <div class="ch"><div><h2>Presets</h2><p>Suas paletas salvas.</p></div></div>
+      <div class="ch"><div><h2>Presets</h2><p>Paletas de jogos e as que você salvou.</p></div></div>
       <div class="cb">
+        <div class="field presearch"><span data-i="search"></span><input id="pq" placeholder="Buscar preset (ex.: valorant, zelda)"></div>
         <div class="presets" id="presets"></div>
         <div class="newp">
           <div class="field"><span data-i="bookmark"></span><input id="pname" placeholder="Salvar paleta atual como..."></div>
@@ -324,6 +353,12 @@ const I = {
   sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
   message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  wind:'<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+  repeat:'<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+  rainbow:'<path d="M22 17a10 10 0 0 0-20 0"/><path d="M6 17a6 6 0 0 1 12 0"/><path d="M10 17a2 2 0 0 1 4 0"/>',
+  cpuchip:'<rect width="16" height="16" x="4" y="4" rx="2"/><path d="M9 9h6v6H9z"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
   bookmark:'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
@@ -352,13 +387,14 @@ document.querySelectorAll("[data-i]").forEach(el=>el.outerHTML=icon(el.dataset.i
 /* ===================== estado ===================== */
 const $ = s => document.querySelector(s);
 const S = {
-  colors:["#FF2E88","#FF6B3D","#FFB547","#9B3DFF","#00D9C8"], mode:"gradiente", bri:100, fx:false, speed:3,
-  overrides:{}, disabled:new Set(), links:{DRAM:"mirror"},
-  devices:[], connected:false, palettes:{}, preset:null,
-  claude:{active:null,history:[]}, claudeSeen:null, applied:null,
+  colors:["#FF2E88","#FF6B3D","#FFB547","#9B3DFF","#00D9C8"], mode:"gradiente", bri:100, fx:"static", speed:3,
+  overrides:{}, disabled:new Set(), links:{DRAM:"mirror"}, hw:{},
+  devices:[], connected:false, palettes:{}, preset:null, pc:null, presetQuery:"",
+  claude:{active:null,history:[]}, claudeSeen:null, pcSeen:null, applied:null,
 };
-const snap = () => JSON.stringify({c:S.colors,m:S.mode,b:S.bri,o:S.overrides,d:[...S.disabled].sort(),l:S.links,f:S.fx,s:S.speed});
-function restore(js){ const o=JSON.parse(js); S.colors=o.c; S.mode=o.m; S.bri=o.b; S.overrides=o.o; S.disabled=new Set(o.d); S.links=o.l; S.fx=o.f; S.speed=o.s; }
+const anim = () => S.fx && S.fx!=="static";
+const snap = () => JSON.stringify({c:S.colors,m:S.mode,b:S.bri,o:S.overrides,d:[...S.disabled].sort(),l:S.links,f:S.fx,s:S.speed,h:S.hw});
+function restore(js){ const o=JSON.parse(js); S.colors=o.c; S.mode=o.m; S.bri=o.b; S.overrides=o.o; S.disabled=new Set(o.d); S.links=o.l; S.fx=o.f; S.speed=o.s; S.hw=o.h||{}; }
 
 /* ===================== cor ===================== */
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -406,7 +442,8 @@ function plan(){
 }
 function payload(extra={}){
   return {colors:S.colors, mode:S.mode, brightness:S.bri, devices:S.devices.length?enabledIds():null,
-          overrides:S.overrides, groups:groups(), ui:{links:S.links, fx:S.fx, speed:S.speed}, ...extra};
+          overrides:S.overrides, groups:groups(), hw:S.hw, kind:S.fx, speed:S.speed,
+          ui:{links:S.links, effect:S.fx, speed:S.speed}, ...extra};
 }
 
 /* ===================== API ===================== */
@@ -428,7 +465,7 @@ function failures(j){ const bad=(j.report||[]).filter(r=>!r.ok); if(bad.length) 
 let pvBusy=false, pvAgain=false, pvTimer=null, fxTimer=null;
 function preview(){
   if(!S.connected) return;
-  if(S.fx){ clearTimeout(fxTimer); fxTimer=setTimeout(()=>api("/api/effect",payload({on:true,speed:S.speed})).catch(e=>toast(e.message,"err")),350); return; }
+  if(anim()){ clearTimeout(fxTimer); fxTimer=setTimeout(()=>api("/api/effect",payload({on:true})).catch(e=>toast(e.message,"err")),350); return; }
   if(pvBusy){ pvAgain=true; return; }
   clearTimeout(pvTimer);
   pvTimer=setTimeout(async()=>{
@@ -442,7 +479,7 @@ function changed(){ render(); preview(); }
 async function commit(save){
   toast(save?"Aplicando e gravando na placa...":"Aplicando...","busy",0);
   const j=await api("/api/apply",payload({save}));
-  if(S.fx) await api("/api/effect",payload({on:true,speed:S.speed}));
+  if(anim()) await api("/api/effect",payload({on:true}));
   S.applied=snap(); renderDirty();
   if(!failures(j)) toast(save?"Aplicado e gravado. As cores continuam depois de reiniciar.":"Aplicado","ok");
 }
@@ -464,8 +501,8 @@ function renderPalette(fromText){
   a.onclick=()=>{ S.colors.push(S.colors[S.colors.length-1]); S.preset=null; changed(); const all=document.querySelectorAll(".swatch:not(.add)"); openPicker(all[all.length-1],S.colors.at(-1),{kind:"pal",i:S.colors.length-1}); };
   box.appendChild(a);
   document.querySelectorAll("#mode button").forEach(b=>b.classList.toggle("sel",b.dataset.v===S.mode));
-  document.querySelectorAll("#fxseg button").forEach(b=>b.classList.toggle("sel",(b.dataset.v==="1")===S.fx));
-  $("#spd").style.display=S.fx?"":"none"; $("#spdv").textContent=S.fx?`velocidade ${S.speed}`:"";
+  document.querySelectorAll("#fxseg button").forEach(b=>b.classList.toggle("sel",b.dataset.v===(S.fx||"static")));
+  $("#speedrow").classList.toggle("hide",!anim()); $("#spdv").textContent=S.speed;
   $("#bri").value=S.bri; $("#briv").textContent=S.bri+"%"; $("#spd").value=S.speed;
   document.querySelectorAll(".preset").forEach(p=>p.classList.toggle("sel",p.dataset.name===S.preset));
 }
@@ -490,57 +527,90 @@ function zonesHTML(dev, ids, colorsOf){
 }
 function zoneCols(p, dev){ let pos=0; const map={}; dev.zones.forEach((z,zi)=>{ map[zi]=(p[dev.id]||[]).slice(pos,pos+z.leds); pos+=z.leds; }); return zi=>map[zi]||[]; }
 
+/* nomes dos efeitos nativos (vêm do OpenRGB em inglês) */
+const FXPT={"Breathing":"Respirar","Strobe":"Estrobo","Flashing":"Piscar","Spectrum Cycle":"Ciclo de espectro","Random":"Aleatório",
+  "Wave":"Onda","Spring":"Mola","Stack":"Empilhar","Cram":"Compactar","Scan":"Varredura","Neon":"Neon","Water":"Água","Rainbow":"Arco-íris",
+  "Chase Fade":"Perseguição suave","Chase":"Perseguição","Random Flicker":"Cintilar","Color Wave":"Onda de cores","Rainbow Wave":"Onda arco-íris",
+  "Color Shift":"Troca de cores","Comet":"Cometa","Flash":"Flash","Static":"Estático","Reactive":"Reativo","Ripple":"Ondulação","Starry Night":"Noite estrelada"};
+const fxName=n=>FXPT[n]||n;
+const nick=d=>{ const n=S.pc?.nicknames||{}; return n[d.id]||n[String(d.id)]||n[d.name]||null; };
+
+function hwRow(d, ids){
+  const fx=d.effects||[]; if(!fx.length) return "";
+  const cur=S.hw[d.id], sel=cur?.mode||"", info=fx.find(e=>e.name===sel);
+  const opts=`<option value="">Cores do MeuRGB</option><optgroup label="Efeitos do chip">`+fx.map(e=>`<option value="${esc(e.name)}" ${e.name===sel?"selected":""}>${esc(fxName(e.name))}</option>`).join("")+`</optgroup>`;
+  return `<div class="hwrow"><span data-ii="cpuchip"></span><select class="fxsel" data-hw="${ids.join(",")}" title="Efeito gravado no próprio chip: roda mesmo com o MeuRGB fechado">${opts}</select></div>
+    ${info?.speed?`<div class="hwspdrow"><span>Velocidade</span><input type="range" data-hwspd="${ids.join(",")}" min="0" max="100" value="${cur.speed??50}"></div>`:""}
+    ${info?`<div class="hwnote">${info.colors==="none"?"Este efeito usa as cores próprias do chip.":"Efeito do chip usando as cores da sua paleta."} Funciona mesmo com o app fechado.</div>`:""}`;
+}
+function unitBody(d, ids, p, rows){
+  const hwOn=S.hw[d.id], info=(d.effects||[]).find(e=>e.name===hwOn?.mode), noColor=info&&info.colors==="none";
+  return `${hwRow(d,ids)}<div class="${noColor?"muted-leds":""}">${ledsHTML(rows)}</div>${noColor?"":`<div class="zones">${zonesHTML(d,ids,zoneCols(p,d))}</div>`}`;
+}
+
 function renderDevices(){
   const box=$("#devs");
-  if(!S.connected){ box.innerHTML=`<div class="empty unit wide">${icon("plug")}<div>O OpenRGB não está conectado.</div><button class="btn primary" id="cbtn">Conectar</button></div>`; $("#cbtn").onclick=e=>connect(e.currentTarget); return; }
-  if(!S.devices.length){ box.innerHTML=`<div class="empty unit wide">${icon("alert")}<div>Conectado, mas nenhum dispositivo RGB foi encontrado.</div></div>`; return; }
+  renderPC();
+  if(!S.connected){ box.innerHTML=`<div class="empty unit">${icon("plug")}<div>O OpenRGB não está conectado.</div><button class="btn primary" id="cbtn">Conectar</button></div>`; $("#cbtn").onclick=e=>connect(e.currentTarget); return; }
+  if(!S.devices.length){ box.innerHTML=`<div class="empty unit">${icon("alert")}<div>Conectado, mas nenhum dispositivo RGB foi encontrado. Peça para o seu agente de IA rodar o diagnóstico.</div></div>`; return; }
   const p=plan(), html=[];
   Object.entries(byType()).forEach(([t,ds])=>{
     const total=ds.reduce((a,d)=>a+d.zones.reduce((x,z)=>x+z.leds,0),0);
     if(ds.length===1){
-      const d=ds[0], on=!S.disabled.has(d.id);
+      const d=ds[0], on=!S.disabled.has(d.id), nk=nick(d);
       html.push(`<div class="unit ${on?"":"off"}">
-        <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b>${esc(d.name)}</b><small>${tName(t)} · ${plural(total,"LED","LEDs")}</small></div>
+        <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b title="${esc(d.name)}">${esc(nk||d.name)}</b><small>${nk?esc(d.name):tName(t)} · ${plural(total,"LED","LEDs")}</small></div>
         <label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${d.id}" ${on?"checked":""}><span></span></label></div>
-        <div class="body">${ledsHTML([p[d.id]||[]])}<div class="zones">${zonesHTML(d,[d.id],zoneCols(p,d))}</div></div></div>`);
+        <div class="body">${unitBody(d,[d.id],p,[p[d.id]||[]])}</div></div>`);
       return;
     }
     // grupo (ex.: 2 pentes de RAM)
     const lm=S.links[t]||"separate", linked=lm!=="separate", ids=ds.map(d=>d.id), on=ids.some(i=>!S.disabled.has(i));
     const seg=`<div class="seg" data-link="${t}">
-        <button data-v="separate" class="${lm==="separate"?"sel":""}">Separadas</button>
-        <button data-v="mirror" class="${lm==="mirror"?"sel":""}">Juntas, iguais</button>
-        <button data-v="span" class="${lm==="span"?"sel":""}">Juntas, contínuas</button></div>`;
-    const hint={separate:"Cada módulo com suas próprias cores.",mirror:"Os módulos mostram exatamente as mesmas cores.",span:"O gradiente atravessa os módulos como se fossem um só."}[lm];
+        <button data-v="separate" class="${lm==="separate"?"sel":""}" title="Cada módulo com suas próprias cores">Separadas</button>
+        <button data-v="mirror" class="${lm==="mirror"?"sel":""}" title="Os módulos mostram as mesmas cores">Iguais</button>
+        <button data-v="span" class="${lm==="span"?"sel":""}" title="O gradiente atravessa os módulos como se fossem um só">Contínuas</button></div>`;
     let body;
-    if(linked){
-      body=`${ledsHTML(ids.map(i=>p[i]||[]))}<div class="zones">${zonesHTML(ds[0],ids,zoneCols(p,ds[0]))}</div>`;
-    }else{
-      body=`<div class="subs">`+ds.map((d,k)=>{ const o=!S.disabled.has(d.id); return `<div class="sub ${o?"":"off"}">
-        <div class="uh"><div class="un"><b>Módulo ${k+1}</b><small>${esc(d.name)}</small></div>
+    if(linked) body=unitBody(ds[0],ids,p,ids.map(i=>p[i]||[]));
+    else body=`<div class="subs">`+ds.map((d,k)=>{ const o=!S.disabled.has(d.id); return `<div class="sub ${o?"":"off"}">
+        <div class="uh"><div class="un"><b>${esc(nick(d)||"Módulo "+(k+1))}</b></div>
         <label class="switch"><input type="checkbox" data-tog="${d.id}" ${o?"checked":""}><span></span></label></div>
-        ${ledsHTML([p[d.id]||[]])}<div class="zones">${zonesHTML(d,[d.id],zoneCols(p,d))}</div></div>`; }).join("")+`</div>`;
-    }
-    html.push(`<div class="unit wide ${on?"":"off"}">
+        ${unitBody(d,[d.id],p,[p[d.id]||[]])}</div>`; }).join("")+`</div>`;
+    html.push(`<div class="unit ${on?"":"off"}">
       <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b>${tName(t)}</b><small>${plural(ds.length,"módulo","módulos")} · ${plural(total,"LED","LEDs")}</small></div>
       ${linked?`<label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${ids.join(",")}" ${on?"checked":""}><span></span></label>`:""}</div>
-      <div class="linkbar">${seg}<span class="hint">${hint}</span></div>
+      <div class="linkbar">${seg}</div>
       <div class="body">${body}</div></div>`);
   });
   box.innerHTML=html.join("");
+  box.querySelectorAll("[data-ii]").forEach(el=>el.outerHTML=icon(el.dataset.ii));
   box.querySelectorAll("[data-tog]").forEach(el=>el.onchange=()=>{ el.dataset.tog.split(",").map(Number).forEach(i=>el.checked?S.disabled.delete(i):S.disabled.add(i)); changed(); });
   box.querySelectorAll("[data-link] button").forEach(b=>b.onclick=()=>{
     const t=b.closest("[data-link]").dataset.link, ds=byType()[t]; S.links[t]=b.dataset.v;
-    if(b.dataset.v!=="separate"){ const lead=S.overrides[ds[0].id]; ds.slice(1).forEach(d=>{ if(lead) S.overrides[d.id]={...lead}; else delete S.overrides[d.id]; }); }
+    if(b.dataset.v!=="separate"){ const lead=ds[0].id; ds.slice(1).forEach(d=>{
+      if(S.overrides[lead]) S.overrides[d.id]={...S.overrides[lead]}; else delete S.overrides[d.id];
+      if(S.hw[lead]) S.hw[d.id]={...S.hw[lead]}; else delete S.hw[d.id]; }); }
     changed(); });
+  box.querySelectorAll("[data-hw]").forEach(s=>s.onchange=()=>{ s.dataset.hw.split(",").map(Number).forEach(i=>{ if(s.value) S.hw[i]={mode:s.value,speed:S.hw[i]?.speed??50}; else delete S.hw[i]; }); changed(); });
+  box.querySelectorAll("[data-hwspd]").forEach(r=>{ r.onchange=()=>{ r.dataset.hwspd.split(",").map(Number).forEach(i=>{ if(S.hw[i]) S.hw[i].speed=+r.value; }); changed(); }; });
   box.querySelectorAll(".zone").forEach(z=>z.onclick=()=>openPicker(z, z.dataset.cur, {kind:"zone", ids:z.dataset.ids.split(",").map(Number), zi:+z.dataset.zi}));
+}
+
+function renderPC(){
+  const el=$("#pcinfo"), pc=S.pc;
+  if(!pc){ el.innerHTML=`<span class="pcchip dim" title="Peça ao seu agente de IA: configure o MeuRGB no meu PC">${icon("scan")}PC ainda não configurado por IA</span>`; return; }
+  const when=(pc.configured||"").slice(5,10).split("-").reverse().join("/");
+  el.innerHTML=`<span class="pcchip ai" title="${esc(pc.summary||"")}">${icon("sparkles")}Configurado por IA${pc.agent?" · "+esc(pc.agent):""}${when?" · "+when:""}</span>`;
 }
 
 function renderDirty(){ $("#dirty").classList.toggle("show", S.applied!==null && snap()!==S.applied); }
 
 function renderPresets(){
   const box=$("#presets"); box.innerHTML="";
-  Object.entries(S.palettes).forEach(([name,c])=>{
+  const q=S.presetQuery.trim().toLowerCase();
+  const list=Object.entries(S.palettes).filter(([n])=>!q||n.toLowerCase().includes(q));
+  if(!list.length) box.innerHTML=`<div class="dim" style="grid-column:1/-1;font-size:12.5px;padding:6px 2px">Nenhum preset encontrado.</div>`;
+  list.forEach(([name,c])=>{
     const d=document.createElement("button"); d.className="preset"+(name===S.preset?" sel":""); d.dataset.name=name; d.title=name;
     d.innerHTML=`<div class="bar" style="background:${grad(c)}"></div><span class="nm">${esc(name)}</span><span class="del" title="Excluir">${icon("trash")}</span>`;
     d.onclick=()=>{ S.colors=[...c]; S.preset=name; changed(); };
@@ -553,17 +623,19 @@ function renderPresets(){
 }
 
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
+const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris"};
 function renderAI(){
   const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
-  let h=`<div class="howto">Peça um clima para um agente de IA e ele aplica aqui na hora.</div>
+  let h=`<div class="howto">Um agente de IA identifica sua placa e seus dispositivos RGB, configura tudo e cria visuais sob medida.</div>
     <details class="how" ${S.howOpen?"open":""}><summary>${icon("chevron")}Como usar</summary>
       <ol>
         <li>Abra um agente de IA que rode comandos no seu PC (Claude Code, Codex, Gemini CLI, Cursor...) na pasta do MeuRGB.</li>
-        <li>Descreva o visual que você quer, do seu jeito.</li>
-        <li>Ele cria a paleta, ajusta cada dispositivo e aplica. O perfil aparece aqui embaixo.</li>
+        <li>Na primeira vez, peça para ele configurar o seu PC. Ele detecta a placa-mãe, as RAMs, os periféricos e os programas RGB que podem atrapalhar.</li>
+        <li>Depois é só descrever o visual que você quer, do seu jeito. O perfil aparece aqui embaixo.</li>
       </ol>
-      <div class="ex">Exemplo de pedido</div>
-      <blockquote>Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.</blockquote>
+      <div class="ex">Exemplos de pedido</div>
+      <blockquote>Configure o MeuRGB no meu PC.</blockquote>
+      <blockquote style="margin-top:6px">Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.</blockquote>
       <div class="dim" style="font-size:12px;margin-top:8px">As instruções para o agente ficam no arquivo AGENTS.md.</div>
     </details>`;
   if(a){
@@ -572,7 +644,9 @@ function renderAI(){
       <h3>${esc(a.name||"Perfil da IA")}<span class="badge">Ativo</span></h3>
       ${a.description?`<p>${esc(a.description)}</p>`:""}
       <div class="meta"><span>${icon("layers")}${MODE[a.mode]||"Gradiente"}</span><span>${icon("sun")}${a.brightness??100}%</span>
-        ${nz?`<span>${icon("pencil")}${plural(nz,"ajuste","ajustes")} por zona</span>`:""}${a.fluir?`<span>${icon("waves")}Fluindo</span>`:""}
+        ${nz?`<span>${icon("pencil")}${plural(nz,"ajuste","ajustes")} por zona</span>`:""}
+        ${(a.effect&&a.effect!=="static")||a.fluir?`<span>${icon("waves")}${FXNAME[a.effect||"fluir"]||"Animado"}</span>`:""}
+        ${(a.hw||[]).length?`<span>${icon("cpuchip")}${plural(a.hw.length,"efeito do chip","efeitos do chip")}</span>`:""}
         <span>${icon("clock")}${esc((a.created||"").slice(11,16))}</span></div>
       <div class="abtns"><button class="btn sm" id="aiRe">${icon("refresh")}Reaplicar</button><button class="btn sm" id="aiSave">${icon("bookmark")}Salvar como preset</button></div>
     </div></div>`;
@@ -647,15 +721,16 @@ document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{ S.mode=b.da
 $("#bri").oninput=e=>{ S.bri=+e.target.value; changed(); };
 $("#spd").oninput=e=>{ S.speed=+e.target.value; changed(); };
 document.querySelectorAll("#fxseg button").forEach(b=>b.onclick=()=>run(null,async()=>{
-  const on=b.dataset.v==="1"; if(on===S.fx) return; S.fx=on; render();
-  if(on){ await api("/api/effect",payload({on:true,speed:S.speed})); toast("Fluindo. Deixe o MeuRGB aberto para o efeito continuar."); }
+  const v=b.dataset.v; if(v===S.fx) return; S.fx=v; render();
+  if(anim()){ await api("/api/effect",payload({on:true})); toast(`${FXNAME[v]}: deixe o MeuRGB aberto para o efeito continuar.`); }
   else { await api("/api/effect",{on:false}); preview(); }
 }));
+$("#pq").addEventListener("input",e=>{ S.presetQuery=e.target.value; renderPresets(); });
 $("#apply").onclick=e=>run(e.currentTarget,()=>commit(false));
 $("#applySave").onclick=e=>run(e.currentTarget,()=>commit(true));
 $("#burn").onclick=e=>run(e.currentTarget,()=>commit(true));
 $("#discard").onclick=()=>{ if(!S.applied) return; closePicker(); restore(S.applied); S.preset=null; render(); preview(); toast("Alterações descartadas"); };
-$("#off").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/off",{}); S.fx=false; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
+$("#off").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/off",{}); S.fx="static"; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
 $("#reconnect").onclick=e=>connect(e.currentTarget);
 async function savePreset(){ const n=$("#pname").value.trim(); if(!n){ $("#pname").focus(); return; }
   S.palettes=(await api("/api/preset",{name:n,colors:S.colors})).palettes; S.preset=n; $("#pname").value=""; renderPresets(); toast(`Preset "${n}" salvo`); }
@@ -699,6 +774,8 @@ async function loadState(useLast){
   $("#stxt").textContent=s.connected?`OpenRGB · ${plural(S.devices.length,"dispositivo","dispositivos")}`:"Desconectado";
   if(s.error) toast(s.error,"err",5000);
   if(s.claude){ S.claude=s.claude; if(S.claudeSeen===null) S.claudeSeen=s.claude.active?.created||""; }
+  S.pc=s.pc||null; if(S.pcSeen===null) S.pcSeen=S.pc?.configured||"";
+  const liveFx = s.effect ? (s.effect_kind||"fluir") : "static";
   if(useLast){
     const L=s.last||{};
     if(L.palette?.length) S.colors=L.palette;
@@ -706,11 +783,12 @@ async function loadState(useLast){
     if(L.brightness) S.bri=L.brightness;
     S.overrides=L.overrides||{}; S.disabled=new Set();
     if(Array.isArray(L.devices)) S.devices.forEach(d=>{ if(!L.devices.includes(d.id)) S.disabled.add(d.id); });
-    const ui=L.ui||{}; S.links={DRAM:"mirror",...(ui.links||{})};
+    const ui=L.ui||{}; S.links={DRAM:"mirror",...(S.pc?.links||{}),...(ui.links||{})};
     if(!ui.links && Array.isArray(L.groups)) L.groups.forEach(g=>{ const d=S.devices.find(x=>x.id===g.ids[0]); if(d) S.links[d.type]=g.mode; });
-    S.speed=ui.speed||3; S.fx=!!s.effect; S.preset=null;
+    S.hw={}; Object.entries(L.hw||{}).forEach(([k,v])=>S.hw[+k]=v);
+    S.speed=ui.speed||3; S.fx=liveFx; S.preset=null;
     S.applied=snap();
-  }else S.fx=!!s.effect;
+  }else S.fx=liveFx;
   renderPresets(); renderAI(); render();
 }
 
@@ -721,6 +799,10 @@ setInterval(async()=>{
     if(S.claudeSeen!==null && created && created!==S.claudeSeen){
       S.claudeSeen=created; S.claude=c; closePicker(); await loadState(true);
       toast(`IA aplicou: ${c.active.name||"novo perfil"}`,"ai",4500);
+    }
+    if(S.pcSeen!==null && c.pc_configured && c.pc_configured!==S.pcSeen){
+      S.pcSeen=c.pc_configured; await loadState(!S.applied || snap()===S.applied);
+      toast("A IA configurou o MeuRGB para o seu PC","ai",4500);
     }
     if(!S.connected) await loadState(!S.applied);
   }catch{}

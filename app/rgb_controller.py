@@ -5,7 +5,10 @@ Uso:
   python rgb_controller.py aplicar gta6    -> aplica um preset (busca por parte do nome)
   python rgb_controller.py aplicar "#FF2E88 #9B3DFF 00D9C8" [--brilho 80] [--modo gradiente|alternado|zona] [--gravar]
   python rgb_controller.py ia perfil.json   (ou JSON pelo stdin com "-") -> perfil de cores feito por um agente de IA
-  python rgb_controller.py listar          -> mostra dispositivos e zonas detectados
+  python rgb_controller.py listar          -> mostra dispositivos, zonas e efeitos do chip
+  python rgb_controller.py detectar        -> relatório JSON do PC para um agente de IA configurar tudo
+  python rgb_controller.py configurar pc.json   (ou "-") -> salva o perfil do PC feito pelo agente
+  python rgb_controller.py conectar        -> abre o OpenRGB (servidor SDK)
   python rgb_controller.py desligar
 """
 import json
@@ -233,22 +236,63 @@ def dev_type(d):
         return getattr(d.type, "name", str(d.type))
 
 
+# ---------------------------------------------------------------- efeitos nativos do hardware
+# Cada placa/RAM/teclado tem seus próprios efeitos gravados no chip (lidos do OpenRGB, então funciona
+# com qualquer hardware suportado). Eles rodam sozinhos, mesmo com o MeuRGB fechado.
+_HW_SKIP = {"direct", "static", "off", "custom", "argb header config", "music"}
+_HW_FLAG_SPEED, _HW_PER_LED, _HW_MODE_COLOR = 1, 1, 2   # flag HAS_SPEED; color_mode PER_LED / MODE_SPECIFIC
+_hw_cache = {}   # id -> (modo, velocidade) já enviados, para não reenviar o modo a cada mudança de cor
+
+
+def hw_effects(dev):
+    out = []
+    for m in dev.modes:
+        if m.name.lower() in _HW_SKIP:
+            continue
+        cm = int(m.color_mode or 0)
+        out.append({"name": m.name,
+                    "speed": bool(int(m.flags or 0) & _HW_FLAG_SPEED) and m.speed_min is not None,
+                    "colors": "led" if cm == _HW_PER_LED else "mode" if cm == _HW_MODE_COLOR else "none"})
+    return out
+
+
+def apply_hw(idx, dev, name, speed_pct, led_colors, palette, save, RGBColor):
+    m = next((x for x in dev.modes if x.name.lower() == str(name).lower()), None)
+    if m is None:
+        raise ValueError(f"Efeito {name!r} não existe em {dev.name}")
+    cm = int(m.color_mode or 0)
+    key = (m.name, int(speed_pct))
+    if cm == _HW_MODE_COLOR:
+        n = max(m.colors_min or 1, min(m.colors_max or 1, len(palette)))
+        m.colors = [RGBColor(*palette[i % len(palette)]) for i in range(n)]
+        key += tuple(palette[:n])
+    if int(m.flags or 0) & _HW_FLAG_SPEED and m.speed_min is not None:
+        m.speed = round(m.speed_min + (m.speed_max - m.speed_min) * max(0, min(100, speed_pct)) / 100)
+    if save or _hw_cache.get(idx) != key or dev.modes[dev.active_mode].name != m.name:
+        dev.set_mode(m, save=save)
+        _hw_cache[idx] = key
+    if cm == _HW_PER_LED and led_colors:
+        dev.set_colors([RGBColor(*c) for c in led_colors])
+
+
 def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
-             "modes": [m.name for m in d.modes],
+             "effects": hw_effects(d),
              "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones]}
             for i, d in enumerate(c.devices)]
 
 
 def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, offset=0.0, fast=False,
-          overrides=None, groups=None, persist=True, ui=None):
+          overrides=None, groups=None, persist=True, ui=None, hw=None):
     """Envia as cores para o hardware.
     devices: ids incluídos (None = todos) | overrides: {"<id>": {"<zona>": "#RRGGBB"}}
+    hw: {"<id>": {"mode": "Breathing", "speed": 0-100}} -> efeito nativo do chip nesse dispositivo
     persist=False: só pré-visualização (não grava o estado salvo do app)."""
     if not palette:
         raise ValueError("Paleta vazia")
     from openrgb.utils import RGBColor
+    hw = {str(k): v for k, v in (hw or {}).items() if v and v.get("mode")}
     for attempt in (1, 2):
         try:
             c = client()
@@ -262,6 +306,15 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                     if not cols:
                         continue
                     try:
+                        if str(idx) in hw:
+                            if not fast:  # efeitos animados do app não mexem em quem usa efeito do chip
+                                h = hw[str(idx)]
+                                apply_hw(idx, dev, h["mode"], float(h.get("speed", 50)),
+                                         [scale(x, brightness) for x in cols],
+                                         [scale(x, brightness) for x in palette], save, RGBColor)
+                                report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
+                            continue
+                        _hw_cache.pop(idx, None)
                         if not fast:
                             prepare_device(dev)
                         dev.set_colors([RGBColor(*scale(x, brightness)) for x in cols], fast=fast)
@@ -283,7 +336,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
     if persist and not fast:
         STATE_FILE.write_text(json.dumps({
             "palette": [to_hex(x) for x in palette], "brightness": brightness, "mode": mode,
-            "devices": devices, "overrides": overrides or {}, "groups": groups or [], "ui": ui or {}},
+            "devices": devices, "overrides": overrides or {}, "groups": groups or [], "hw": hw, "ui": ui or {}},
             ensure_ascii=False), encoding="utf-8")
     return report
 
@@ -298,26 +351,45 @@ def turn_off():
                 pass
 
 
-# ---------------------------------------------------------------- efeito "fluir"
-def start_effect(palette, brightness, mode, devices, speed, overrides=None, groups=None):
+# ---------------------------------------------------------------- efeitos animados pelo app
+# Funcionam em qualquer dispositivo, mas só enquanto o MeuRGB está aberto.
+EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris")
+RAINBOW = [(255, 0, 0), (255, 140, 0), (255, 255, 0), (0, 255, 60), (0, 200, 255), (60, 0, 255), (220, 0, 255)]
+
+
+def _frame(kind, palette, brightness, t, speed):
+    """Paleta, brilho e deslocamento de um quadro da animação."""
+    f = speed / 20.0  # velocidade 1..10 -> 0.05..0.5 voltas por segundo
+    if kind == "respirar":
+        import math
+        return palette, brightness * (0.08 + 0.92 * (0.5 - 0.5 * math.cos(2 * math.pi * t * f * 1.5))), 0
+    if kind == "ciclo":
+        return gradient(palette, 1, ((t * f * 0.6) % 1.0) or 1e-6), brightness, 0
+    if kind == "arcoiris":
+        return RAINBOW, brightness, ((t * f) % 1.0) or 1e-6
+    return palette, brightness, ((t * f) % 1.0) or 1e-6   # fluir
+
+
+def start_effect(palette, brightness, mode, devices, speed, overrides=None, groups=None, kind="fluir", hw=None):
     stop_effect()
+    kind = kind if kind in EFFECTS else "fluir"
     ev = threading.Event()
     _effect["stop"] = ev
 
     def run():
-        apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False)
+        apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw)
         t0 = time.time()
         while not ev.is_set():
-            off = ((time.time() - t0) * speed / 20.0) % 1.0
+            pal, bri, off = _frame(kind, palette, brightness, time.time() - t0, speed)
             try:
-                apply(palette, brightness, mode, devices, offset=off or 1e-6, fast=True,
-                      overrides=overrides, groups=groups, persist=False)
+                apply(pal, bri, mode, devices, offset=off, fast=True, overrides=overrides, groups=groups,
+                      persist=False, hw=hw)
             except Exception:
                 pass
-            ev.wait(0.08)
+            ev.wait(0.06)
 
     th = threading.Thread(target=run, daemon=True)
-    _effect.update(thread=th, on=True)
+    _effect.update(thread=th, on=True, kind=kind)
     th.start()
 
 
@@ -405,27 +477,142 @@ def resolve_profile(p, devs):
             links[dev_type(devs[members[0]])] = lm
             if lm in ("mirror", "span") and len(members) > 1:
                 groups.append({"ids": members, "mode": lm})
-    return ids, overrides, groups, links
+    hw = {}
+    for h in p.get("hw", []):  # efeitos nativos: [{"device": "ram", "mode": "Chase", "speed": 60}]
+        for di in _match_devices(h.get("device", ""), devs):
+            if any(m.name.lower() == str(h.get("mode", "")).lower() for m in devs[di].modes):
+                name = next(m.name for m in devs[di].modes if m.name.lower() == str(h["mode"]).lower())
+                hw[str(di)] = {"mode": name, "speed": int(h.get("speed", 50))}
+    return ids, overrides, groups, links, hw
 
 
 def apply_claude(p, allow_effect=True):
     pal = parse_colors(p.get("colors", []))
     if not pal:
-        raise ValueError("Perfil Claude Color sem cores")
+        raise ValueError("Perfil de IA sem cores")
     devs = client(refresh=True).devices
-    ids, overrides, groups, links = resolve_profile(p, devs)
+    ids, overrides, groups, links, hw = resolve_profile(p, devs)
     stop_effect()
     bri, mode = int(p.get("brightness", 100)), p.get("mode", "gradiente")
-    rep = apply(pal, bri, mode, ids, bool(p.get("save")), overrides=overrides, groups=groups,
-                ui={"links": links} if links else None)
-    if allow_effect and p.get("fluir"):
-        start_effect(pal, bri, mode, ids, float(p.get("speed", 3)), overrides, groups)
+    kind = p.get("effect") or ("fluir" if p.get("fluir") else "static")
+    speed = float(p.get("speed", 3))
+    rep = apply(pal, bri, mode, ids, bool(p.get("save")), overrides=overrides, groups=groups, hw=hw,
+                ui={"links": links, "effect": kind, "speed": speed})
+    if allow_effect and kind in EFFECTS:
+        start_effect(pal, bri, mode, ids, speed, overrides, groups, kind, hw)
     prof = dict(p, colors=[to_hex(c) for c in pal], created=time.strftime("%Y-%m-%d %H:%M:%S"))
     data = load_claude()
     hist = [h for h in data.get("history", []) if h.get("name") != prof.get("name")]
     CLAUDE_FILE.write_text(json.dumps({"active": prof, "history": ([prof] + hist)[:20]}, indent=2,
                                       ensure_ascii=False), encoding="utf-8")
     return rep, prof
+
+
+# ---------------------------------------------------------------- detecção do PC (para agentes de IA)
+PC_FILE = HERE / "pc.json"   # perfil do PC escrito pelo agente de IA depois de detectar o hardware
+_RGB_SOFTWARE = {  # programas RGB de fabricantes que disputam o controle dos LEDs com o OpenRGB
+    "ASRock Polychrome RGB": r"polychrome|asrrgb",
+    "ASUS Armoury Crate / Aura": r"armoury|aura|lightingservice|asus.*light",
+    "MSI Center / Mystic Light": r"mystic|msi.?center|msi\.central|msi_center",
+    "Gigabyte RGB Fusion / Control Center": r"rgb.?fusion|gigabyte control|\bgcc\b|gigabyte.*rgb",
+    "Corsair iCUE": r"icue|corsair",
+    "NZXT CAM": r"nzxt",
+    "Razer Synapse / Chroma": r"razer",
+    "Logitech G HUB": r"lghub|g hub",
+    "SteelSeries GG": r"steelseries",
+    "SignalRGB": r"signalrgb|signal rgb",
+    "HyperX NGENUITY": r"ngenuity",
+    "Thermaltake TT RGB": r"tt ?rgb|thermaltake",
+    "Lian Li L-Connect": r"l-connect|lian ?li",
+    "Cooler Master MasterPlus": r"masterplus|cooler ?master",
+    "G.Skill Lighting Control": r"trident z lighting|g\.?skill",
+    "Kingston FURY CTRL": r"fury ?ctrl|kingston",
+    "Wallpaper Engine (RGB)": r"wallpaper ?engine",
+}
+_DETECT_PS = r"""
+$ErrorActionPreference='SilentlyContinue'
+$o=[ordered]@{}
+$o.motherboard = Get-CimInstance Win32_BaseBoard | Select-Object Manufacturer,Product,Version
+$o.bios = Get-CimInstance Win32_BIOS | Select-Object Manufacturer,SMBIOSBIOSVersion,ReleaseDate
+$o.cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name
+$o.ram = @(Get-CimInstance Win32_PhysicalMemory | Select-Object Manufacturer,PartNumber,Capacity,Speed,DeviceLocator)
+$o.gpu = @(Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion)
+$o.os = (Get-CimInstance Win32_OperatingSystem).Caption
+$o.usb = @(Get-PnpDevice -PresentOnly -Class HIDClass,USB | Select-Object -ExpandProperty FriendlyName | Sort-Object -Unique)
+$o.processes = @(Get-Process | Select-Object -ExpandProperty Name | Sort-Object -Unique)
+$o.services = @(Get-Service | Where-Object Status -eq Running | ForEach-Object { $_.Name + '|' + $_.DisplayName })
+$o.tasks = @(Get-ScheduledTask | Where-Object State -ne 'Disabled' | ForEach-Object { $_.TaskName })
+$o.installed = @(Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*,HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*,HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object DisplayName | ForEach-Object { $_.DisplayName } | Sort-Object -Unique)
+$o.pawnio = [bool](Get-Service PawnIO)
+$o | ConvertTo-Json -Depth 4 -Compress
+"""
+
+
+def detect_system():
+    """Relatório do PC para um agente de IA configurar o MeuRGB sozinho."""
+    raw = subprocess.run(["powershell", "-NoProfile", "-Command", _DETECT_PS], capture_output=True,
+                         text=True, encoding="utf-8", errors="replace", timeout=90).stdout
+    def tidy(v):  # o Windows devolve textos com espaços sobrando
+        if isinstance(v, str):
+            return v.strip()
+        if isinstance(v, list):
+            return [tidy(x) for x in v]
+        if isinstance(v, dict):
+            return {k: tidy(x) for k, x in v.items()}
+        return v
+    s = tidy(json.loads(raw or "{}"))
+    found = []
+    for name, pat in _RGB_SOFTWARE.items():
+        hit = {k: [x for x in (s.get(k) or []) if re.search(pat, str(x), re.I)]
+               for k in ("processes", "services", "tasks", "installed")}
+        if any(hit.values()):
+            found.append({"software": name, "running": bool(hit["processes"] or hit["services"]),
+                          "starts_with_windows": bool(hit["tasks"] or hit["services"]), "evidence": hit})
+    report = {
+        "app": {"name": APP_NAME, "version": VERSION, "folder": str(HERE.parent),
+                "openrgb_installed": OPENRGB_EXE.exists(), "openrgb_running": openrgb_running(),
+                "pawnio_driver": bool(s.get("pawnio")), "library_ok": (HERE / "lib" / "openrgb").exists(),
+                "ui_url": f"http://127.0.0.1:{UI_PORT}/", "pc_profile": PC_FILE.exists()},
+        "system": {k: s.get(k) for k in ("motherboard", "bios", "cpu", "ram", "gpu", "os")},
+        "usb_hid_devices": s.get("usb"),
+        "rgb_software_conflicts": found,
+        "openrgb_devices": [],
+    }
+    if openrgb_running():
+        try:
+            report["openrgb_devices"] = device_info()
+        except Exception as e:
+            report["openrgb_error"] = str(e)
+    tips = []
+    if not OPENRGB_EXE.exists() or not s.get("pawnio"):
+        tips.append("Falta instalar: peça para o usuário abrir o MeuRGB.bat (pede admin uma vez).")
+    if not openrgb_running():
+        tips.append("OpenRGB fechado: rode 'python rgb_controller.py conectar' ou abra o MeuRGB.bat.")
+    if any(f["running"] for f in found):
+        tips.append("Há software RGB de fabricante rodando: ele pode sobrescrever as cores. Pergunte ao usuário "
+                    "antes de desativar a inicialização dele (nunca desinstale).")
+    if openrgb_running() and not report["openrgb_devices"]:
+        tips.append("OpenRGB não achou dispositivos: confira https://openrgb.org/devices.html, se o OpenRGB está "
+                    "como admin e se o RGB não está desligado na BIOS.")
+    report["next_steps"] = tips
+    return report
+
+
+def load_pc():
+    try:
+        return json.loads(PC_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def save_pc(p):
+    """Perfil do PC: {"summary", "motherboard", "nicknames": {"<id>": "nome"}, "links": {"DRAM": "span"},
+    "notes": [...], "agent": "Claude Code"}"""
+    if not isinstance(p, dict):
+        raise ValueError("Perfil do PC precisa ser um objeto JSON")
+    p = dict(p, configured=time.strftime("%Y-%m-%d %H:%M:%S"))
+    PC_FILE.write_text(json.dumps(p, indent=2, ensure_ascii=False), encoding="utf-8")
+    return p
 
 
 # ---------------------------------------------------------------- servidor web local
@@ -447,7 +634,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, (HERE / "index.html").read_bytes(), "text/html")
         if self.path == "/api/state":
             st = {"app": APP_NAME, "version": VERSION, "palettes": load_palettes(), "effect": _effect["on"],
-                  "connected": openrgb_running(), "devices": [], "last": None, "claude": load_claude()}
+                  "effect_kind": _effect.get("kind") if _effect["on"] else "static",
+                  "connected": openrgb_running(), "devices": [], "last": None, "claude": load_claude(),
+                  "pc": load_pc()}
             try:
                 st["last"] = json.loads(STATE_FILE.read_text(encoding="utf-8"))
             except Exception:
@@ -460,7 +649,11 @@ class Handler(BaseHTTPRequestHandler):
                     st["error"] = str(e)
             return self._send(200, st)
         if self.path == "/api/claude":
-            return self._send(200, dict(load_claude(), effect=_effect["on"]))
+            return self._send(200, dict(load_claude(), effect=_effect["on"],
+                                        effect_kind=_effect.get("kind") if _effect["on"] else "static",
+                                        pc_configured=(load_pc() or {}).get("configured")))
+        if self.path == "/api/detect":
+            return self._send(200, detect_system())
         self._send(404, {"error": "não encontrado"})
 
     def do_POST(self):
@@ -474,13 +667,19 @@ class Handler(BaseHTTPRequestHandler):
                 rep = apply(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
                             body.get("mode", "gradiente"), body.get("devices"), bool(body.get("save")),
                             overrides=body.get("overrides"), groups=body.get("groups"),
-                            persist=self.path == "/api/apply", ui=body.get("ui"))
+                            persist=self.path == "/api/apply", ui=body.get("ui"), hw=body.get("hw"))
                 return self._send(200, {"ok": True, "report": rep})
             if self.path == "/api/effect":
                 if body.get("on"):
+                    stop_effect()
+                    if body.get("persist"):  # "Aplicar" com efeito animado: salva o estado também
+                        apply(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
+                              body.get("mode", "gradiente"), body.get("devices"), False,
+                              overrides=body.get("overrides"), groups=body.get("groups"),
+                              ui=body.get("ui"), hw=body.get("hw"))
                     start_effect(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
                                  body.get("mode", "gradiente"), body.get("devices"), float(body.get("speed", 3)),
-                                 body.get("overrides"), body.get("groups"))
+                                 body.get("overrides"), body.get("groups"), body.get("kind", "fluir"), body.get("hw"))
                 else:
                     stop_effect()
                 return self._send(200, {"ok": True, "effect": _effect["on"]})
@@ -490,7 +689,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True})
             if self.path == "/api/claude":
                 rep, prof = apply_claude(body)
-                return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"]})
+                return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
+                                        "effect_kind": _effect.get("kind") if _effect["on"] else "static"})
             if self.path == "/api/preset":
                 p = load_palettes()
                 name = (body.get("name") or "").strip()
@@ -505,10 +705,22 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "não encontrado"})
 
 
+class Server(ThreadingHTTPServer):
+    """No Windows, SO_REUSEADDR deixa dois servidores na mesma porta; aqui a porta é exclusiva."""
+    allow_reuse_address = False
+    daemon_threads = True
+
+    def server_bind(self):
+        import socket
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def serve():
     url = f"http://127.0.0.1:{UI_PORT}/"
     try:
-        srv = ThreadingHTTPServer(("127.0.0.1", UI_PORT), Handler)
+        srv = Server(("127.0.0.1", UI_PORT), Handler)
     except OSError:  # já tem um MeuRGB aberto: só abre a página dele
         print(f"O {APP_NAME} já está aberto, abrindo no navegador...")
         webbrowser.open(url)
@@ -523,6 +735,13 @@ def serve():
 
 
 # ---------------------------------------------------------------- CLI
+def _read_json_arg(argv):
+    """JSON de um arquivo ou do stdin ("-"), sempre em UTF-8 (no Windows o padrão do stdin é cp1252)."""
+    src = argv[1] if len(argv) > 1 else "-"
+    raw = sys.stdin.buffer.read() if src == "-" else Path(src).read_bytes()
+    return json.loads(raw.decode("utf-8-sig"))
+
+
 def _print_report(rep):
     for r in rep:
         print(("  OK   " if r["ok"] else "  ERRO ") + r["device"]
@@ -542,9 +761,17 @@ def cli(argv):
     if cmd == "listar":
         client()
         for d in device_info():
-            print(f"[{d['id']}] {d['name']} ({d['type']}) modos={d['modes']}")
+            print(f"[{d['id']}] {d['name']} ({d['type']})")
+            print(f"     efeitos do chip: {', '.join(e['name'] for e in d['effects']) or 'nenhum'}")
             for z in d["zones"]:
-                print(f"     - {z['name']}: {z['leds']} LEDs")
+                print(f"     - zona {z['name']}: {z['leds']} LEDs")
+    elif cmd == "detectar":
+        print(json.dumps(detect_system(), indent=2, ensure_ascii=False))
+    elif cmd == "conectar":
+        print("OpenRGB conectado." if start_openrgb() else "Não consegui abrir o OpenRGB.")
+    elif cmd == "configurar":
+        p = save_pc(_read_json_arg(argv))
+        print(f"Perfil do PC salvo em {PC_FILE} ({len(p.get('nicknames') or {})} apelidos). O app atualiza sozinho.")
     elif cmd == "desligar":
         turn_off()
         print("Tudo apagado.")
@@ -561,9 +788,7 @@ def cli(argv):
         print(f"Aplicado: {label} -> {' '.join(to_hex(c) for c in pal)}")
         _print_report(rep)
     elif cmd in ("ia", "ai", "claude"):
-        src = argv[1] if len(argv) > 1 else "-"
-        raw = sys.stdin.read() if src == "-" else Path(src).read_text(encoding="utf-8")
-        prof = json.loads(raw)
+        prof = _read_json_arg(argv)
         import urllib.error
         import urllib.request
         try:  # com o app aberto, vai por ele: a tela atualiza sozinha e o efeito "fluir" funciona

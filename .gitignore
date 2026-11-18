@@ -11,3 +11,4 @@ configurado.ok
 
 __pycache__/
 *.pyc
+app/pc.json
