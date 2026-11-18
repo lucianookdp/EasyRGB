@@ -1097,9 +1097,11 @@ def _bump(msg=""):
     _rev["n"] += 1
     _rev["msg"] = msg
     tray = _tray.get("icon")
-    if tray and msg:
+    if tray:
         try:
-            tray.notify(msg, APP_NAME)
+            tray.update_menu()
+            if msg:
+                tray.notify(msg, APP_NAME)
         except Exception:
             pass
 
@@ -1133,8 +1135,9 @@ def quick(action, value=None):
             stop_effect()
             turn_off()
             _bump("Luzes apagadas" if pt else "Lights off")
-    elif action in ("brighter", "dimmer"):
-        b = max(5, min(100, int(L.get("brightness", 100)) + (10 if action == "brighter" else -10)))
+    elif action in ("brighter", "dimmer", "brightness"):
+        b = int(value) if action == "brightness" else int(L.get("brightness", 100)) + (10 if action == "brighter" else -10)
+        b = max(5, min(100, b))
         _rev["off"] = False
         apply_saved(L, persist=True, brightness=b)
         _bump(("Brilho " if pt else "Brightness ") + f"{b}%")
@@ -1198,8 +1201,20 @@ def sync_hotkeys():
 _tray = {"icon": None}
 
 
+def _tray_summary():
+    """Texto curto do estado atual, para o topo do menu e a dica ao passar o mouse."""
+    pt = _pt()
+    if _rev["off"]:
+        return "Luzes apagadas" if pt else "Lights off"
+    L = load_state() or {}
+    ui = L.get("ui") or {}
+    name = ui.get("preset") or ("Cores personalizadas" if pt else "Custom colors")
+    return f"{name} · {int(L.get('brightness', 100))}%"
+
+
 def start_tray(url):
-    """Ícone na bandeja: abrir, presets, efeitos, brilho, apagar e sair. Não abre navegador sozinho."""
+    """Ícone na bandeja, organizado em seções: estado, abrir, visual (presets, efeito, brilho, luzes),
+    atalhos e sair. Os itens marcados mostram o que está ativo agora."""
     try:
         import pystray
         from PIL import Image
@@ -1207,34 +1222,65 @@ def start_tray(url):
         return
     pt = _pt()
     T = (lambda p, e: p) if pt else (lambda p, e: e)
+    Item, Menu = pystray.MenuItem, pystray.Menu
 
     def act(a, v=None):
         return lambda icon, item: threading.Thread(target=quick, args=(a, v), daemon=True).start()
 
-    def presets_menu():
-        return pystray.Menu(*[pystray.MenuItem(n, act("preset", n)) for n in load_palettes()])
+    def ui():
+        return ((load_state() or {}).get("ui") or {})
+
+    def presets_items():
+        mine, builtin = list(user_presets()), [n for n in builtin_presets() if n not in user_presets()]
+        items = []
+        for title, names in ((T("Meus presets", "My presets"), mine), (T("Padrão", "Built-in"), builtin)):
+            if not names:
+                continue
+            if items:
+                items.append(Menu.SEPARATOR)
+            items.append(Item(title, None, enabled=False))
+            items += [Item(n, act("preset", n), radio=True, checked=lambda it, n=n: ui().get("preset") == n)
+                      for n in names]
+        return items
 
     fx = [("static", T("Estático", "Static")), ("fluir", T("Fluir", "Flow")), ("respirar", T("Respirar", "Breathe")),
           ("musica", T("Música", "Music")), ("ciclo", T("Ciclo de cores", "Color cycle")),
           ("arcoiris", T("Arco-íris", "Rainbow"))]
+
+    def bri():
+        return int((load_state() or {}).get("brightness", 100))
+
+    def toggle_hotkeys(icon, item):
+        a = load_auto()
+        a["hotkeys"] = not a.get("hotkeys")
+        save_auto(a)
+        sync_hotkeys()
+        _bump((T("Atalhos ligados", "Shortcuts on") if a["hotkeys"] else T("Atalhos desligados", "Shortcuts off")))
 
     def quit_app(icon, item):
         icon.stop()
         stop_effect()
         os._exit(0)
 
-    menu = pystray.Menu(
-        pystray.MenuItem(T("Abrir EasyRGB", "Open EasyRGB"), lambda i, it: webbrowser.open(url), default=True),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(T("Presets", "Presets"), pystray.Menu(lambda: presets_menu().items)),
-        pystray.MenuItem(T("Efeito", "Effect"), pystray.Menu(*[pystray.MenuItem(n, act("effect", k)) for k, n in fx])),
-        pystray.MenuItem(T("Mais brilho", "Brighter"), act("brighter")),
-        pystray.MenuItem(T("Menos brilho", "Dimmer"), act("dimmer")),
-        pystray.MenuItem(T("Apagar / acender", "Lights off / on"), act("toggle")),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(T("Sair do EasyRGB", "Quit EasyRGB"), quit_app),
+    menu = Menu(
+        Item(lambda it: f"{APP_NAME}  ·  {_tray_summary()}", None, enabled=False),
+        Item(T("Abrir o EasyRGB", "Open EasyRGB"), lambda i, it: webbrowser.open(url), default=True),
+        Menu.SEPARATOR,
+        Item(T("Presets", "Presets"), Menu(lambda: presets_items())),
+        Item(T("Efeito", "Effect"), Menu(*[Item(n, act("effect", k), radio=True,
+                                                checked=lambda it, k=k: ui().get("effect", "static") == k)
+                                           for k, n in fx])),
+        Item(T("Brilho", "Brightness"), Menu(*[Item(f"{v}%", act("brightness", v), radio=True,
+                                                    checked=lambda it, v=v: bri() == v)
+                                               for v in (100, 75, 50, 25)])),
+        Item(T("Luzes acesas", "Lights on"), act("toggle"), checked=lambda it: not _rev["off"]),
+        Menu.SEPARATOR,
+        Item(T("Atalhos de teclado", "Keyboard shortcuts"), toggle_hotkeys, checked=lambda it: bool(load_auto().get("hotkeys"))),
+        Menu.SEPARATOR,
+        Item(T("Sair do EasyRGB", "Quit EasyRGB"), quit_app),
     )
-    icon = pystray.Icon(APP_NAME, Image.open(HERE / "icon.ico"), APP_NAME, menu)
+    img = HERE / "tray.png" if (HERE / "tray.png").exists() else HERE / "icon.ico"   # PNG transparente
+    icon = pystray.Icon(APP_NAME, Image.open(img), APP_NAME, menu)   # ao passar o mouse: só o nome
     _tray["icon"] = icon
     threading.Thread(target=icon.run, daemon=True).start()
 
@@ -1254,8 +1300,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        self.path = self.path.split("?", 1)[0]   # ignora ?parâmetros (ex.: /?v=2)
         if self.path in ("/", "/index.html"):
             return self._send(200, (HERE / "index.html").read_bytes(), "text/html")
+        if self.path in ("/icon.png", "/favicon.ico"):
+            return self._send(200, (HERE / "icon.png").read_bytes(), "image/png")
         if self.path == "/api/state":
             st = {"app": APP_NAME, "version": VERSION, "palettes": load_palettes(), "user_presets": list(user_presets()),
                   "conflicts": running_conflicts(),
@@ -1295,6 +1344,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "não encontrado"})
 
     def do_POST(self):
+        self.path = self.path.split("?", 1)[0]
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}")
         try:

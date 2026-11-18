@@ -1,32 +1,71 @@
-"""Gera o ícone (app/icon.ico, docs/icon.png) e a prévia social (docs/social-preview.png).
+"""Gera o ícone (app/icon.ico, app/icon.png, docs/icon.png) e a prévia social (docs/social-preview.png).
 
+Ícone: brilho de 4 pontas vazado, com o colorido RGB em volta (gradiente cônico) e uma bola colorida no meio.
 Rodar:  python tools/make_assets.py
 """
+import colorsys
+import math
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app" / "lib"))
-from PIL import Image, ImageChops, ImageDraw, ImageFont  # noqa: E402
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont  # noqa: E402
 
-BG = (24, 24, 27, 255)
+BG = (17, 17, 20, 255)
+_cache = {}
 
 
-def logo(size=256):
-    """Três círculos RGB somados (como luz) num quadrado arredondado escuro."""
-    s = size * 4  # desenha grande e reduz: bordas suaves
-    base = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    ImageDraw.Draw(base).rounded_rectangle([0, 0, s - 1, s - 1], radius=s // 4, fill=BG)
-    light = Image.new("RGB", (s, s), (0, 0, 0))
-    r = int(s * 0.19)
-    for (cx, cy), color in (((0.50, 0.395), (255, 59, 78)), ((0.39, 0.58), (34, 211, 107)),
-                            ((0.61, 0.58), (59, 130, 246))):
-        layer = Image.new("RGB", (s, s), (0, 0, 0))
-        ImageDraw.Draw(layer).ellipse([cx * s - r, cy * s - r, cx * s + r, cy * s + r], fill=color)
-        light = ImageChops.screen(light, layer)
-    mask = light.convert("L").point(lambda v: 255 if v > 0 else 0)
-    base.paste(light, (0, 0), mask)
-    return base.resize((size, size), Image.LANCZOS)
+def _conic(s, start=0.62):
+    """Gradiente de matiz em volta do centro (o colorido RGB do ícone)."""
+    key = (s, start)
+    if key not in _cache:
+        im = Image.new("RGB", (s, s))
+        px, c = im.load(), s / 2
+        for y in range(s):
+            for x in range(s):
+                h = (math.atan2(y - c, x - c) / (2 * math.pi) + start) % 1.0
+                r, g, b = colorsys.hsv_to_rgb(h, 1, 1)
+                px[x, y] = (int(r * 255), int(g * 255), int(b * 255))
+        _cache[key] = im
+    return _cache[key]
+
+
+def _sparkle(s, cx, cy, R, pinch=0.08):
+    """Estrela de 4 pontas com lados curvos."""
+    pts, outer = [], [(cx, cy - R), (cx + R, cy), (cx, cy + R), (cx - R, cy)]
+    for i in range(4):
+        a, b = outer[i], outer[(i + 1) % 4]
+        ctrl = (cx + (a[0] + b[0] - 2 * cx) * pinch, cy + (a[1] + b[1] - 2 * cy) * pinch)
+        for k in range(48):
+            t = k / 48
+            pts.append(((1 - t) ** 2 * a[0] + 2 * (1 - t) * t * ctrl[0] + t ** 2 * b[0],
+                        (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * ctrl[1] + t ** 2 * b[1]))
+    m = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(m).polygon(pts, fill=255)
+    return m
+
+
+def logo(size=256, background=True):
+    s = 512
+    cx, cy, R, w = s * 0.5, s * 0.5, s * 0.36, s * 0.05
+    outline = ImageChops.subtract(_sparkle(s, cx, cy, R), _sparkle(s, cx, cy, R - w * 1.9))
+    ball = Image.new("L", (s, s), 0)
+    r = s * 0.062
+    ImageDraw.Draw(ball).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    art = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    art.paste(_conic(s), (0, 0), ImageChops.lighter(outline, ball))
+    out = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    if background:
+        ImageDraw.Draw(out).rounded_rectangle([0, 0, s - 1, s - 1], radius=s // 4, fill=BG)
+    glow = art.filter(ImageFilter.GaussianBlur(26))
+    out.alpha_composite(Image.blend(Image.new("RGBA", (s, s), (0, 0, 0, 0)), glow, 0.85))
+    out.alpha_composite(art)
+    if background:   # o brilho não passa da borda do quadrado
+        sq = Image.new("L", (s, s), 0)
+        ImageDraw.Draw(sq).rounded_rectangle([0, 0, s - 1, s - 1], radius=s // 4, fill=255)
+        out.putalpha(ImageChops.multiply(out.split()[3], sq))
+    return out.resize((size, size), Image.LANCZOS)
 
 
 def font(px, bold=False):
@@ -70,6 +109,8 @@ def social_preview():
 if __name__ == "__main__":
     icon = logo(256)
     icon.save(ROOT / "app" / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-    icon.save(ROOT / "docs" / "icon.png")
+    icon.save(ROOT / "app" / "icon.png")     # favicon e logo do topo da página
+    logo(256, background=False).save(ROOT / "app" / "tray.png")   # bandeja: só o brilho, sem o fundo escuro
+    icon.save(ROOT / "docs" / "icon.png")    # logo do README
     social_preview().save(ROOT / "docs" / "social-preview.png", optimize=True)
-    print("ok: app/icon.ico, docs/icon.png, docs/social-preview.png")
+    print("ok: app/icon.ico, app/icon.png, docs/icon.png, docs/social-preview.png")

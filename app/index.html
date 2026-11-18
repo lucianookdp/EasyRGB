@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>EasyRGB</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Cg style='mix-blend-mode:screen'%3E%3Ccircle cx='16' cy='12.5' r='6.2' fill='%23ff3b4e'/%3E%3Ccircle cx='12.4' cy='18.6' r='6.2' fill='%2322d36b' style='mix-blend-mode:screen'/%3E%3Ccircle cx='19.6' cy='18.6' r='6.2' fill='%233b82f6' style='mix-blend-mode:screen'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" href="/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -33,7 +33,7 @@
   .top{position:sticky;top:0;z-index:20;background:var(--top-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
   .top .in{max-width:1240px;margin:0 auto;height:58px;padding:0 20px;display:flex;align-items:center;gap:10px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em}
-  .brand svg{width:28px;height:28px}
+  .brand img{width:28px;height:28px;border-radius:7px}
   .ver{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:1px 6px}
   .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:0 4px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--err)}
@@ -344,10 +344,7 @@
 
 <div class="top"><div class="in">
   <div class="brand">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#18181b" stroke="#2a2a30"/>
-      <g style="isolation:isolate"><circle cx="16" cy="12.6" r="6" fill="#ff3b4e" style="mix-blend-mode:screen"/>
-      <circle cx="12.5" cy="18.6" r="6" fill="#22d36b" style="mix-blend-mode:screen"/>
-      <circle cx="19.5" cy="18.6" r="6" fill="#3b82f6" style="mix-blend-mode:screen"/></g></svg>
+    <img src="/icon.png" alt="" width="28" height="28">
     EasyRGB <span class="ver">v1</span>
   </div>
   <div class="sp"></div>
@@ -576,7 +573,8 @@ const icon = (n, cls="") => `<svg class="i ${cls}" viewBox="0 0 24 24">${I[n]||"
 document.querySelectorAll("[data-i]").forEach(el=>el.outerHTML=icon(el.dataset.i));
 
 /* ===================== idioma (segue o sistema: português ou inglês) ===================== */
-const LANG=((navigator.languages&&navigator.languages[0])||navigator.language||"pt").toLowerCase().startsWith("pt")?"pt":"en";
+const LANG=(new URLSearchParams(location.search).get("lang")   // ?lang=en ou ?lang=pt força o idioma
+  ||(navigator.languages&&navigator.languages[0])||navigator.language||"pt").toLowerCase().startsWith("pt")?"pt":"en";
 document.documentElement.lang=LANG==="pt"?"pt-BR":"en";
 const EN={
   // topo e barra de alterações

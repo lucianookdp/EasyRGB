@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.svg" width="84" alt="EasyRGB"></p>
+<p align="center"><img src="docs/icon.png" width="96" alt="EasyRGB"></p>
 
 <h1 align="center">EasyRGB</h1>
 
