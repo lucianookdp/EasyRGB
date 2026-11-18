@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeuRGB</title>
+<title>EasyRGB</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Cg style='mix-blend-mode:screen'%3E%3Ccircle cx='16' cy='12.5' r='6.2' fill='%23ff3b4e'/%3E%3Ccircle cx='12.4' cy='18.6' r='6.2' fill='%2322d36b' style='mix-blend-mode:screen'/%3E%3Ccircle cx='19.6' cy='18.6' r='6.2' fill='%233b82f6' style='mix-blend-mode:screen'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -348,7 +348,7 @@
       <g style="isolation:isolate"><circle cx="16" cy="12.6" r="6" fill="#ff3b4e" style="mix-blend-mode:screen"/>
       <circle cx="12.5" cy="18.6" r="6" fill="#22d36b" style="mix-blend-mode:screen"/>
       <circle cx="19.5" cy="18.6" r="6" fill="#3b82f6" style="mix-blend-mode:screen"/></g></svg>
-    MeuRGB <span class="ver">v1</span>
+    EasyRGB <span class="ver">v1</span>
   </div>
   <div class="sp"></div>
   <button class="fxpill" id="fxpill" hidden title="As cores estão mudando sozinhas por causa deste efeito. Clique para parar."><span data-i="waves"></span><span id="fxpilltxt">Efeito ativo</span><span class="stopx">Parar</span></button>
@@ -376,7 +376,7 @@
           <div class="tchips" id="targets"></div>
           <p class="thint" id="thint"></p>
         </div>
-        <div class="hexline" id="importRow" hidden><div class="field"><span data-i="download"></span><input id="importCode" class="mono" spellcheck="false" placeholder="Cole aqui um código MEURGB1-..."></div><button class="btn" id="importGo">Usar</button></div>
+        <div class="hexline" id="importRow" hidden><div class="field"><span data-i="download"></span><input id="importCode" class="mono" spellcheck="false" placeholder="Cole aqui um código EASYRGB1-..."></div><button class="btn" id="importGo">Usar</button></div>
 
         <div class="controls">
           <div class="ctl">
@@ -392,7 +392,7 @@
             <input type="range" id="bri" min="5" max="100" value="100" style="margin:12px 0 0">
           </div>
           <div class="ctl full">
-            <label class="lb">Efeito <span class="dim" id="fxhint">Os animados rodam enquanto o MeuRGB está aberto</span></label>
+            <label class="lb">Efeito <span class="dim" id="fxhint">Os animados rodam enquanto o EasyRGB está aberto</span></label>
             <div class="fxgrid" id="fxseg">
               <button data-v="static"><span data-i="square"></span>Estático</button>
               <button data-v="fluir"><span data-i="waves"></span>Fluir</button>
@@ -433,7 +433,7 @@
         </div>
 
         <div class="tile hk" id="hkTile">
-          <div class="thd"><div class="tic"><span data-i="keyboard"></span></div><div class="ttl"><b>Atalhos de teclado</b><small>Troque cores sem abrir o app. O MeuRGB fica no ícone ao lado do relógio.</small></div>
+          <div class="thd"><div class="tic"><span data-i="keyboard"></span></div><div class="ttl"><b>Atalhos de teclado</b><small>Troque cores sem abrir o app. O EasyRGB fica no ícone ao lado do relógio.</small></div>
             <span class="switch"><input type="checkbox" id="hkOn" aria-label="Atalhos de teclado"><span></span></span></div>
           <div class="keys">
             <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>→</kbd> <em>Próximo preset</em></span>
@@ -590,7 +590,7 @@ const EN={
   "Paleta":"Palette","Clique numa cor para editar. O PC já mostra a mudança enquanto você escolhe.":"Click a color to edit it. Your PC shows the change while you pick.",
   "Compartilhar":"Share","Importar":"Import","Copiar um código do visual para mandar para alguém":"Copy a code of this look to send to someone",
   "Usar o visual de outra pessoa":"Use someone else's look","Cole uma paleta: #FF2E88, 9B3DFF, rgb(0,217,200)":"Paste a palette: #FF2E88, 9B3DFF, rgb(0,217,200)",
-  "Cole aqui um código MEURGB1-...":"Paste a MEURGB1-... code here","Usar":"Use","Adicionar cor":"Add color",
+  "Cole aqui um código EASYRGB1-...":"Paste a EASYRGB1-... code here","Usar":"Use","Adicionar cor":"Add color",
   "Aplicar a paleta em":"Apply the palette to","Todos":"All","Conecte ao OpenRGB para escolher os dispositivos.":"Connect to OpenRGB to pick devices.",
   "Todos os dispositivos recebem a paleta.":"Every device gets the palette.",
   "{n} dispositivo fica com as cores atuais.":"{n} device keeps its current colors.","{n} dispositivos ficam com as cores atuais.":"{n} devices keep their current colors.",
@@ -598,7 +598,7 @@ const EN={
   "Deixe pelo menos um dispositivo recebendo a paleta":"Keep at least one device getting the palette",
   "Distribuição":"Layout","Gradiente":"Gradient","Alternado":"Alternating","Por zona":"Per zone",
   "Mistura suave entre as cores":"Smooth blend between colors","Cores intercaladas LED a LED":"Colors alternate LED by LED","Uma cor da paleta para cada zona":"One palette color per zone",
-  "Brilho":"Brightness","Efeito":"Effect","Os animados rodam enquanto o MeuRGB está aberto":"Animated effects run while MeuRGB is open",
+  "Brilho":"Brightness","Efeito":"Effect","Os animados rodam enquanto o EasyRGB está aberto":"Animated effects run while EasyRGB is open",
   "Estático":"Static","Fluir":"Flow","Respirar":"Breathe","Ciclo de cores":"Color cycle","Arco-íris":"Rainbow","Velocidade":"Speed",
   "{x} ligado":"{x} on",
   // dispositivos
@@ -608,7 +608,7 @@ const EN={
   "Cada módulo com suas próprias cores":"Each module with its own colors","Os módulos mostram as mesmas cores":"Modules show the same colors",
   "O gradiente atravessa os módulos como se fossem um só":"The gradient runs across modules as if they were one",
   "Ligar ou deixar de fora":"Turn on or leave out","Escolher uma cor só para esta zona":"Pick a color just for this zone","Manual":"Manual",
-  "Cores do MeuRGB":"MeuRGB colors","Efeitos do chip":"Chip effects","Efeito gravado no próprio chip: roda mesmo com o MeuRGB fechado":"Effect stored on the chip itself: runs even with MeuRGB closed",
+  "Cores do EasyRGB":"EasyRGB colors","Efeitos do chip":"Chip effects","Efeito gravado no próprio chip: roda mesmo com o EasyRGB fechado":"Effect stored on the chip itself: runs even with EasyRGB closed",
   "Este efeito usa as cores próprias do chip.":"This effect uses the chip's own colors.","Efeito do chip usando as cores da sua paleta.":"Chip effect using your palette colors.",
   "Funciona mesmo com o app fechado.":"Works even with the app closed.",
   "Guarda a cor sozinho ao desligar o PC":"Keeps its color when the PC is off","Guarda só uma cor fixa (botão Gravar na placa)":"Keeps one fixed color only (Save to board)",
@@ -616,19 +616,19 @@ const EN={
   "Ative \"Restaurar ao ligar o PC\" na Automação":"Turn on \"Restore on PC start\" in Automation",
   "O OpenRGB não está conectado.":"OpenRGB is not connected.","Conectar":"Connect",
   "Conectado, mas nenhum dispositivo RGB foi encontrado. Peça para o seu agente de IA rodar o diagnóstico.":"Connected, but no RGB device was found. Ask your AI agent to run the diagnostics.",
-  "PC ainda não configurado por IA":"PC not set up by AI yet","Configurado por IA":"Set up by AI","Peça ao seu agente de IA: configure o MeuRGB no meu PC":"Ask your AI agent: set up MeuRGB on my PC",
+  "PC ainda não configurado por IA":"PC not set up by AI yet","Configurado por IA":"Set up by AI","Peça ao seu agente de IA: configure o EasyRGB no meu PC":"Ask your AI agent: set up EasyRGB on my PC",
   "Respirar ":"Breathe ",
   // IA
   "Cores com IA":"AI colors","Funciona com qualquer agente":"Works with any agent","Novo":"New","Como usar":"How to use",
   "Um agente de IA identifica sua placa e seus dispositivos RGB, configura tudo e cria visuais sob medida.":"An AI agent identifies your board and RGB devices, sets everything up and creates looks for you.",
-  "Cole este prompt num agente de IA aberto na pasta do MeuRGB (Claude Code, Codex, Gemini CLI...).":"Paste this prompt into an AI agent opened in the MeuRGB folder (Claude Code, Codex, Gemini CLI...).",
+  "Cole este prompt num agente de IA aberto na pasta do EasyRGB (Claude Code, Codex, Gemini CLI...).":"Paste this prompt into an AI agent opened in the EasyRGB folder (Claude Code, Codex, Gemini CLI...).",
   "Copiar prompt":"Copy prompt","Copiado":"Copied","Copiado!":"Copied!","Copiar prompt de configuração":"Copy setup prompt",
-  "Copie o prompt e cole num agente de IA aberto na pasta do MeuRGB. Ele faz as perguntas e configura tudo.":"Copy the prompt and paste it into an AI agent opened in the MeuRGB folder. It asks the questions and sets everything up.",
+  "Copie o prompt e cole num agente de IA aberto na pasta do EasyRGB. Ele faz as perguntas e configura tudo.":"Copy the prompt and paste it into an AI agent opened in the EasyRGB folder. It asks the questions and sets everything up.",
   "Copiado para a área de transferência. Agora é só colar (Ctrl+V) no seu agente de IA.":"Copied to the clipboard. Now just paste it (Ctrl+V) into your AI agent.","Prompt copiado. Cole no seu agente de IA.":"Prompt copied. Paste it into your AI agent.",
   "Ativo":"Active","Reaplicar":"Re-apply","Salvar como preset":"Save as preset","Anteriores":"Earlier","Aplicar de novo":"Apply again","Perfil da IA":"AI profile",
   "{n} ajuste por zona":"{n} per-zone tweak","{n} ajustes por zona":"{n} per-zone tweaks","efeito do chip":"chip effect","efeitos do chip":"chip effects","Animado":"Animated",
   "Salvo nos presets":"Saved to presets","Aplicando perfil da IA...":"Applying AI profile...","{x} aplicado":"{x} applied","IA aplicou: {x}":"AI applied: {x}",
-  "A IA configurou o MeuRGB para o seu PC":"AI set up MeuRGB for your PC",
+  "A IA configurou o EasyRGB para o seu PC":"AI set up EasyRGB for your PC",
   "Este PC ainda não foi configurado pela IA.":"This PC hasn't been set up by AI yet.","Configurar com IA":"Set up with AI",
   // presets
   "Presets":"Presets","Temas, alguns jogos e os que você salvou.":"Themes, a few games and the ones you saved.","Buscar preset (ex.: synthwave, gta)":"Search presets (e.g. synthwave, gta)",
@@ -660,15 +660,15 @@ const EN={
   "Aplicado e gravado. As cores continuam depois de reiniciar.":"Applied and saved. Colors stay after a reboot.","Falhou em: {x}":"Failed on: {x}",
   "Alterações descartadas":"Changes discarded","Luzes apagadas. Clique em qualquer cor para acender de novo.":"Lights off. Click any color to turn them back on.",
   "Efeito parado. As cores ficaram fixas e salvas assim.":"Effect stopped. Colors are now fixed and saved.",
-  "{x}: deixe o MeuRGB aberto para o efeito continuar.":"{x}: keep MeuRGB open for the effect to keep running.",
+  "{x}: deixe o EasyRGB aberto para o efeito continuar.":"{x}: keep EasyRGB open for the effect to keep running.",
   "Abrindo o OpenRGB e procurando dispositivos...":"Opening OpenRGB and looking for devices...","dispositivo encontrado":"device found","dispositivos encontrados":"devices found",
   "Não consegui conectar ao OpenRGB":"Couldn't connect to OpenRGB","dispositivo":"device","dispositivos":"devices",
   "Código copiado. Mande para quem quiser o mesmo visual.":"Code copied. Send it to anyone who wants the same look.","Copie o código no campo abaixo":"Copy the code from the field below",
   "{x} importado. Clique em Aplicar para manter.":"{x} imported. Click Apply to keep it.","Visual":"Look",
-  "O MeuRGB está fechado. Abra o MeuRGB.bat de novo.":"MeuRGB is closed. Open MeuRGB.bat again.","O servidor do MeuRGB não respondeu.":"The MeuRGB server didn't respond.","Erro desconhecido":"Unknown error",
+  "O EasyRGB está fechado. Abra o EasyRGB.bat de novo.":"EasyRGB is closed. Open EasyRGB.bat again.","O servidor do EasyRGB não respondeu.":"The EasyRGB server didn't respond.","Erro desconhecido":"Unknown error",
   // atalhos, música e extras
   "Música":"Music","Temperatura":"Temperature","Atalhos de teclado":"Keyboard shortcuts",
-  "Troque cores sem abrir o app. O MeuRGB fica no ícone ao lado do relógio.":"Change colors without opening the app. MeuRGB stays in the icon next to the clock.",
+  "Troque cores sem abrir o app. O EasyRGB fica no ícone ao lado do relógio.":"Change colors without opening the app. EasyRGB stays in the icon next to the clock.",
   "Próximo preset":"Next preset","Preset anterior":"Previous preset","Trocar efeito":"Change effect","Apagar / acender":"Lights off / on",
   "Atalhos ligados: Ctrl+Alt+setas, E e L":"Shortcuts on: Ctrl+Alt+arrows, E and L","Atalhos desligados":"Shortcuts off",
   "Extras":"Extras","Temperatura do PC na cor":"PC temperature as color",
@@ -686,7 +686,7 @@ const EN={
   "Os presets padrão não podem ser apagados":"Built-in presets can't be deleted",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
-  "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com MEURGB1-":"Invalid code: it must start with MEURGB1-",
+  "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com EASYRGB1-":"Invalid code: it must start with EASYRGB1-",
 };
 function tr(s, vars){
   let r=(LANG==="en"&&EN[s]!==undefined)?EN[s]:s;
@@ -778,8 +778,8 @@ function payload(extra={}){
 /* ===================== API ===================== */
 async function api(path, body){
   let r; try{ r=await fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined}); }
-  catch{ throw new Error("O MeuRGB está fechado. Abra o MeuRGB.bat de novo."); }
-  let j; try{ j=await r.json(); }catch{ throw new Error("O servidor do MeuRGB não respondeu."); }
+  catch{ throw new Error("O EasyRGB está fechado. Abra o EasyRGB.bat de novo."); }
+  let j; try{ j=await r.json(); }catch{ throw new Error("O servidor do EasyRGB não respondeu."); }
   if(!r.ok||j.ok===false) throw new Error(j.error||"Erro desconhecido"); return j;
 }
 async function run(btn, fn){ if(btn) btn.disabled=true; try{ await fn(); }catch(e){ toast(e.message,"err",5000); } finally{ if(btn) btn.disabled=false; } }
@@ -891,8 +891,8 @@ const nick=d=>{ const n=S.pc?.nicknames||{}; return n[d.id]||n[String(d.id)]||n[
 function hwRow(d, ids){
   const fx=d.effects||[]; if(!fx.length) return "";
   const cur=S.hw[d.id], sel=cur?.mode||"", info=fx.find(e=>e.name===sel);
-  const opts=`<option value="">Cores do MeuRGB</option><optgroup label="Efeitos do chip">`+fx.map(e=>`<option value="${esc(e.name)}" ${e.name===sel?"selected":""}>${esc(fxName(e.name))}</option>`).join("")+`</optgroup>`;
-  return `<div class="hwrow"><span data-ii="cpuchip"></span><select class="fxsel" data-hw="${ids.join(",")}" title="Efeito gravado no próprio chip: roda mesmo com o MeuRGB fechado">${opts}</select></div>
+  const opts=`<option value="">Cores do EasyRGB</option><optgroup label="Efeitos do chip">`+fx.map(e=>`<option value="${esc(e.name)}" ${e.name===sel?"selected":""}>${esc(fxName(e.name))}</option>`).join("")+`</optgroup>`;
+  return `<div class="hwrow"><span data-ii="cpuchip"></span><select class="fxsel" data-hw="${ids.join(",")}" title="Efeito gravado no próprio chip: roda mesmo com o EasyRGB fechado">${opts}</select></div>
     ${info?.speed?`<div class="hwspdrow"><span>Velocidade</span><input type="range" data-hwspd="${ids.join(",")}" min="0" max="100" value="${cur.speed??50}"></div>`:""}
     ${info?`<div class="hwnote">${tr(info.colors==="none"?"Este efeito usa as cores próprias do chip.":"Efeito do chip usando as cores da sua paleta.")} ${tr("Funciona mesmo com o app fechado.")}</div>`:""}`;
 }
@@ -976,7 +976,7 @@ function persistHTML(ds){
 }
 function renderPC(){
   const el=$("#pcinfo"), pc=S.pc;
-  if(!pc){ el.innerHTML=`<span class="pcchip dim" title="Peça ao seu agente de IA: configure o MeuRGB no meu PC">${icon("scan")}PC ainda não configurado por IA</span>`; return; }
+  if(!pc){ el.innerHTML=`<span class="pcchip dim" title="Peça ao seu agente de IA: configure o EasyRGB no meu PC">${icon("scan")}PC ainda não configurado por IA</span>`; return; }
   const when=(pc.configured||"").slice(5,10).split("-").reverse().join("/");
   el.innerHTML=`<span class="pcchip ai" title="${esc(pc.summary||"")}">${icon("sparkles")}${tr("Configurado por IA")}${pc.agent?" · "+esc(pc.agent):""}${when?" · "+when:""}</span>`;
 }
@@ -1011,12 +1011,12 @@ function renderPresets(){
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
 const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris",musica:"Música",temperatura:"Temperatura"};
 /* o mesmo prompt fica no COMECE-AQUI.txt e no README */
-const SETUP_PROMPT = LANG==="pt" ? `Configure o MeuRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
+const SETUP_PROMPT = LANG==="pt" ? `Configure o EasyRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
 Se ainda não estiver instalado, instale primeiro (vou aceitar o pedido de administrador do Windows).
 Detecte o meu hardware e me diga, em poucas palavras, o que encontrou.
 Depois me faça as perguntas necessárias, uma de cada vez e com opções para eu escolher: estilo ou jogo que eu curto, em quais dispositivos aplicar, como deixar as memórias RAM, se quero algum efeito, modo jogo, modo noite e se quero restaurar as cores ao ligar o PC.
 No fim, configure e aplique tudo e me mostre um resumo curto do que ficou.`
-: `Set up MeuRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
+: `Set up EasyRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
 If it isn't installed yet, install it first (I'll accept the Windows administrator prompt).
 Detect my hardware and tell me in a few words what you found.
 Then ask me what you need, one question at a time with options to pick from: style or game I like, which devices to apply it to, how to set the RAM sticks, any effect, game mode, night mode and whether to restore colors when the PC starts.
@@ -1032,7 +1032,7 @@ async function copySetupPrompt(btn){
 function renderAI(){
   const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
   let h=`${!S.pc&&S.connected?`<div class="notset">${icon("alert")}<span>${tr("Este PC ainda não foi configurado pela IA.")}</span></div>`:""}
-    <div class="howto">${tr("Copie o prompt e cole num agente de IA aberto na pasta do MeuRGB. Ele faz as perguntas e configura tudo.")}</div>
+    <div class="howto">${tr("Copie o prompt e cole num agente de IA aberto na pasta do EasyRGB. Ele faz as perguntas e configura tudo.")}</div>
     <button class="btn copybig" id="copyPrompt">${icon("copy")}<span>${tr("Copiar prompt de configuração")}</span></button>
     <div class="copied" id="copiedMsg" hidden>${icon("check")}<span>${tr("Copiado para a área de transferência. Agora é só colar (Ctrl+V) no seu agente de IA.")}</span></div>`;
   if(a){
@@ -1125,7 +1125,7 @@ $("#bri").oninput=e=>{ S.bri=+e.target.value; changed(); };
 $("#spd").oninput=e=>{ S.speed=+e.target.value; changed(); };
 document.querySelectorAll("#fxseg button").forEach(b=>b.onclick=()=>run(null,async()=>{
   const v=b.dataset.v; if(v===S.fx) return; S.fx=v; render();
-  if(anim()){ await api("/api/effect",payload({on:true})); toast(tr("{x}: deixe o MeuRGB aberto para o efeito continuar.",{x:tr(FXNAME[v])})); }
+  if(anim()){ await api("/api/effect",payload({on:true})); toast(tr("{x}: deixe o EasyRGB aberto para o efeito continuar.",{x:tr(FXNAME[v])})); }
   else { await api("/api/effect",{on:false}); preview(); }
 }));
 $("#pq").addEventListener("input",e=>{ S.presetQuery=e.target.value; renderPresets(); });
@@ -1295,7 +1295,7 @@ setInterval(async()=>{
     else if(c.state_rev!==S.revSeen){ S.revSeen=c.state_rev; if(!S.applied||snap()===S.applied) await loadState(true); }
     if(S.pcSeen!==null && c.pc_configured && c.pc_configured!==S.pcSeen){
       S.pcSeen=c.pc_configured; await loadState(!S.applied || snap()===S.applied);
-      toast("A IA configurou o MeuRGB para o seu PC","ai",4500);
+      toast("A IA configurou o EasyRGB para o seu PC","ai",4500);
     }
     if(!S.connected) await loadState(!S.applied);
   }catch{}

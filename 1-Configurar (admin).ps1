@@ -1,4 +1,4 @@
-﻿# MeuRGB - configuração inicial (roda uma vez, como administrador; o MeuRGB.bat chama sozinho)
+﻿# EasyRGB - configuração inicial (roda uma vez, como administrador; o EasyRGB.bat chama sozinho)
 # 1) Baixa o OpenRGB 1.1 oficial (codeberg.org/OpenRGB) para a pasta OpenRGB\, se ainda não existir
 # 2) Instala a biblioteca openrgb-python dentro de app\lib
 # 3) Fecha e desativa (NÃO apaga) a inicialização do ASRock Polychrome, para não brigar com o OpenRGB
@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not ([Security.Principal.WindowsPrincipal]$id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    # -Wait: quem chamou (o MeuRGB.bat ou um agente de IA) espera a instalação terminar
+    # -Wait: quem chamou (o EasyRGB.bat ou um agente de IA) espera a instalação terminar
     Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     exit
 }
@@ -60,7 +60,7 @@ try {
     }
 
     Set-Content -Path (Join-Path $base 'configurado.ok') -Value (Get-Date) -Encoding utf8
-    Write-Host "`nPronto! O MeuRGB vai abrir agora." -ForegroundColor Green
+    Write-Host "`nPronto! O EasyRGB vai abrir agora." -ForegroundColor Green
     Start-Sleep 2
 }
 catch {

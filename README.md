@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/logo.svg" width="84" alt="MeuRGB"></p>
+<p align="center"><img src="docs/logo.svg" width="84" alt="EasyRGB"></p>
 
-<h1 align="center">MeuRGB</h1>
+<h1 align="center">EasyRGB</h1>
 
 <p align="center"><b>Your PC's RGB, set up by AI.</b></p>
 
@@ -21,7 +21,7 @@
 <p align="center"><sub>English · <a href="#resumo-em-português">Resumo em português</a> · The app follows your system language (English or Portuguese).</sub></p>
 
 <p align="center">
-  <img src="docs/screenshot.png" alt="MeuRGB" width="920">
+  <img src="docs/screenshot.png" alt="EasyRGB" width="920">
 </p>
 
 > [!NOTE]
@@ -29,23 +29,23 @@
 
 ## Start here
 
-MeuRGB is a **template**: an AI agent installs it and adapts it to *your* PC (devices, chip effects, conflicts) **before you even open it**. No technical knowledge needed.
+EasyRGB is a **template**: an AI agent installs it and adapts it to *your* PC (devices, chip effects, conflicts) **before you even open it**. No technical knowledge needed.
 
-1. Download this repo (**Code → Download ZIP**) and extract it, e.g. to `C:\MeuRGB`.
+1. Download this repo (**Code → Download ZIP**) and extract it, e.g. to `C:\EasyRGB`.
 2. Open an AI agent that can run commands on your PC (Claude Code, Codex, Gemini CLI, Cursor...) **in that folder**.
 3. Paste this prompt and answer its questions (Windows asks for administrator permission once: click **Yes**):
 
 ```text
-Set up MeuRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
+Set up EasyRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
 If it isn't installed yet, install it first (I'll accept the Windows administrator prompt).
 Detect my hardware and tell me in a few words what you found.
 Then ask me what you need, one question at a time with options to pick from: style or game I like, which devices to apply it to, how to set the RAM sticks, any effect, game mode, night mode and whether to restore colors when the PC starts.
 Finally, set up and apply everything and show me a short summary.
 ```
 
-4. Done. Open **`MeuRGB.bat`** whenever you want to change things yourself, or just ask the agent for a new look.
+4. Done. Open **`EasyRGB.bat`** whenever you want to change things yourself, or just ask the agent for a new look.
 
-The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), and the app has a **Copy setup prompt** button. `MeuRGB.bat` reminds you if the PC hasn't been set up by AI yet.
+The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), and the app has a **Copy setup prompt** button. `EasyRGB.bat` reminds you if the PC hasn't been set up by AI yet.
 
 ## Features
 
@@ -62,14 +62,14 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 | **Restore on PC start** | Brings colors back after a reboot (even on RAM that can't store them) and **exits by itself**: nothing stays in memory. |
 | **Music, shortcuts & tray** | Lights that dance to what's playing, global Ctrl+Alt shortcuts, and a tray icon next to the clock (no window, ~35 MB). |
 | **Keyboard highlights** | Color WASD, arrows, numbers, F-keys and more on their own. Warns when vendor apps (e.g. Logitech G HUB) fight for your lights. |
-| **Presets & gallery** | 14 built-in presets that never change, plus your own. Share looks with `MEURGB1-...` codes and browse the [community gallery](GALLERY.md). |
+| **Presets & gallery** | 14 built-in presets that never change, plus your own. Share looks with `EASYRGB1-...` codes and browse the [community gallery](GALLERY.md). |
 | **English / Português** | Follows your system language. Dark theme, like most RGB apps, so LED colors look true. |
 
 <details>
 <summary><b>Manual install, commands and tests</b></summary>
 
 **Requirements:** Windows 10/11, [Python 3](https://www.python.org/downloads/), [OpenRGB-supported](https://openrgb.org/devices.html) hardware.
-Without an agent: run `MeuRGB.bat` and choose *Open anyway*. It installs official OpenRGB 1.1, `openrgb-python` and the signed PawnIO driver, and disables (without deleting) the ASRock Polychrome startup task. Undo with `Voltar para ASRock (admin).ps1`.
+Without an agent: run `EasyRGB.bat` and choose *Open anyway*. It installs official OpenRGB 1.1, `openrgb-python` and the signed PawnIO driver, and disables (without deleting) the ASRock Polychrome startup task. Undo with `Voltar para ASRock (admin).ps1`.
 
 ```bash
 cd app
@@ -85,7 +85,7 @@ python -m unittest discover -s tests -v      # 50 tests, no hardware needed
 
 ## Resumo em português
 
-O **MeuRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `MeuRGB.bat`. O app fica em português ou inglês conforme o idioma do seu sistema.
+O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `EasyRGB.bat`. O app fica em português ou inglês conforme o idioma do seu sistema.
 
 ---
 

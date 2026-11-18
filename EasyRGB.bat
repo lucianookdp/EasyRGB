@@ -1,5 +1,5 @@
 @echo off
-title MeuRGB
+title EasyRGB
 cd /d "%~dp0"
 
 where python >nul 2>&1
@@ -9,7 +9,7 @@ rem Ainda nao configurado pela IA? Mostra o caminho certo antes de seguir.
 if exist "%~dp0app\pc.json" goto instalar
 echo.
 echo  ==========================================================================
-echo   MeuRGB is not set up for this PC yet.  /  O MeuRGB ainda nao foi
+echo   EasyRGB is not set up for this PC yet.  /  O EasyRGB ainda nao foi
 echo   configurado para este PC.
 echo.
 echo   Best way / Melhor jeito:
@@ -21,7 +21,7 @@ echo    3. Answer its questions. It installs and configures everything.
 echo       Responda as perguntas. Ele instala e configura tudo.
 echo  ==========================================================================
 echo.
-choice /c 12 /n /m "  [1] Show the prompt / Ver o prompt     [2] Open MeuRGB anyway / Abrir mesmo assim: "
+choice /c 12 /n /m "  [1] Show the prompt / Ver o prompt     [2] Open EasyRGB anyway / Abrir mesmo assim: "
 if errorlevel 2 goto instalar
 start "" notepad "%~dp0START-HERE.txt"
 exit /b
@@ -40,12 +40,12 @@ start "" pythonw rgb_controller.py
 timeout /t 4 /nobreak >nul
 powershell -NoProfile -Command "if (-not (Get-NetTCPConnection -State Listen -LocalPort 6750 -ErrorAction SilentlyContinue)) { exit 1 }"
 if not errorlevel 1 exit /b
-echo MeuRGB didn't start. Last log lines: / O MeuRGB nao abriu. Ultimas linhas do log:
-powershell -NoProfile -Command "Get-Content '%~dp0app\meurgb.log' -Tail 15 -ErrorAction SilentlyContinue"
+echo EasyRGB didn't start. Last log lines: / O EasyRGB nao abriu. Ultimas linhas do log:
+powershell -NoProfile -Command "Get-Content '%~dp0app\easyrgb.log' -Tail 15 -ErrorAction SilentlyContinue"
 pause
 exit /b
 
 :sempython
-echo MeuRGB needs Python 3: https://www.python.org/downloads/  /  O MeuRGB precisa do Python 3.
+echo EasyRGB needs Python 3: https://www.python.org/downloads/  /  O EasyRGB precisa do Python 3.
 echo Tip: your AI agent can install it for you. / Dica: o seu agente de IA pode instalar para voce.
 pause

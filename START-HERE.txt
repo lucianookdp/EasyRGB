@@ -1,21 +1,21 @@
-MeuRGB - START HERE / COMECE AQUI
+EasyRGB - START HERE / COMECE AQUI
 ==================================
 
-MeuRGB is a template: an AI agent installs it and adapts it to YOUR PC before you use it.
-O MeuRGB e um template: um agente de IA instala e adapta tudo ao SEU PC antes de voce usar.
+EasyRGB is a template: an AI agent installs it and adapts it to YOUR PC before you use it.
+O EasyRGB e um template: um agente de IA instala e adapta tudo ao SEU PC antes de voce usar.
 
 1. Open an AI agent that can run commands on your PC (Claude Code, Codex, Gemini CLI, Cursor...) in THIS folder.
    Abra um agente de IA que rode comandos no seu PC (Claude Code, Codex, Gemini CLI, Cursor...) NESTA pasta.
 2. Copy ONE of the prompts below and paste it into the agent.
    Copie UM dos prompts abaixo e cole no agente.
-3. Answer its questions. When it's done, open MeuRGB.bat.
-   Responda as perguntas. No final, abra o MeuRGB.bat.
+3. Answer its questions. When it's done, open EasyRGB.bat.
+   Responda as perguntas. No final, abra o EasyRGB.bat.
 
 Windows will ask for administrator permission once: click "Yes".
 O Windows vai pedir permissao de administrador uma vez: clique em "Sim".
 
 -------------------- ENGLISH PROMPT (copy everything below) --------------------
-Set up MeuRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
+Set up EasyRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
 If it isn't installed yet, install it first (I'll accept the Windows administrator prompt).
 Detect my hardware and tell me in a few words what you found.
 Then ask me what you need, one question at a time with options to pick from: style or game I like, which devices to apply it to, how to set the RAM sticks, any effect, game mode, night mode and whether to restore colors when the PC starts.
@@ -23,7 +23,7 @@ Finally, set up and apply everything and show me a short summary.
 ------------------------------------ end ----------------------------------------
 
 ------------------- PROMPT EM PORTUGUES (copie tudo abaixo) -------------------
-Configure o MeuRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
+Configure o EasyRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
 Se ainda não estiver instalado, instale primeiro (vou aceitar o pedido de administrador do Windows).
 Detecte o meu hardware e me diga, em poucas palavras, o que encontrou.
 Depois me faça as perguntas necessárias, uma de cada vez e com opções para eu escolher: estilo ou jogo que eu curto, em quais dispositivos aplicar, como deixar as memórias RAM, se quero algum efeito, modo jogo, modo noite e se quero restaurar as cores ao ligar o PC.

@@ -46,7 +46,7 @@ def social_preview():
         t = i / H
         d.line([(0, i), (W, i)], fill=(int(9 + 18 * (1 - t)), 9, int(11 + 22 * t)))
     img.paste(logo(120), (80, 90), logo(120))
-    d.text((80, 240), "MeuRGB", font=font(84, True), fill=(250, 250, 250))
+    d.text((80, 240), "EasyRGB", font=font(84, True), fill=(250, 250, 250))
     d.text((84, 345), "Your PC's RGB, set up by AI.", font=font(34), fill=(212, 212, 216))
     d.text((84, 402), "Open-source RGB controller for Windows", font=font(24), fill=(161, 161, 170))
     d.text((84, 438), "Palettes · effects · music · game mode", font=font(24), fill=(161, 161, 170))

@@ -1,4 +1,4 @@
-"""Testes do MeuRGB sem hardware: hardware simulado, lógica de cores, automação, API e interface.
+"""Testes do EasyRGB sem hardware: hardware simulado, lógica de cores, automação, API e interface.
 
 Rodar:  python -m unittest discover -s tests -v
 """
@@ -403,14 +403,19 @@ class TestShare(unittest.TestCase):
     def test_roundtrip(self):
         code = rc.share_code({"palette": ["#FF2E88", "#00D9C8"], "mode": "zona", "brightness": 70, "name": "Praia",
                               "ui": {"effect": "respirar", "speed": 6, "links": {"DRAM": "span"}}})
-        self.assertTrue(code.startswith("MEURGB1-"))
+        self.assertTrue(code.startswith("EASYRGB1-"))
         look = rc.read_share_code(code)
         self.assertEqual(look["colors"], ["#FF2E88", "#00D9C8"])
         self.assertEqual((look["mode"], look["brightness"], look["effect"], look["name"]), ("zona", 70, "respirar", "Praia"))
         self.assertEqual(look["links"], {"DRAM": "span"})
 
+    def test_old_prefix_still_works(self):
+        code = rc.share_code({"palette": ["#123456"], "name": "Velho"})
+        old = "MEURGB1-" + code.split("-", 1)[1]
+        self.assertEqual(rc.read_share_code(old)["colors"], ["#123456"])
+
     def test_invalid_codes(self):
-        for bad in ("", "abc", "MEURGB1-!!!", rc.share_code({"palette": []})):
+        for bad in ("", "abc", "EASYRGB1-!!!", rc.share_code({"palette": []})):
             with self.assertRaises(Exception):
                 rc.read_share_code(bad)
 
@@ -485,7 +490,7 @@ class TestApi(TempFiles):
 
     def test_index_and_state(self):
         with urllib.request.urlopen(self.base + "/") as r:
-            self.assertIn(b"<title>MeuRGB</title>", r.read())
+            self.assertIn(b"<title>EasyRGB</title>", r.read())
         code, st = self.call("/api/state")
         self.assertEqual(code, 200)
         self.assertEqual(len(st["devices"]), 4)
@@ -570,7 +575,7 @@ class TestUi(unittest.TestCase):
         body = self.html[self.html.index("<body>"):self.html.index("<script>")]
         texts = {" ".join(m.split()) for m in re.findall(r">([^<>]*[A-Za-zÀ-ú][^<>]*)<", body)}
         texts |= set(re.findall(r'(?:placeholder|title|aria-label)="([^"]+)"', body))
-        keep = {"MeuRGB", "v1", "Presets", "Mouse", "Ctrl", "Alt", "E", "L", "°C"}   # iguais nos dois idiomas
+        keep = {"EasyRGB", "v1", "Presets", "Mouse", "Ctrl", "Alt", "E", "L", "°C"}   # iguais nos dois idiomas
         self.assertEqual(sorted(t for t in texts if t and t not in en and t not in keep), [],
                          "texto fixo da página sem tradução para inglês")
 

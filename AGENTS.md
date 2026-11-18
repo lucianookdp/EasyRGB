@@ -1,15 +1,15 @@
-# MeuRGB: instruções para agentes de IA
+# EasyRGB: instruções para agentes de IA
 
 Vale para qualquer agente que rode comandos no PC do usuário (Claude Code, Codex, Gemini CLI, Cursor, Copilot...).
-A ideia do MeuRGB é que **tudo que der para automatizar, o agente faz**: identificar o hardware, configurar e criar os visuais.
+A ideia do EasyRGB é que **tudo que der para automatizar, o agente faz**: identificar o hardware, configurar e criar os visuais.
 
-MeuRGB é um controlador RGB por paletas em cima do OpenRGB 1.1 (servidor SDK na porta 6742, roda como admin, driver PawnIO).
-App em `app/rgb_controller.py` (servidor local + CLI), interface em `app/index.html` (http://127.0.0.1:6750), aberto pelo `MeuRGB.bat`.
+EasyRGB é um controlador RGB por paletas em cima do OpenRGB 1.1 (servidor SDK na porta 6742, roda como admin, driver PawnIO).
+App em `app/rgb_controller.py` (servidor local + CLI), interface em `app/index.html` (http://127.0.0.1:6750), aberto pelo `EasyRGB.bat`.
 Todos os comandos abaixo rodam dentro da pasta `app/`.
 
 ## 0. Configuração guiada (o prompt do `START-HERE.txt`, do README e do botão no app)
 
-O MeuRGB é um **template**: a pessoa baixa a pasta, abre você nela e cola o prompt, muitas vezes **antes de abrir o app
+O EasyRGB é um **template**: a pessoa baixa a pasta, abre você nela e cola o prompt, muitas vezes **antes de abrir o app
 pela primeira vez**. Ela pode ser leiga: fale simples, no idioma dela, e faça você o trabalho. Quando receber esse pedido:
 
 1. **Instale, se faltar** (do zero, sem a pessoa abrir nada):
@@ -27,8 +27,8 @@ pela primeira vez**. Ela pode ser leiga: fale simples, no idioma dela, e faça v
    5. Modo jogo (ofereça os jogos de `jogos`) e horários (ex.: modo noite).
    6. Restaurar as cores ao ligar o PC, explicando o motivo com base no campo `persist` de cada dispositivo.
 4. Aplique com `ia`, salve o perfil com `configurar` (é ele que marca o PC como configurado e tira o aviso do
-   `MeuRGB.bat`), use `automacao` e (se aceito) `iniciar-com-windows sim`.
-5. Mostre um resumo curto e diga que, para mexer sozinho depois, é só abrir o `MeuRGB.bat`.
+   `EasyRGB.bat`), use `automacao` e (se aceito) `iniciar-com-windows sim`.
+5. Mostre um resumo curto e diga que, para mexer sozinho depois, é só abrir o `EasyRGB.bat`.
 
 ### O que cada dispositivo guarda sozinho (`persist` em `detectar`)
 
@@ -37,7 +37,7 @@ pela primeira vez**. Ela pode ser leiga: fale simples, no idioma dela, e faça v
 - `none`: perde a cor ao desligar (ex.: RAMs ENE). Para esses, recomende "restaurar cores ao ligar o PC".
 
 "Restaurar ao ligar o PC" é leve: ao ligar, devolve as cores e **fecha tudo sozinho** (OpenRGB incluído). Só fica aberto
-em segundo plano (~30 MB do MeuRGB + ~60 MB do OpenRGB) se houver modo jogo, horários ou efeito animado do app.
+em segundo plano (~30 MB do EasyRGB + ~60 MB do OpenRGB) se houver modo jogo, horários ou efeito animado do app.
 
 ## 1. Configurar o PC (faça na primeira conversa, ou quando o usuário pedir)
 
@@ -45,7 +45,7 @@ em segundo plano (~30 MB do MeuRGB + ~60 MB do OpenRGB) se houver modo jogo, hor
    periféricos USB, dispositivos que o OpenRGB enxerga (zonas, LEDs e efeitos nativos de cada um),
    softwares RGB de fabricante instalados ou rodando e `next_steps` com o que falta.
 2. **Resolva o que faltar**, explicando ao usuário em linguagem simples:
-   - `openrgb_installed` / `pawnio_driver` falsos: peça para ele abrir o `MeuRGB.bat` (instala tudo, pede admin uma vez).
+   - `openrgb_installed` / `pawnio_driver` falsos: peça para ele abrir o `EasyRGB.bat` (instala tudo, pede admin uma vez).
    - `openrgb_running` falso: rode `python rgb_controller.py conectar`.
    - `rgb_software_conflicts` com `running: true`: só é problema se esse programa controla os mesmos dispositivos que o
      OpenRGB (ex.: Armoury Crate numa placa ASUS). Explique e **pergunte antes** de desativar a inicialização dele.
@@ -92,7 +92,7 @@ No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perf
 - `mode`: `gradiente`, `alternado` ou `zona` (uma cor da paleta por zona).
 - `effect`: efeito animado pelo app, em todos os dispositivos: `static`, `fluir`, `respirar`, `ciclo`, `arcoiris`,
   `musica` (reage ao som do PC) ou `temperatura` (cor pela temperatura; ajuste em `automacao.extras`).
-  `speed` vai de 1 a 10. Só roda enquanto o MeuRGB está aberto.
+  `speed` vai de 1 a 10. Só roda enquanto o EasyRGB está aberto.
 - `hw`: efeito **nativo do chip** de um dispositivo (nomes exatos vêm de `detectar` ou `listar`, ex.: `Breathing`,
   `Chase`, `Rainbow`). `speed` de 0 a 100. Roda sozinho, mesmo com o app fechado. Efeitos com `colors: "led"` ou
   `"mode"` usam as cores da paleta; `"none"` usam as cores próprias do chip.
@@ -124,7 +124,7 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
    - `games`: enquanto o executável estiver aberto, usa o preset; ao fechar, volta ao visual do usuário.
      O preset precisa existir em `app/palettes.json` (crie um antes, se for novo).
    - `schedule[].action`: `preset` (value = nome), `brightness` (value = %), `off` (apaga) ou `restore` (visual salvo).
-   - Funciona enquanto o MeuRGB está aberto (ou iniciado com o Windows).
+   - Funciona enquanto o EasyRGB está aberto (ou iniciado com o Windows).
 3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que devolve as cores depois de reiniciar e
    fecha sozinho quando nada precisa ficar rodando (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema.
    `nao` remove.
@@ -135,20 +135,20 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
   (crie pelo app ou escrevendo nesse arquivo: `{"Nome": ["#RRGGBB", ...]}`).
 - Teclado: cor por tecla com chaves `"L<índice>"` em `overrides` (índices e nomes em `led_names` do `detectar`).
 - `automacao` aceita `"hotkeys": true` (atalhos Ctrl+Alt + setas/E/L) e `"extras": {"temp_source": "gpu"|"cpu",
-  "temp_min": 40, "temp_max": 80}`. O MeuRGB roda sem janela, com ícone na bandeja; erros em `app/meurgb.log`.
+  "temp_min": 40, "temp_max": 80}`. O EasyRGB roda sem janela, com ícone na bandeja; erros em `app/easyrgb.log`.
 
 ## Outros comandos
 
 - `python rgb_controller.py listar`: dispositivos, zonas e efeitos do chip.
 - `python rgb_controller.py aplicar <preset ou cores> [--brilho 80] [--modo zona] [--gravar]`
-- `python rgb_controller.py compartilhar` / `importar MEURGB1-...`: código para trocar visuais entre pessoas.
+- `python rgb_controller.py compartilhar` / `importar EASYRGB1-...`: código para trocar visuais entre pessoas.
 - `python rgb_controller.py desligar`
 
 ## Testes
 
 - `python -m unittest discover -s tests -v`: lógica de cores, hardware simulado, automação, API, interface e
   paridade Python x JavaScript (precisa do Node.js para esta última). Rode depois de qualquer mudança.
-- `MEURGB_HW=1 python -m unittest tests.test_hardware -v`: teste no hardware real (as luzes piscam e voltam no final).
+- `EASYRGB_HW=1 python -m unittest tests.test_hardware -v`: teste no hardware real (as luzes piscam e voltam no final).
 
 ## Notas para agentes
 

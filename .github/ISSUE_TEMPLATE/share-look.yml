@@ -1,12 +1,12 @@
 name: Share a look / Compartilhar um visual
-description: Send your MeuRGB look to the community gallery.
+description: Send your EasyRGB look to the community gallery.
 title: "[Look] "
 labels: ["gallery"]
 body:
   - type: markdown
     attributes:
       value: |
-        In MeuRGB click **Share** to copy your code, then paste it below. / No MeuRGB clique em **Compartilhar** e cole o código abaixo.
+        In EasyRGB click **Share** to copy your code, then paste it below. / No EasyRGB clique em **Compartilhar** e cole o código abaixo.
   - type: input
     id: name
     attributes:
@@ -18,7 +18,7 @@ body:
     id: code
     attributes:
       label: Share code / Código
-      placeholder: "MEURGB1-..."
+      placeholder: "EASYRGB1-..."
     validations:
       required: true
   - type: textarea

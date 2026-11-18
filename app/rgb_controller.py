@@ -1,4 +1,4 @@
-"""MeuRGB v1 - controlador RGB por paletas, em cima do OpenRGB (servidor SDK na porta 6742).
+"""EasyRGB v1 - controlador RGB por paletas, em cima do OpenRGB (servidor SDK na porta 6742).
 
 Uso:
   python rgb_controller.py                 -> abre a interface no navegador
@@ -12,8 +12,8 @@ Uso:
   python rgb_controller.py automacao [regras.json | -]  -> mostra ou salva jogos e horários automáticos
   python rgb_controller.py jogos           -> jogos conhecidos instalados (Steam, Epic, Riot...)
   python rgb_controller.py iniciar-com-windows [sim|nao]
-  python rgb_controller.py compartilhar    -> código MEURGB1-... do visual atual
-  python rgb_controller.py importar MEURGB1-...
+  python rgb_controller.py compartilhar    -> código EASYRGB1-... do visual atual
+  python rgb_controller.py importar EASYRGB1-...
   python rgb_controller.py desligar
 """
 import json
@@ -33,7 +33,7 @@ PALETTES_FILE = HERE / "palettes.json"
 STATE_FILE = HERE / "last_state.json"
 CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = HERE.parent / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
-APP_NAME = "MeuRGB"
+APP_NAME = "EasyRGB"
 VERSION = "1.0.0"
 UI_PORT = 6750
 SDK_PORT = 6742
@@ -183,7 +183,7 @@ def start_openrgb():
     if not OPENRGB_EXE.exists():
         raise RuntimeError(f"OpenRGB não encontrado em {OPENRGB_EXE}. Rode o instalador primeiro.")
     # só "--server": o OpenRGB roda como servidor invisível, sem janela e sem ícone próprio na bandeja
-    # (o ícone que aparece é só o do MeuRGB). "--startminimized" criaria um segundo ícone.
+    # (o ícone que aparece é só o do EasyRGB). "--startminimized" criaria um segundo ícone.
     args = "--server --noautoconnect"
     ps = (f"Start-Process -FilePath '{OPENRGB_EXE}' -ArgumentList '{args}' -Verb RunAs -WindowStyle Hidden "
           f"-WorkingDirectory '{OPENRGB_EXE.parent}'")
@@ -253,7 +253,7 @@ def dev_type(d):
 
 # ---------------------------------------------------------------- efeitos nativos do hardware
 # Cada placa/RAM/teclado tem seus próprios efeitos gravados no chip (lidos do OpenRGB, então funciona
-# com qualquer hardware suportado). Eles rodam sozinhos, mesmo com o MeuRGB fechado.
+# com qualquer hardware suportado). Eles rodam sozinhos, mesmo com o EasyRGB fechado.
 _HW_SKIP = {"direct", "static", "off", "custom", "argb header config", "music"}
 _HW_FLAG_SPEED, _HW_PER_LED, _HW_MODE_COLOR = 1, 1, 2   # flag HAS_SPEED; color_mode PER_LED / MODE_SPECIFIC
 _hw_cache = {}   # id -> (modo, velocidade) já enviados, para não reenviar o modo a cada mudança de cor
@@ -298,7 +298,7 @@ _MANUAL_SAVE, _AUTO_SAVE = 256, 512
 
 def persist_kind(dev):
     """O que o chip guarda quando o PC desliga: 'auto' (guarda sozinho), 'manual' (só cor fixa, ao gravar)
-    ou 'none' (perde a cor; precisa do MeuRGB ao ligar o PC)."""
+    ou 'none' (perde a cor; precisa do EasyRGB ao ligar o PC)."""
     flags = [int(m.flags or 0) for m in dev.modes if m.name.lower() in ("direct", "static")]
     if any(f & _AUTO_SAVE for f in flags):
         return "auto"
@@ -386,7 +386,7 @@ def turn_off():
 
 
 # ---------------------------------------------------------------- efeitos animados pelo app
-# Funcionam em qualquer dispositivo, mas só enquanto o MeuRGB está aberto.
+# Funcionam em qualquer dispositivo, mas só enquanto o EasyRGB está aberto.
 EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris", "musica", "temperatura")
 RAINBOW = [(255, 0, 0), (255, 140, 0), (255, 255, 0), (0, 255, 60), (0, 200, 255), (60, 0, 255), (220, 0, 255)]
 TEMP_SCALE = [(0, 110, 255), (0, 220, 190), (255, 200, 0), (255, 40, 0)]   # frio -> quente
@@ -710,7 +710,7 @@ $o | ConvertTo-Json -Depth 4 -Compress
 
 
 def detect_system():
-    """Relatório do PC para um agente de IA configurar o MeuRGB sozinho."""
+    """Relatório do PC para um agente de IA configurar o EasyRGB sozinho."""
     raw = subprocess.run(["powershell", "-NoProfile", "-Command", _DETECT_PS], capture_output=True,
                          text=True, encoding="utf-8", errors="replace", timeout=90).stdout
     def tidy(v):  # o Windows devolve textos com espaços sobrando
@@ -746,9 +746,9 @@ def detect_system():
             report["openrgb_error"] = str(e)
     tips = []
     if not OPENRGB_EXE.exists() or not s.get("pawnio"):
-        tips.append("Falta instalar: peça para o usuário abrir o MeuRGB.bat (pede admin uma vez).")
+        tips.append("Falta instalar: peça para o usuário abrir o EasyRGB.bat (pede admin uma vez).")
     if not openrgb_running():
-        tips.append("OpenRGB fechado: rode 'python rgb_controller.py conectar' ou abra o MeuRGB.bat.")
+        tips.append("OpenRGB fechado: rode 'python rgb_controller.py conectar' ou abra o EasyRGB.bat.")
     if any(f["running"] for f in found):
         tips.append("Há software RGB de fabricante rodando: ele pode sobrescrever as cores. Pergunte ao usuário "
                     "antes de desativar a inicialização dele (nunca desinstale).")
@@ -763,7 +763,7 @@ _conf_cache = {"t": 0.0, "v": []}
 
 
 def running_conflicts():
-    """Programas RGB de fabricante abertos agora (podem trocar as cores por cima do MeuRGB). Cache de 15 s."""
+    """Programas RGB de fabricante abertos agora (podem trocar as cores por cima do EasyRGB). Cache de 15 s."""
     if time.time() - _conf_cache["t"] < 15:
         return _conf_cache["v"]
     try:
@@ -968,7 +968,7 @@ def find_installed_games():
 
 
 # ---------------------------------------------------------------- iniciar com o Windows
-TASK_NAME = "MeuRGB"
+TASK_NAME = "EasyRGB"
 
 
 _autostart_cache = {"t": 0.0, "v": False}
@@ -1000,7 +1000,7 @@ def set_autostart(on):
               f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s -Principal $p -Force\n")
     else:
         ps = f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false\n"
-    script = Path(tempfile.gettempdir()) / "meurgb_autostart.ps1"
+    script = Path(tempfile.gettempdir()) / "easyrgb_autostart.ps1"
     script.write_text(ps, encoding="utf-8-sig")
     subprocess.run(["powershell", "-NoProfile", "-Command",
                     f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
@@ -1019,14 +1019,14 @@ def needs_running():
     if a.get("enabled", True) and (any(g.get("enabled", True) for g in a.get("games", []))
                                    or any(s.get("enabled", True) for s in a.get("schedule", []))):
         return True
-    if a.get("hotkeys"):   # atalhos de teclado precisam do MeuRGB aberto (escondido, na bandeja)
+    if a.get("hotkeys"):   # atalhos de teclado precisam do EasyRGB aberto (escondido, na bandeja)
         return True
     return ((load_state() or {}).get("ui") or {}).get("effect") in EFFECTS
 
 
 def restore_on_boot():
     """Modo --background (ao ligar o PC): abre o OpenRGB, devolve o último visual e, se nada precisar ficar
-    rodando (modo jogo, horários ou efeito animado), fecha o OpenRGB e o MeuRGB: não fica nada na memória.
+    rodando (modo jogo, horários ou efeito animado), fecha o OpenRGB e o EasyRGB: não fica nada na memória.
     As cores continuam nos chips até o PC desligar."""
     was_open = openrgb_running()
     for _ in range(3):
@@ -1060,15 +1060,16 @@ def share_code(L):
     if L.get("name"):
         data["n"] = L["name"]
     raw = json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()
-    return "MEURGB1-" + base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    return "EASYRGB1-" + base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
 def read_share_code(code):
     import base64
     code = str(code).strip()
-    if not code.upper().startswith("MEURGB1-"):
-        raise ValueError("Código inválido: precisa começar com MEURGB1-")
-    b = code[8:]
+    prefix = next((p for p in ("EASYRGB1-", "MEURGB1-") if code.upper().startswith(p)), None)  # MEURGB1-: nome antigo
+    if not prefix:
+        raise ValueError("Código inválido: precisa começar com EASYRGB1-")
+    b = code[len(prefix):]
     data = json.loads(base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)).decode("utf-8"))
     cols = [to_hex(c) for c in parse_colors(data.get("c", []))]
     if not cols:
@@ -1223,7 +1224,7 @@ def start_tray(url):
         os._exit(0)
 
     menu = pystray.Menu(
-        pystray.MenuItem(T("Abrir MeuRGB", "Open MeuRGB"), lambda i, it: webbrowser.open(url), default=True),
+        pystray.MenuItem(T("Abrir EasyRGB", "Open EasyRGB"), lambda i, it: webbrowser.open(url), default=True),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(T("Presets", "Presets"), pystray.Menu(lambda: presets_menu().items)),
         pystray.MenuItem(T("Efeito", "Effect"), pystray.Menu(*[pystray.MenuItem(n, act("effect", k)) for k, n in fx])),
@@ -1231,7 +1232,7 @@ def start_tray(url):
         pystray.MenuItem(T("Menos brilho", "Dimmer"), act("dimmer")),
         pystray.MenuItem(T("Apagar / acender", "Lights off / on"), act("toggle")),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem(T("Sair do MeuRGB", "Quit MeuRGB"), quit_app),
+        pystray.MenuItem(T("Sair do EasyRGB", "Quit EasyRGB"), quit_app),
     )
     icon = pystray.Icon(APP_NAME, Image.open(HERE / "icon.ico"), APP_NAME, menu)
     _tray["icon"] = icon
@@ -1372,7 +1373,7 @@ def serve():
     background = "--background" in sys.argv   # iniciado com o Windows: sem janela e sem navegador
     try:
         srv = Server(("127.0.0.1", UI_PORT), Handler)
-    except OSError:  # já tem um MeuRGB aberto: só abre a página dele
+    except OSError:  # já tem um EasyRGB aberto: só abre a página dele
         if not background:
             print(f"O {APP_NAME} já está aberto, abrindo no navegador...")
             webbrowser.open(url)
@@ -1487,7 +1488,7 @@ def cli(argv):
 
 if __name__ == "__main__":
     if sys.stderr is None or sys.stdout is None:   # aberto com pythonw (sem janela): erros vão para o log
-        _log = open(HERE / "meurgb.log", "a", encoding="utf-8", buffering=1)
+        _log = open(HERE / "easyrgb.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stderr = _log
         print(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {APP_NAME} v{VERSION}")
     args = [a for a in sys.argv[1:] if a not in ("--no-browser", "--background")]

@@ -1,7 +1,7 @@
 """Teste no hardware REAL (opcional). As luzes piscam por alguns segundos e voltam ao visual salvo no final.
 
-Rodar:  set MEURGB_HW=1 && python -m unittest tests.test_hardware -v
-Precisa do OpenRGB aberto (MeuRGB.bat ou "python app/rgb_controller.py conectar").
+Rodar:  set EASYRGB_HW=1 && python -m unittest tests.test_hardware -v
+Precisa do OpenRGB aberto (EasyRGB.bat ou "python app/rgb_controller.py conectar").
 """
 import os
 import sys
@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 import rgb_controller as rc  # noqa: E402
 
 
-@unittest.skipUnless(os.environ.get("MEURGB_HW") == "1", "defina MEURGB_HW=1 para testar no hardware real")
+@unittest.skipUnless(os.environ.get("EASYRGB_HW") == "1", "defina EASYRGB_HW=1 para testar no hardware real")
 class TestRealHardware(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
