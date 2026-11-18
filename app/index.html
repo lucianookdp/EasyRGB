@@ -264,7 +264,7 @@
     <section class="card aicard">
       <div class="ch">
         <div class="aimark"><span data-i="sparkles"></span></div>
-        <div><h2>Cores com IA</h2><p>Claude Color</p></div>
+        <div><h2>Cores com IA</h2><p>Funciona com qualquer agente</p></div>
         <div class="sp"></div><span class="badge">Novo</span>
       </div>
       <div class="cb" id="ai"></div>
@@ -546,7 +546,7 @@ function renderPresets(){
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
 function renderAI(){
   const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
-  let h=`<div class="howto">Descreva o clima que você quer no chat do Claude. Ele cria a paleta, ajusta cada dispositivo e aplica aqui na hora.</div>
+  let h=`<div class="howto">Descreva o clima que você quer para um agente de IA que roda no seu PC (Claude Code, Codex, Gemini CLI, Cursor...). Ele cria a paleta, ajusta cada dispositivo e aplica aqui na hora. As instruções para o agente estão no <b>AGENTS.md</b>.</div>
     <div class="prompt">${icon("message")}<span>“Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.”</span></div>`;
   if(a){
     const nz=(a.zones||[]).length;

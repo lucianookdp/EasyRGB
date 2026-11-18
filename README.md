@@ -17,7 +17,9 @@ Controle o RGB do seu PC por paletas, com prévia ao vivo e <b>cores criadas por
 ## Português
 
 ### Destaque: cores com IA
-Descreva o clima no chat do **Claude** ("cyberpunk roxo e azul, teclado branco, RAMs contínuas") e ele monta a paleta, ajusta cada dispositivo e aplica na hora. O perfil aparece no card **Cores com IA**, com histórico para reaplicar. As instruções para a IA ficam no [`CLAUDE.md`](CLAUDE.md).
+Descreva o clima para um agente de IA ("cyberpunk roxo e azul, teclado branco, RAMs contínuas") e ele monta a paleta, ajusta cada dispositivo e aplica na hora. O perfil aparece no card **Cores com IA**, com histórico para reaplicar.
+
+Funciona com **qualquer agente que rode comandos no seu PC**: Claude Code, Codex, Gemini CLI, Cursor, Copilot... Abra o agente na pasta do MeuRGB e ele lê as instruções no [`AGENTS.md`](AGENTS.md).
 
 ### O que mais faz
 - Paleta com seletor de cor próprio: o PC muda **enquanto você escolhe**, e você decide entre **Aplicar** ou **Descartar**.
@@ -42,7 +44,9 @@ Para desfazer: rode `Voltar para ASRock (admin).ps1`.
 ## English
 
 ### Highlight: AI colors
-Describe a mood in a chat with **Claude** ("purple and blue cyberpunk, white keyboard, continuous RAM") and it builds the palette, tunes each device and applies it instantly. The profile shows up in the **AI colors** card with a history you can re-apply. Instructions for the AI live in [`CLAUDE.md`](CLAUDE.md).
+Describe a mood to an AI agent ("purple and blue cyberpunk, white keyboard, continuous RAM") and it builds the palette, tunes each device and applies it instantly. The profile shows up in the **AI colors** card with a history you can re-apply.
+
+Works with **any agent that can run commands on your PC**: Claude Code, Codex, Gemini CLI, Cursor, Copilot... Open the agent in the MeuRGB folder and it reads the instructions in [`AGENTS.md`](AGENTS.md).
 
 ### Features
 - Custom color picker with **live preview on your hardware**, then **Apply** or **Discard**.

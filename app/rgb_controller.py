@@ -4,7 +4,7 @@ Uso:
   python rgb_controller.py                 -> abre a interface no navegador
   python rgb_controller.py aplicar gta6    -> aplica um preset (busca por parte do nome)
   python rgb_controller.py aplicar "#FF2E88 #9B3DFF 00D9C8" [--brilho 80] [--modo gradiente|alternado|zona] [--gravar]
-  python rgb_controller.py claude perfil.json   (ou JSON pelo stdin com "-") -> perfil de cores feito por IA
+  python rgb_controller.py ia perfil.json   (ou JSON pelo stdin com "-") -> perfil de cores feito por um agente de IA
   python rgb_controller.py listar          -> mostra dispositivos e zonas detectados
   python rgb_controller.py desligar
 """
@@ -560,7 +560,7 @@ def cli(argv):
         rep = apply(pal, int(opt("--brilho", 100)), opt("--modo", "gradiente"), save="--gravar" in argv)
         print(f"Aplicado: {label} -> {' '.join(to_hex(c) for c in pal)}")
         _print_report(rep)
-    elif cmd == "claude":
+    elif cmd in ("ia", "ai", "claude"):
         src = argv[1] if len(argv) > 1 else "-"
         raw = sys.stdin.read() if src == "-" else Path(src).read_text(encoding="utf-8")
         prof = json.loads(raw)
@@ -576,7 +576,7 @@ def cli(argv):
         except OSError:
             rep, _ = apply_claude(prof, allow_effect=False)
             via = "direto no OpenRGB"
-        print(f"Claude Color aplicado ({via}): {prof.get('name')} -> {' '.join(prof.get('colors', []))}")
+        print(f"Perfil de IA aplicado ({via}): {prof.get('name')} -> {' '.join(prof.get('colors', []))}")
         _print_report(rep)
     else:
         print(__doc__)
