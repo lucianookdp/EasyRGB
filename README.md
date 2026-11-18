@@ -60,7 +60,9 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 | **Game mode** | Open a game and the PC switches to its preset; close it and your look comes back. |
 | **Night mode & schedules** | Dim at night, back to normal in the morning, presets at set times. |
 | **Restore on PC start** | Brings colors back after a reboot (even on RAM that can't store them) and **exits by itself**: nothing stays in memory. |
-| **14 presets & share codes** | Popular themes plus a few games you know by their colors; share looks with `MEURGB1-...` codes. |
+| **Music, shortcuts & tray** | Lights that dance to what's playing, global Ctrl+Alt shortcuts, and a tray icon next to the clock (no window, ~35 MB). |
+| **Keyboard highlights** | Color WASD, arrows, numbers, F-keys and more on their own. Warns when vendor apps (e.g. Logitech G HUB) fight for your lights. |
+| **Presets & gallery** | 14 built-in presets that never change, plus your own. Share looks with `MEURGB1-...` codes and browse the [community gallery](GALLERY.md). |
 | **English / Português** | Follows your system language. Dark theme, like most RGB apps, so LED colors look true. |
 
 <details>
@@ -77,7 +79,7 @@ python rgb_controller.py ia look.json        # apply an AI-made look
 python rgb_controller.py listar              # devices, zones and chip effects
 python rgb_controller.py automacao rules.json
 python rgb_controller.py iniciar-com-windows sim
-python -m unittest discover -s tests -v      # 48 tests, no hardware needed
+python -m unittest discover -s tests -v      # 50 tests, no hardware needed
 ```
 </details>
 

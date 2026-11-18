@@ -152,6 +152,13 @@ def plan_colors(devs, ids, palette, mode, offset, overrides, groups):
     for i in ids:
         if i not in done and i < len(devs):
             result[i] = colors_for_device(devs[i], palette, mode, offset, overrides.get(str(i)))
+    # cor por tecla/LED ("L<índice>"), usada nas teclas em destaque do teclado
+    for i, cols in result.items():
+        for k, v in (overrides.get(str(i)) or {}).items():
+            if str(k).startswith("L") and str(k)[1:].isdigit() and int(str(k)[1:]) < len(cols):
+                c = parse_colors(v)
+                if c:
+                    cols[int(str(k)[1:])] = c[0]
     return result
 
 
@@ -175,8 +182,10 @@ def start_openrgb():
         return True
     if not OPENRGB_EXE.exists():
         raise RuntimeError(f"OpenRGB não encontrado em {OPENRGB_EXE}. Rode o instalador primeiro.")
-    args = "--server --startminimized --noautoconnect"
-    ps = (f"Start-Process -FilePath '{OPENRGB_EXE}' -ArgumentList '{args}' -Verb RunAs "
+    # só "--server": o OpenRGB roda como servidor invisível, sem janela e sem ícone próprio na bandeja
+    # (o ícone que aparece é só o do MeuRGB). "--startminimized" criaria um segundo ícone.
+    args = "--server --noautoconnect"
+    ps = (f"Start-Process -FilePath '{OPENRGB_EXE}' -ArgumentList '{args}' -Verb RunAs -WindowStyle Hidden "
           f"-WorkingDirectory '{OPENRGB_EXE.parent}'")
     subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=False)
     for _ in range(60):  # a detecção de hardware leva alguns segundos
@@ -302,7 +311,9 @@ def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
              "effects": hw_effects(d), "persist": persist_kind(d),
-             "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones]}
+             "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones],
+             **({"led_names": [getattr(l, "name", "") for l in getattr(d, "leds", None) or []]}
+                if dev_type(d) == "KEYBOARD" else {})}
             for i, d in enumerate(c.devices)]
 
 
@@ -503,15 +514,50 @@ def stop_effect():
 
 
 # ---------------------------------------------------------------- presets
-def load_palettes():
+# Dois tipos: os padrão (app/palettes.json, vêm com o app e nunca mudam) e os do usuário (app/my_presets.json).
+USER_PRESETS_FILE = HERE / "my_presets.json"
+
+
+def _read_json(path):
     try:
-        return json.loads(PALETTES_FILE.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
-def save_palettes(p):
-    PALETTES_FILE.write_text(json.dumps(p, indent=2, ensure_ascii=False), encoding="utf-8")
+def builtin_presets():
+    return _read_json(PALETTES_FILE)
+
+
+def user_presets():
+    return _read_json(USER_PRESETS_FILE)
+
+
+def load_palettes():
+    """Todos os presets: os do usuário primeiro, depois os padrão."""
+    return {**user_presets(), **{k: v for k, v in builtin_presets().items() if k not in user_presets()}}
+
+
+def save_user_preset(name, colors):
+    name = str(name or "").strip()[:40]
+    if not name:
+        raise ValueError("Dê um nome ao preset")
+    if name in builtin_presets():
+        raise ValueError("Já existe um preset padrão com esse nome. Escolha outro.")
+    cols = [to_hex(c) for c in parse_colors(colors)]
+    if not cols:
+        raise ValueError("Paleta vazia")
+    u = user_presets()
+    u[name] = cols
+    USER_PRESETS_FILE.write_text(json.dumps(u, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def delete_user_preset(name):
+    if name in builtin_presets() and name not in user_presets():
+        raise ValueError("Os presets padrão não podem ser apagados")
+    u = user_presets()
+    u.pop(name, None)
+    USER_PRESETS_FILE.write_text(json.dumps(u, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def find_preset(name):
@@ -711,6 +757,23 @@ def detect_system():
                     "como admin e se o RGB não está desligado na BIOS.")
     report["next_steps"] = tips
     return report
+
+
+_conf_cache = {"t": 0.0, "v": []}
+
+
+def running_conflicts():
+    """Programas RGB de fabricante abertos agora (podem trocar as cores por cima do MeuRGB). Cache de 15 s."""
+    if time.time() - _conf_cache["t"] < 15:
+        return _conf_cache["v"]
+    try:
+        procs = running_processes()
+        hits = [name for name, pat in _RGB_SOFTWARE.items()
+                if "Wallpaper" not in name and any(re.search(pat, p, re.I) for p in procs)]
+    except Exception:
+        hits = []
+    _conf_cache.update(t=time.time(), v=hits)
+    return hits
 
 
 def load_pc():
@@ -1193,7 +1256,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             return self._send(200, (HERE / "index.html").read_bytes(), "text/html")
         if self.path == "/api/state":
-            st = {"app": APP_NAME, "version": VERSION, "palettes": load_palettes(), "effect": _effect["on"],
+            st = {"app": APP_NAME, "version": VERSION, "palettes": load_palettes(), "user_presets": list(user_presets()),
+                  "conflicts": running_conflicts(),
+                  "effect": _effect["on"],
                   "effect_kind": _effect.get("kind") if _effect["on"] else "static",
                   "connected": openrgb_running(), "devices": [], "last": None, "claude": load_claude(),
                   "pc": load_pc()}
@@ -1279,14 +1344,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
                                         "effect_kind": _effect.get("kind") if _effect["on"] else "static"})
             if self.path == "/api/preset":
-                p = load_palettes()
                 name = (body.get("name") or "").strip()
                 if body.get("delete"):
-                    p.pop(name, None)
-                elif name:
-                    p[name] = [to_hex(c) for c in parse_colors(body.get("colors", []))]
-                save_palettes(p)
-                return self._send(200, {"ok": True, "palettes": p})
+                    delete_user_preset(name)
+                else:
+                    save_user_preset(name, body.get("colors", []))
+                return self._send(200, {"ok": True, "palettes": load_palettes(), "user": list(user_presets())})
         except Exception as e:
             return self._send(500, {"ok": False, "error": str(e)})
         self._send(404, {"error": "não encontrado"})

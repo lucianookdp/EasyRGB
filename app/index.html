@@ -159,6 +159,21 @@
   .extras .tile{margin-top:10px}
   .nightcfg select{height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:0 6px;font-size:12.5px}
   .tnow{margin-left:auto;font-weight:600;color:var(--text)}
+  .pgroup{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;font-size:12px;font-weight:600;color:var(--text)}
+  .pgroup:first-child{margin-top:0}
+  .pgroup small{font-weight:400;color:var(--dim)}
+  .pempty{grid-column:1/-1;font-size:12px;color:var(--dim);border:1px dashed var(--border2);border-radius:9px;padding:10px;text-align:center}
+  .keysec{padding:4px 12px 12px}
+  .kh{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:500;margin-bottom:8px}
+  .kh .i{width:14px;height:14px}
+  .kgroups{display:flex;flex-wrap:wrap;gap:6px}
+  .kchip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px 0 5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--muted)}
+  .kchip:hover{border-color:var(--border2);color:var(--text)}
+  .kchip.on{color:var(--text);border-color:var(--sel-border)}
+  .kchip .chip{width:16px;height:16px;border-radius:4px;border:1px dashed var(--border2)}
+  .kchip.on .chip{border:0}
+  .conflict{display:flex;gap:8px;align-items:center;margin-bottom:12px;font-size:12.5px;color:var(--warn-strong);background:color-mix(in srgb,var(--warn) 10%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:9px;padding:8px 10px}
+  .conflict .i{width:15px;height:15px;flex:none}
   .noitems{font-size:12.5px;color:var(--dim);padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;text-align:center}
   .astatus{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ok-strong);background:color-mix(in srgb,var(--ok) 9%,transparent);border:1px solid color-mix(in srgb,var(--ok) 25%,transparent);border-radius:9px;padding:7px 10px;margin-bottom:12px}
   .astatus .i{width:14px;height:14px}
@@ -394,7 +409,7 @@
 
     <section class="card">
       <div class="ch"><div><h2>Dispositivos</h2><p>Clique numa zona para dar uma cor só para ela.</p></div><div class="sp"></div><div id="pcinfo"></div></div>
-      <div class="cb"><div class="devs" id="devs"></div></div>
+      <div class="cb"><div class="conflict" id="conflicts" hidden></div><div class="devs" id="devs"></div></div>
     </section>
 
     <section class="card" id="autoCard">
@@ -481,7 +496,7 @@
         <div class="field presearch"><span data-i="search"></span><input id="pq" placeholder="Buscar preset (ex.: synthwave, gta)"></div>
         <div class="presets" id="presets"></div>
         <div class="newp">
-          <div class="field"><span data-i="bookmark"></span><input id="pname" placeholder="Salvar paleta atual como..."></div>
+          <div class="field"><span data-i="bookmark"></span><input id="pname" placeholder="Salvar as cores atuais como meu preset..."></div>
           <button class="btn" id="savePreset">Salvar</button>
         </div>
       </div>
@@ -660,6 +675,15 @@ const EN={
   "Azul quando está frio, vermelho quando esquenta. Também serve de alerta.":"Blue when cool, red when hot. Works as an alert too.",
   "Sensor":"Sensor","Processador":"Processor","Frio até":"Cool up to","Quente a partir de":"Hot from",
   "Não consegui ler a temperatura desse sensor":"Couldn't read this sensor's temperature","Temperatura agora: {t} °C":"Temperature now: {t} °C",
+  // presets e teclado
+  "Meus presets":"My presets","Padrão":"Built-in","só seus, dá para apagar":"yours, can be deleted","vêm com o app":"come with the app",
+  "Monte suas cores e salve aqui embaixo para criar o seu primeiro preset.":"Pick your colors and save them below to create your first preset.",
+  "Salvar as cores atuais como meu preset...":"Save current colors as my preset...",
+  "Teclas em destaque":"Highlight keys","Escolher a cor destas teclas":"Pick a color for these keys","Cor só destas teclas":"Color for these keys only",
+  "Seguir a paleta":"Follow the palette","Setas":"Arrows","Números":"Numbers","Espaço":"Space","Indicadores":"Indicators",
+  "{x} está aberto e pode trocar as cores dos seus periféricos. Feche-o ou desative a iluminação nele.":"{x} is open and may change your peripherals' colors. Close it or turn off its lighting.",
+  "Dê um nome ao preset":"Give the preset a name","Já existe um preset padrão com esse nome. Escolha outro.":"There's already a built-in preset with that name. Pick another.",
+  "Os presets padrão não podem ser apagados":"Built-in presets can't be deleted",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
   "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com MEURGB1-":"Invalid code: it must start with MEURGB1-",
@@ -742,6 +766,7 @@ function plan(){
     mem.forEach(i=>done.add(i));
   }
   S.devices.forEach(d=>{ if(!done.has(d.id)) res[d.id]=d.zones.flatMap((z,zi)=>{ const f=(ov[d.id]||{})[zi]; return f?Array(z.leds).fill(f):zoneColors(z.leds,zi); }); });
+  for(const id in res) for(const [k,v] of Object.entries(ov[id]||{})) if(/^L\d+$/.test(k) && +k.slice(1)<res[id].length) res[id][+k.slice(1)]=v;   // cor por tecla
   return res;
 }
 function payload(extra={}){
@@ -871,9 +896,23 @@ function hwRow(d, ids){
     ${info?.speed?`<div class="hwspdrow"><span>Velocidade</span><input type="range" data-hwspd="${ids.join(",")}" min="0" max="100" value="${cur.speed??50}"></div>`:""}
     ${info?`<div class="hwnote">${tr(info.colors==="none"?"Este efeito usa as cores próprias do chip.":"Efeito do chip usando as cores da sua paleta.")} ${tr("Funciona mesmo com o app fechado.")}</div>`:""}`;
 }
+const KEYGROUPS=[["wasd","WASD",/^Key: [WASD]$/],["arrows","Setas",/Arrow$/],["nums","Números",/^Key: [0-9]$/],
+  ["fkeys","F1–F12",/^Key: F([1-9]|1[0-2])$/],["esc","Esc",/^Key: Escape$/],["space","Espaço",/^Key: Space$/],
+  ["logo","Logo",/^Logo$/],["ind","Indicadores",/Indicator$|^Game Mode$|^Lighting$/]];
+function keysHTML(d, ids, p){
+  if(!d.led_names) return "";
+  const cols=p[d.id]||[];
+  const chips=KEYGROUPS.map(([g,label,re])=>{
+    const leds=d.led_names.map((n,i)=>re.test(n)?i:-1).filter(i=>i>=0); if(!leds.length) return "";
+    const manual=leds.some(i=>(S.overrides[d.id]||{})["L"+i]), cur=cols[leds[0]]||"#FFFFFF";
+    return `<button class="kchip ${manual?"on":""}" data-kids="${ids.join(",")}" data-leds="${leds.join(",")}" data-cur="${cur}" title="${tr("Escolher a cor destas teclas")}">
+      <span class="chip" style="background:${manual?cur:"transparent"}"></span>${esc(tr(label))}</button>`;
+  }).join("");
+  return chips?`<div class="keysec"><div class="kh">${icon("keyboard")}${tr("Teclas em destaque")}</div><div class="kgroups">${chips}</div></div>`:"";
+}
 function unitBody(d, ids, p, rows){
   const hwOn=S.hw[d.id], info=(d.effects||[]).find(e=>e.name===hwOn?.mode), noColor=info&&info.colors==="none";
-  return `${hwRow(d,ids)}<div class="${noColor?"muted-leds":""}">${ledsHTML(rows)}</div>${noColor?"":`<div class="zones">${zonesHTML(d,ids,zoneCols(p,d))}</div>`}`;
+  return `${hwRow(d,ids)}<div class="${noColor?"muted-leds":""}">${ledsHTML(rows)}</div>${noColor?"":`<div class="zones">${zonesHTML(d,ids,zoneCols(p,d))}</div>${keysHTML(d,ids,p)}`}`;
 }
 
 function renderDevices(){
@@ -922,6 +961,9 @@ function renderDevices(){
   box.querySelectorAll("[data-hw]").forEach(s=>s.onchange=()=>{ s.dataset.hw.split(",").map(Number).forEach(i=>{ if(s.value) S.hw[i]={mode:s.value,speed:S.hw[i]?.speed??50}; else delete S.hw[i]; }); changed(); });
   box.querySelectorAll("[data-hwspd]").forEach(r=>{ r.onchange=()=>{ r.dataset.hwspd.split(",").map(Number).forEach(i=>{ if(S.hw[i]) S.hw[i].speed=+r.value; }); changed(); }; });
   box.querySelectorAll(".zone").forEach(z=>z.onclick=()=>openPicker(z, z.dataset.cur, {kind:"zone", ids:z.dataset.ids.split(",").map(Number), zi:+z.dataset.zi}));
+  box.querySelectorAll(".kchip").forEach(k=>k.onclick=()=>openPicker(k, k.dataset.cur, {kind:"keys", ids:k.dataset.kids.split(",").map(Number), leds:k.dataset.leds.split(",").map(Number)}));
+  const cf=$("#conflicts"); cf.hidden=!(S.conflicts||[]).length;
+  if(S.conflicts?.length) cf.innerHTML=icon("alert")+`<span>${esc(tr("{x} está aberto e pode trocar as cores dos seus periféricos. Feche-o ou desative a iluminação nele.",{x:S.conflicts.join(", ")}))}</span>`;
 }
 
 /* o que o chip guarda quando o PC desliga */
@@ -943,18 +985,26 @@ function renderDirty(){ $("#dirty").classList.toggle("show", S.applied!==null &&
 
 function renderPresets(){
   const box=$("#presets"); box.innerHTML="";
-  const q=S.presetQuery.trim().toLowerCase();
-  const list=Object.entries(S.palettes).filter(([n])=>!q||n.toLowerCase().includes(q)||tr(n).toLowerCase().includes(q));
-  if(!list.length) box.innerHTML=`<div class="dim" style="grid-column:1/-1;font-size:12.5px;padding:6px 2px">Nenhum preset encontrado.</div>`;
-  list.forEach(([name,c])=>{
-    const d=document.createElement("button"); d.className="preset"+(name===S.preset?" sel":""); d.dataset.name=name; d.title=name;
-    d.innerHTML=`<div class="bar" style="background:${grad(c)}"></div><span class="nm">${esc(name)}</span><span class="del" title="Excluir">${icon("trash")}</span>`;
-    d.onclick=()=>{ S.colors=[...c]; S.preset=name; changed(); };
-    const del=d.querySelector(".del");
-    del.onclick=ev=>{ ev.stopPropagation();
-      if(!del.classList.contains("confirm")){ del.classList.add("confirm"); del.title="Clique de novo para excluir"; setTimeout(()=>del.classList.remove("confirm"),2500); return; }
-      run(null,async()=>{ S.palettes=(await api("/api/preset",{name,delete:true})).palettes; renderPresets(); toast("Preset excluído"); }); };
-    box.appendChild(d);
+  const q=S.presetQuery.trim().toLowerCase(), mine=new Set(S.userPresets||[]);
+  const match=([n])=>!q||n.toLowerCase().includes(q)||tr(n).toLowerCase().includes(q);
+  const all=Object.entries(S.palettes).filter(match);
+  const groups=[[tr("Meus presets"),all.filter(([n])=>mine.has(n)),true],[tr("Padrão"),all.filter(([n])=>!mine.has(n)),false]];
+  if(!all.length){ box.innerHTML=`<div class="dim" style="grid-column:1/-1;font-size:12.5px;padding:6px 2px">${tr("Nenhum preset encontrado.")}</div>`; return; }
+  groups.forEach(([title,list,own])=>{
+    if(!list.length && !(own && !q)) return;
+    const h=document.createElement("div"); h.className="pgroup"; h.innerHTML=`<span>${esc(title)}</span>${own?`<small>${tr("só seus, dá para apagar")}</small>`:`<small>${tr("vêm com o app")}</small>`}`;
+    box.appendChild(h);
+    if(own && !list.length){ const e=document.createElement("div"); e.className="pempty"; e.textContent=tr("Monte suas cores e salve aqui embaixo para criar o seu primeiro preset."); box.appendChild(e); return; }
+    list.forEach(([name,c])=>{
+      const d=document.createElement("button"); d.className="preset"+(name===S.preset?" sel":""); d.dataset.name=name; d.title=name;
+      d.innerHTML=`<div class="bar" style="background:${grad(c)}"></div><span class="nm">${esc(name)}</span>${own?`<span class="del" title="${tr("Excluir")}">${icon("trash")}</span>`:""}`;
+      d.onclick=()=>{ S.colors=[...c]; S.preset=name; changed(); };
+      const del=d.querySelector(".del");
+      if(del) del.onclick=ev=>{ ev.stopPropagation();
+        if(!del.classList.contains("confirm")){ del.classList.add("confirm"); del.title=tr("Clique de novo para excluir"); setTimeout(()=>del.classList.remove("confirm"),2500); return; }
+        run(null,async()=>{ const j=await api("/api/preset",{name,delete:true}); S.palettes=j.palettes; S.userPresets=j.user; renderPresets(); toast(tr("Preset excluído")); }); };
+      box.appendChild(d);
+    });
   });
 }
 
@@ -1028,6 +1078,7 @@ function drawPicker(skipHex){
 function setPicked(hex){
   if(!picking) return;
   if(picking.kind==="pal"){ S.colors[picking.i]=hex; S.preset=null; }
+  else if(picking.kind==="keys") picking.ids.forEach(id=>{ const o=(S.overrides[id] ||= {}); picking.leds.forEach(i=>o["L"+i]=hex); });
   else picking.ids.forEach(id=>{ (S.overrides[id] ||= {})[picking.zi]=hex; });
   changed();
 }
@@ -1037,6 +1088,11 @@ function openPicker(anchor, hex, ctx){
   if(ctx.kind==="pal" && S.colors.length>1){
     foot.innerHTML=`<button class="btn sm ghost" id="pRemove">${icon("trash")}Remover cor</button>`;
     $("#pRemove").onclick=()=>{ S.colors.splice(ctx.i,1); S.preset=null; closePicker(); changed(); };
+  }
+  if(ctx.kind==="keys"){
+    const manual=ctx.ids.some(id=>ctx.leds.some(i=>(S.overrides[id]||{})["L"+i]));
+    foot.innerHTML=`<span class="muted" style="font-size:12px;align-self:center;flex:1">${tr("Cor só destas teclas")}</span>`+(manual?`<button class="btn sm" id="pReset">${icon("reset")}${tr("Seguir a paleta")}</button>`:"");
+    if(manual) $("#pReset").onclick=()=>{ ctx.ids.forEach(id=>{ const o=S.overrides[id]; if(o){ ctx.leds.forEach(i=>delete o["L"+i]); if(!Object.keys(o).length) delete S.overrides[id]; } }); closePicker(); changed(); };
   }
   if(ctx.kind==="zone"){
     const manual=ctx.ids.some(id=>(S.overrides[id]||{})[ctx.zi]);
@@ -1058,7 +1114,7 @@ drag($("#sv"),e=>{ const r=$("#sv").getBoundingClientRect(); P.hsv[1]=clamp((e.c
 drag($("#hue"),e=>{ const r=$("#hue").getBoundingClientRect(); P.hsv[0]=clamp((e.clientX-r.left)/r.width,0,1)*359.9; drawPicker(); setPicked(pickerHex()); });
 $("#phex").addEventListener("input",e=>{ const p=parse(e.target.value.startsWith("#")?e.target.value:"#"+e.target.value); if(p.length&&/^#?[0-9a-f]{6}$/i.test(e.target.value)){ P.hsv=rgb2hsv(hex2rgb(p[0])); drawPicker(true); setPicked(p[0]); } });
 $("#quick").onclick=e=>{ const c=e.target.dataset?.c; if(!c) return; P.hsv=rgb2hsv(hex2rgb(c)); drawPicker(); setPicked(c); };
-document.addEventListener("pointerdown",e=>{ if(picking && !P.el.contains(e.target) && !e.target.closest(".swatch,.zone")) closePicker(); });
+document.addEventListener("pointerdown",e=>{ if(picking && !P.el.contains(e.target) && !e.target.closest(".swatch,.zone,.kchip")) closePicker(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePicker(); });
 addEventListener("resize",closePicker);
 
@@ -1082,7 +1138,7 @@ $("#fxpill").onclick=e=>run(e.currentTarget,async()=>{ S.fx="static"; await api(
   toast("Efeito parado. As cores ficaram fixas e salvas assim."); });
 $("#reconnect").onclick=e=>connect(e.currentTarget);
 async function savePreset(){ const n=$("#pname").value.trim(); if(!n){ $("#pname").focus(); return; }
-  S.palettes=(await api("/api/preset",{name:n,colors:S.colors})).palettes; S.preset=n; $("#pname").value=""; renderPresets(); toast(tr("Preset \"{x}\" salvo",{x:n})); }
+  const j=await api("/api/preset",{name:n,colors:S.colors}); S.palettes=j.palettes; S.userPresets=j.user; S.preset=n; $("#pname").value=""; renderPresets(); toast(tr("Preset \"{x}\" salvo",{x:n})); }
 $("#savePreset").onclick=e=>run(e.currentTarget,savePreset);
 $("#pname").onkeydown=e=>{ if(e.key==="Enter") run(null,savePreset); };
 function connect(btn){ return run(btn,async()=>{
@@ -1203,7 +1259,7 @@ $("#importCode").onkeydown=e=>{ if(e.key==="Enter") run(null,importCode); };
 /* ===================== estado do servidor ===================== */
 async function loadState(useLast){
   const s=await api("/api/state");
-  S.connected=s.connected; S.devices=s.devices||[]; S.palettes=s.palettes||{};
+  S.connected=s.connected; S.devices=s.devices||[]; S.palettes=s.palettes||{}; S.userPresets=s.user_presets||[]; S.conflicts=s.conflicts||[];
   $("#status").classList.toggle("on",s.connected);
   $("#stxt").textContent=s.connected?`OpenRGB · ${plural(S.devices.length,"dispositivo","dispositivos")}`:"Desconectado";
   if(s.error) toast(s.error,"err",5000);

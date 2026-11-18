@@ -90,7 +90,8 @@ EOF
 No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perfil.json`.
 
 - `mode`: `gradiente`, `alternado` ou `zona` (uma cor da paleta por zona).
-- `effect`: efeito animado pelo app, em todos os dispositivos: `static`, `fluir`, `respirar`, `ciclo` ou `arcoiris`.
+- `effect`: efeito animado pelo app, em todos os dispositivos: `static`, `fluir`, `respirar`, `ciclo`, `arcoiris`,
+  `musica` (reage ao som do PC) ou `temperatura` (cor pela temperatura; ajuste em `automacao.extras`).
   `speed` vai de 1 a 10. Só roda enquanto o MeuRGB está aberto.
 - `hw`: efeito **nativo do chip** de um dispositivo (nomes exatos vêm de `detectar` ou `listar`, ex.: `Breathing`,
   `Chase`, `Rainbow`). `speed` de 0 a 100. Roda sozinho, mesmo com o app fechado. Efeitos com `colors: "led"` ou
@@ -127,6 +128,14 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
 3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que devolve as cores depois de reiniciar e
    fecha sozinho quando nada precisa ficar rodando (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema.
    `nao` remove.
+
+## Presets, teclado, atalhos e bandeja
+
+- Presets padrão ficam em `app/palettes.json` (não edite). Os do usuário ficam em `app/my_presets.json`
+  (crie pelo app ou escrevendo nesse arquivo: `{"Nome": ["#RRGGBB", ...]}`).
+- Teclado: cor por tecla com chaves `"L<índice>"` em `overrides` (índices e nomes em `led_names` do `detectar`).
+- `automacao` aceita `"hotkeys": true` (atalhos Ctrl+Alt + setas/E/L) e `"extras": {"temp_source": "gpu"|"cpu",
+  "temp_min": 40, "temp_max": 80}`. O MeuRGB roda sem janela, com ícone na bandeja; erros em `app/meurgb.log`.
 
 ## Outros comandos
 

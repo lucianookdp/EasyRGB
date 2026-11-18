@@ -96,7 +96,7 @@ class TempFiles(unittest.TestCase):
         shutil.copy(APP / "palettes.json", self.tmp / "palettes.json")
         self.patches = [mock.patch.object(rc, n, self.tmp / f) for n, f in (
             ("STATE_FILE", "last_state.json"), ("PALETTES_FILE", "palettes.json"), ("CLAUDE_FILE", "claude.json"),
-            ("PC_FILE", "pc.json"), ("AUTO_FILE", "automations.json"))]
+            ("PC_FILE", "pc.json"), ("AUTO_FILE", "automations.json"), ("USER_PRESETS_FILE", "my_presets.json"))]
         for p in self.patches:
             p.start()
         rc._hw_cache.clear()
@@ -172,6 +172,11 @@ class TestPlan(unittest.TestCase):
         p = rc.plan_colors(self.devs, [0, 3], self.pal, "gradiente", 0, {"0": {"3": "#FFFFFF"}}, [])
         self.assertNotIn(1, p)
         self.assertEqual(p[0][3], (255, 255, 255))
+
+    def test_per_key_override(self):
+        p = rc.plan_colors(self.devs, [3], self.pal, "gradiente", 0, {"3": {"L5": "#00FF00", "L999": "#FFFFFF"}}, [])
+        self.assertEqual(p[3][5], (0, 255, 0))
+        self.assertEqual(len(p[3]), 94)   # índice fora do teclado é ignorado
 
     def test_group_with_one_enabled_member_is_ignored(self):
         p = rc.plan_colors(self.devs, [1], self.pal, "gradiente", 0, {}, [{"ids": [1, 2], "mode": "span"}])
@@ -432,6 +437,21 @@ class TestPresets(unittest.TestCase):
         self.assertEqual(rc.find_preset("zzz"), (None, None))
 
 
+class TestUserPresets(TempFiles):
+    def test_user_presets_are_separate(self):
+        builtin = dict(rc.builtin_presets())
+        rc.save_user_preset("Meu Neon", ["#FF00AA", "00FFEE"])
+        self.assertEqual(rc.user_presets(), {"Meu Neon": ["#FF00AA", "#00FFEE"]})
+        self.assertEqual(rc.builtin_presets(), builtin)                    # padrão nunca muda
+        self.assertEqual(list(rc.load_palettes())[0], "Meu Neon")          # os do usuário vêm primeiro
+        with self.assertRaises(ValueError):
+            rc.save_user_preset("Fogo", ["#FF0000"])                         # nome de preset padrão
+        with self.assertRaises(ValueError):
+            rc.delete_user_preset("Fogo")                                    # padrão não apaga
+        rc.delete_user_preset("Meu Neon")
+        self.assertEqual(rc.user_presets(), {})
+
+
 # ------------------------------------------------------------------ servidor HTTP
 @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
 class TestApi(TempFiles):
@@ -587,7 +607,7 @@ class TestParity(unittest.TestCase):
         for mode in ("gradiente", "alternado", "zona"):
             for links in ({"DRAM": "separate"}, {"DRAM": "mirror"}, {"DRAM": "span"}):
                 cases.append({"colors": ["#FF2E88", "#FFB547", "#00D9C8"], "mode": mode, "links": links,
-                              "overrides": {"3": {"1": "#FFFFFF"}, "1": {"0": "#00FF00"}} if mode == "zona" else {},
+                              "overrides": {"3": {"1": "#FFFFFF", "L10": "#123456"}, "1": {"0": "#00FF00"}} if mode == "zona" else {"3": {"L7": "#ABCDEF"}},
                               "devices": devs, "disabled": [2] if links["DRAM"] == "separate" and mode == "zona" else []})
         res = subprocess.run([NODE, "-e", JS_RUNNER, str(APP / "index.html")], input=json.dumps(cases),
                              capture_output=True, text=True, encoding="utf-8", timeout=60)
