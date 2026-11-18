@@ -5,6 +5,12 @@
 <p align="center"><b>Your PC's RGB, set up by AI.</b></p>
 
 <p align="center">
+  Free, open-source <b>RGB controller for Windows</b> built on <a href="https://openrgb.org">OpenRGB</a>.<br>
+  One app for your motherboard, RAM, keyboard and other RGB devices: a lightweight alternative to<br>
+  ASRock Polychrome, ASUS Aura Sync / Armoury Crate, MSI Mystic Light and Gigabyte RGB Fusion.
+</p>
+
+<p align="center">
   <img alt="Version" src="https://img.shields.io/badge/version-v1-a78bfa?style=flat-square">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3-3776AB?style=flat-square&logo=python&logoColor=white">
