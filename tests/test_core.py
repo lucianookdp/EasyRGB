@@ -531,6 +531,36 @@ class TestUi(unittest.TestCase):
         used = set(re.findall(r'data-ii?="([\w-]+)"', self.html)) | set(re.findall(r'icon\("([\w-]+)"', self.html))
         self.assertEqual(used - defined, set(), "ícones usados mas não definidos")
 
+    def _en_keys(self):
+        block = self.html[self.html.index("const EN={"):self.html.index("function tr(")]
+        return set(re.findall(r'"((?:[^"\\]|\\.)*)":"', block))
+
+    def test_every_tr_call_has_english(self):
+        en = {k.replace('\\"', '"') for k in self._en_keys()}
+        used = {s.replace('\\"', '"') for s in re.findall(r'tr\("((?:[^"\\]|\\.)*)"', self.html)}
+        maps = re.findall(r"const (?:ACTIONS|FXNAME|MODE)=\{([^}]*)\}", self.html)
+        for m in maps:
+            used |= set(re.findall(r':"([^"]+)"', m))
+        used |= set(re.findall(r'\["\w+","([^"]+)"\]', self.html[self.html.index("const TYPE"):self.html.index("const tIcon")]))
+        used |= set(re.findall(r'\["\w+","([^"]+)"\]', self.html[self.html.index("const PERSIST"):self.html.index("function persistHTML")]))
+        self.assertEqual(sorted(used - en), [], "textos sem tradução para inglês")
+
+    def test_static_html_has_english(self):
+        en = {k.replace('\\"', '"') for k in self._en_keys()}
+        body = self.html[self.html.index("<body>"):self.html.index("<script>")]
+        texts = {" ".join(m.split()) for m in re.findall(r">([^<>]*[A-Za-zÀ-ú][^<>]*)<", body)}
+        texts |= set(re.findall(r'(?:placeholder|title|aria-label)="([^"]+)"', body))
+        keep = {"MeuRGB", "v1", "Presets", "Mouse"}
+        self.assertEqual(sorted(t for t in texts if t and t not in en and t not in keep), [],
+                         "texto fixo da página sem tradução para inglês")
+
+    def test_light_and_dark_themes(self):
+        css = self.html[self.html.index("<style>"):self.html.index("</style>")]
+        self.assertIn("prefers-color-scheme: light", css)
+        dark = set(re.findall(r"(--[\w-]+):", css[:css.index("prefers-color-scheme")]))
+        light = set(re.findall(r"(--[\w-]+):", css[css.index("prefers-color-scheme"):]))
+        self.assertEqual(sorted(dark - light - {"--r"}), [], "variáveis do tema escuro sem versão clara")
+
     def test_ids_exist(self):
         ids = set(re.findall(r'id="([\w-]+)"', self.html))
         used = set(re.findall(r'\$\("#([\w-]+)"\)', self.html))
