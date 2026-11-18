@@ -7,6 +7,29 @@ MeuRGB é um controlador RGB por paletas em cima do OpenRGB 1.1 (servidor SDK na
 App em `app/rgb_controller.py` (servidor local + CLI), interface em `app/index.html` (http://127.0.0.1:6750), aberto pelo `MeuRGB.bat`.
 Todos os comandos abaixo rodam dentro da pasta `app/`.
 
+## 0. Configuração guiada (o prompt "Configure o MeuRGB" da interface)
+
+O app oferece ao usuário um prompt pronto pedindo para você configurar tudo. Quando receber esse pedido:
+
+1. Rode `detectar` e conte, em 2 ou 3 frases simples, o que encontrou (placa, RAMs, periféricos, conflitos).
+2. Pergunte **uma coisa de cada vez**, sempre com opções curtas para escolher (o usuário pode responder com outra coisa):
+   1. Estilo: um jogo, um clima (neon, pôr do sol, gelo...), cores favoritas ou um preset de `app/palettes.json`.
+   2. Em quais dispositivos aplicar (liste os que `detectar` achou; os que ficarem de fora mantêm as cores atuais).
+   3. Se houver 2+ RAMs: separadas, iguais ou contínuas.
+   4. Efeito: estático, um animado do app (precisa do app aberto) ou um efeito do chip (roda sozinho).
+   5. Modo jogo (ofereça os jogos de `jogos`) e horários (ex.: modo noite).
+   6. Restaurar as cores ao ligar o PC, explicando o motivo com base no campo `persist` de cada dispositivo.
+3. Aplique com `ia`, `configurar`, `automacao` e (se aceito) `iniciar-com-windows sim`, e mostre um resumo curto.
+
+### O que cada dispositivo guarda sozinho (`persist` em `detectar`)
+
+- `auto`: o chip guarda a cor ao desligar o PC (ex.: placas ASRock).
+- `manual`: guarda só uma cor fixa, com `save: true` / botão "Gravar na placa" (ex.: alguns teclados).
+- `none`: perde a cor ao desligar (ex.: RAMs ENE). Para esses, recomende "restaurar cores ao ligar o PC".
+
+"Restaurar ao ligar o PC" é leve: ao ligar, devolve as cores e **fecha tudo sozinho** (OpenRGB incluído). Só fica aberto
+em segundo plano (~30 MB do MeuRGB + ~60 MB do OpenRGB) se houver modo jogo, horários ou efeito animado do app.
+
 ## 1. Configurar o PC (faça na primeira conversa, ou quando o usuário pedir)
 
 1. **Detecte o hardware**: `python rgb_controller.py detectar`. Sai um JSON com placa-mãe, BIOS, CPU, RAM, GPU,
@@ -92,8 +115,9 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
      O preset precisa existir em `app/palettes.json` (crie um antes, se for novo).
    - `schedule[].action`: `preset` (value = nome), `brightness` (value = %), `off` (apaga) ou `restore` (visual salvo).
    - Funciona enquanto o MeuRGB está aberto (ou iniciado com o Windows).
-3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que abre o MeuRGB escondido e devolve as
-   cores depois de reiniciar (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema. `nao` remove.
+3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que devolve as cores depois de reiniciar e
+   fecha sozinho quando nada precisa ficar rodando (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema.
+   `nao` remove.
 
 ## Outros comandos
 

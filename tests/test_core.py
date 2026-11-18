@@ -346,6 +346,47 @@ class TestAutomation(TempFiles):
             self.assertIsNone(rc._auto["game"])
             self.assertEqual(devs[1].calls[-1][1][0], (0x12, 0x34, 0x56))  # voltou ao visual do usuário
 
+    def test_persist_kind(self):
+        board, ram, _, kb = fake_pc()
+        self.assertEqual(rc.persist_kind(board), "auto")    # Static com salvamento automático
+        self.assertEqual(rc.persist_kind(ram), "none")      # RAM ENE não guarda
+        self.assertEqual(rc.persist_kind(kb), "manual")     # teclado guarda uma cor fixa
+
+    def test_needs_running(self):
+        self.assertFalse(rc.needs_running())
+        rc.save_auto({"schedule": [{"time": "23:00", "action": "off"}]})
+        self.assertTrue(rc.needs_running())
+        rc.save_auto({"enabled": False, "schedule": [{"time": "23:00", "action": "off"}]})
+        self.assertFalse(rc.needs_running())
+        rc.STATE_FILE.write_text(json.dumps({"palette": ["#FF0000"], "ui": {"effect": "fluir"}}), encoding="utf-8")
+        self.assertTrue(rc.needs_running())
+
+    @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
+    def test_boot_restores_then_exits_when_idle(self):
+        devs = fake_pc()
+        rc.STATE_FILE.write_text(json.dumps({"palette": ["#00FF00"], "brightness": 100, "ui": {}}), encoding="utf-8")
+        with mock.patch.object(rc, "client", return_value=FakeClient(devs)), \
+                mock.patch.object(rc, "openrgb_running", return_value=False), \
+                mock.patch.object(rc, "start_openrgb", return_value=True), \
+                mock.patch.object(rc.subprocess, "run") as run, \
+                mock.patch.object(rc.os, "_exit", side_effect=SystemExit) as ex, \
+                mock.patch.object(rc.time, "sleep"):
+            with self.assertRaises(SystemExit):
+                rc.restore_on_boot()
+        self.assertEqual(devs[1].calls[-1][1][0], (0, 255, 0))           # devolveu a cor
+        self.assertIn("OpenRGB.exe", run.call_args[0][0])                 # fechou o OpenRGB que ele abriu
+        ex.assert_called_once_with(0)                                     # e saiu: nada fica na memória
+
+    @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
+    def test_boot_stays_when_automation(self):
+        rc.STATE_FILE.write_text(json.dumps({"palette": ["#00FF00"], "ui": {}}), encoding="utf-8")
+        rc.save_auto({"games": [{"process": "cs2.exe", "preset": "Counter-Strike 2"}]})
+        with mock.patch.object(rc, "client", return_value=FakeClient(fake_pc())), \
+                mock.patch.object(rc, "start_openrgb", return_value=True), \
+                mock.patch.object(rc.os, "_exit") as ex:
+            rc.restore_on_boot()
+        ex.assert_not_called()
+
     def test_running_processes_real(self):
         procs = rc.running_processes()
         self.assertIn(Path(sys.executable).name.lower(), procs)  # o próprio Python que roda o teste

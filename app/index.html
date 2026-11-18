@@ -32,6 +32,10 @@
   .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:0 4px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--err)}
   .status.on .dot{background:var(--ok);box-shadow:0 0 0 3px #22c55e22}
+  .fxpill{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 4px 0 10px;border-radius:99px;border:1px solid #f59e0b55;background:#f59e0b14;color:#fde68a;font-size:12.5px;font-weight:500}
+  .fxpill .i{width:14px;height:14px}
+  .fxpill .stopx{background:#f59e0b;color:#09090b;border-radius:99px;padding:2px 9px;font-weight:600;font-size:12px}
+  .fxpill:hover .stopx{background:#fbbf24}
   @media(max-width:700px){ #stxt,.top .lbl{display:none} .top .btn{padding:0 9px} .top .in{padding:0 12px;gap:4px} main{padding:14px 12px 140px} }
 
   /* ---------- botões ---------- */
@@ -92,8 +96,6 @@
   .speedrow{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px}
   .speedrow input{flex:1;margin:0}
   .speedrow.hide{display:none}
-  .drophint{position:absolute;inset:0;border-radius:var(--r);border:2px dashed var(--text);background:#09090bcc;display:none;place-items:center;font-weight:500;z-index:3}
-  .card.dragging .drophint{display:grid}
 
   /* ---------- dispositivos ---------- */
   .devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-items:stretch}
@@ -117,6 +119,25 @@
   .pcchip .i{width:13px;height:13px}
   .pcchip.ai{color:#ddd6fe;border-color:#a78bfa40;background:var(--ai-bg)}
   .presearch{margin-bottom:10px}
+  .targets{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .thead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .lb2{font-size:12px;color:var(--muted);font-weight:500}
+  .tchips{display:flex;flex-wrap:wrap;gap:8px}
+  .tchip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:13px;font-weight:500;transition:.12s}
+  .tchip:hover{border-color:var(--border2);color:var(--muted)}
+  .tchip .i{width:16px;height:16px}
+  .tchip .dotc{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--border2);display:grid;place-items:center;flex:none}
+  .tchip .dotc .i{width:10px;height:10px;stroke-width:3;opacity:0}
+  .tchip .sw4{width:24px;height:8px;border-radius:3px;opacity:.3}
+  .tchip.on{color:var(--text);border-color:#52525b;background:var(--surface2)}
+  .tchip.on .dotc{background:var(--text);border-color:var(--text);color:#09090b}
+  .tchip.on .dotc .i{opacity:1}
+  .tchip.on .sw4{opacity:1}
+  .thint{margin:8px 0 0;font-size:12px;color:var(--dim)}
+  .offtag{font-size:10.5px;font-weight:600;color:var(--muted);border:1px dashed var(--border2);border-radius:5px;padding:0 6px;white-space:nowrap}
+  .persist{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);padding:8px 12px 10px;margin-top:auto;border-top:1px solid var(--border)}
+  .persist .i{width:13px;height:13px}
+  .persist.auto{color:#86efac} .persist.none{color:#fcd34d}
   .autocb{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px}
   .autocb .arow,.autocb .astatus{grid-column:1/-1}
   @media(max-width:760px){.autocb{grid-template-columns:1fr}}
@@ -185,6 +206,10 @@
   .how summary .i{width:14px;height:14px;transition:transform .15s}
   .how[open] summary .i{transform:rotate(90deg)}
   .how ol{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .howp{margin:8px 0 0;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .promptbox{margin-top:10px;border:1px solid #a78bfa33;border-radius:10px;background:#a78bfa0a;padding:10px 11px}
+  .ptext{font-size:12px;line-height:1.55;color:var(--text);white-space:pre-line;max-height:150px;overflow:auto;user-select:text}
+  .promptbox .btn{margin-top:9px}
   .how li{margin-bottom:3px}
   .how .ex{font-size:11.5px;color:var(--dim);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
   .how blockquote{margin:0;padding:2px 0 2px 11px;border-left:2px solid #a78bfa66;font-size:12.5px;font-style:italic;color:var(--text);line-height:1.55}
@@ -265,6 +290,7 @@
     MeuRGB <span class="ver">v1</span>
   </div>
   <div class="sp"></div>
+  <button class="fxpill" id="fxpill" hidden title="As cores estão mudando sozinhas por causa deste efeito. Clique para parar."><span data-i="waves"></span><span id="fxpilltxt">Efeito ativo</span><span class="stopx">Parar</span></button>
   <div class="status" id="status"><span class="dot"></span><span id="stxt">Desconectado</span></div>
   <button class="ib" id="reconnect" title="Reconectar e atualizar dispositivos"><span data-i="refresh"></span></button>
   <button class="btn" id="burn" title="Grava as cores atuais na memória da placa e das RAMs. Elas continuam depois de reiniciar, sem nenhum programa aberto."><span data-i="cpu-save"></span><span class="lbl">Gravar na placa</span></button>
@@ -273,20 +299,22 @@
 
 <main>
   <div class="col">
-    <section class="card" id="palCard" style="position:relative">
-      <div class="drophint">Solte a imagem para extrair as cores</div>
+    <section class="card" id="palCard">
       <div class="ch">
         <div><h2>Paleta</h2><p>Clique numa cor para editar. O PC já mostra a mudança enquanto você escolhe.</p></div>
         <div class="sp"></div>
-        <button class="btn sm" id="imgBtn" title="Extrair cores de uma imagem (também dá para arrastar ou colar com Ctrl+V)"><span data-i="image"></span>Da imagem</button>
         <button class="btn sm" id="shareBtn" title="Copiar um código do visual para mandar para alguém"><span data-i="share"></span>Compartilhar</button>
         <button class="btn sm ghost" id="importBtn" title="Usar o visual de outra pessoa"><span data-i="download"></span>Importar</button>
-        <input type="file" id="file" accept="image/*" hidden>
       </div>
       <div class="cb">
         <div class="strip" id="strip"></div>
         <div class="swatches" id="swatches"></div>
         <div class="hexline"><div class="field"><span data-i="hash"></span><input id="hex" class="mono" spellcheck="false" placeholder="Cole uma paleta: #FF2E88, 9B3DFF, rgb(0,217,200)"></div></div>
+        <div class="targets">
+          <div class="thead"><span class="lb2">Aplicar a paleta em</span><span class="sp"></span><button class="btn sm ghost" id="tAll">Todos</button></div>
+          <div class="tchips" id="targets"></div>
+          <p class="thint" id="thint"></p>
+        </div>
         <div class="hexline" id="importRow" hidden><div class="field"><span data-i="download"></span><input id="importCode" class="mono" spellcheck="false" placeholder="Cole aqui um código MEURGB1-..."></div><button class="btn" id="importGo">Usar</button></div>
 
         <div class="controls">
@@ -326,7 +354,7 @@
       <div class="ch"><div><h2>Automação</h2><p>O PC muda sozinho quando você joga ou na hora certa.</p></div></div>
       <div class="cb autocb">
         <label class="arow">
-          <div class="atxt"><b>Iniciar com o Windows</b><small>Abre escondido e devolve suas cores depois de reiniciar.</small></div>
+          <div class="atxt"><b>Restaurar cores ao ligar o PC</b><small id="autostartHint">Devolve suas cores e fecha sozinho: não fica nada aberto.</small></div>
           <span class="switch"><input type="checkbox" id="autostart"><span></span></span>
         </label>
         <div class="astatus" id="astatus" hidden></div>
@@ -401,7 +429,6 @@ const I = {
   refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   "cpu-save":'<rect width="16" height="16" x="4" y="4" rx="2"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/><path d="m9 12 2 2 4-4"/>',
-  image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   hash:'<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
   gradient:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 3v18"/><path d="M13 3v18" opacity=".55"/><path d="M18 3v18" opacity=".25"/>',
   dots:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
@@ -411,6 +438,7 @@ const I = {
   sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
   message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   chevron:'<path d="m9 18 6-6-6-6"/>',
+  copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   gamepad:'<path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><rect width="20" height="12" x="2" y="6" rx="6"/>',
   moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>',
@@ -552,7 +580,30 @@ async function commit(save){
 
 /* ===================== render ===================== */
 let picking=null; // {kind:"pal", i} | {kind:"zone", ids, zi}
-function render(){ renderPalette(); renderDevices(); renderDirty(); }
+function render(){ renderPalette(); renderTargets(); renderDevices(); renderDirty(); }
+
+/* "Aplicar a paleta em": escolhe quais dispositivos seguem a paleta; os outros ficam como estão */
+function renderTargets(){
+  const box=$("#targets");
+  if(!S.connected||!S.devices.length){ box.innerHTML=`<span class="thint" style="margin:0">Conecte ao OpenRGB para escolher os dispositivos.</span>`; $("#thint").textContent=""; $("#tAll").hidden=true; return; }
+  const p=plan();
+  box.innerHTML=Object.entries(byType()).map(([t,ds])=>{
+    const ids=ds.map(d=>d.id), on=ids.some(i=>!S.disabled.has(i));
+    const label=ds.length===1?(nick(ds[0])||tName(t)):`${tName(t)} (${ds.length})`;
+    const cols=ids.flatMap(i=>p[i]||[]), prevw=grad(cols.filter((_,k)=>k%Math.max(1,Math.floor(cols.length/5))===0));
+    return `<button class="tchip ${on?"on":""}" data-tids="${ids.join(",")}" title="${on?"Recebe a paleta. Clique para deixar de fora":"Fica com as cores atuais. Clique para aplicar a paleta"}">
+      <span class="dotc">${icon("check")}</span>${icon(tIcon(t))}<span>${esc(label)}</span><span class="sw4" style="background:${prevw}"></span></button>`;
+  }).join("");
+  box.querySelectorAll("[data-tids]").forEach(b=>b.onclick=()=>{
+    const ids=b.dataset.tids.split(",").map(Number), on=ids.some(i=>!S.disabled.has(i));
+    ids.forEach(i=>on?S.disabled.add(i):S.disabled.delete(i));
+    if(!enabledIds().length){ ids.forEach(i=>S.disabled.delete(i)); toast("Deixe pelo menos um dispositivo recebendo a paleta","err"); }
+    changed(); });
+  const off=S.devices.filter(d=>S.disabled.has(d.id));
+  $("#tAll").hidden=!off.length;
+  $("#thint").textContent=off.length?`${plural(off.length,"dispositivo fica","dispositivos ficam")} com as cores atuais.`:"Todos os dispositivos recebem a paleta.";
+}
+$("#tAll").onclick=()=>{ S.disabled.clear(); changed(); };
 
 function renderPalette(fromText){
   $("#strip").style.background=grad(S.colors);
@@ -569,6 +620,7 @@ function renderPalette(fromText){
   document.querySelectorAll("#mode button").forEach(b=>b.classList.toggle("sel",b.dataset.v===S.mode));
   document.querySelectorAll("#fxseg button").forEach(b=>b.classList.toggle("sel",b.dataset.v===(S.fx||"static")));
   $("#speedrow").classList.toggle("hide",!anim()); $("#spdv").textContent=S.speed;
+  $("#fxpill").hidden=!anim(); if(anim()) $("#fxpilltxt").textContent=`${FXNAME[S.fx]||"Efeito"} ligado`;
   $("#bri").value=S.bri; $("#briv").textContent=S.bri+"%"; $("#spd").value=S.speed;
   document.querySelectorAll(".preset").forEach(p=>p.classList.toggle("sel",p.dataset.name===S.preset));
 }
@@ -627,7 +679,7 @@ function renderDevices(){
       html.push(`<div class="unit ${on?"":"off"}">
         <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b title="${esc(d.name)}">${esc(nk||d.name)}</b><small>${nk?esc(d.name):tName(t)} · ${plural(total,"LED","LEDs")}</small></div>
         <label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${d.id}" ${on?"checked":""}><span></span></label></div>
-        <div class="body">${unitBody(d,[d.id],p,[p[d.id]||[]])}</div></div>`);
+        <div class="body">${unitBody(d,[d.id],p,[p[d.id]||[]])}</div>${persistHTML([d])}</div>`);
       return;
     }
     // grupo (ex.: 2 pentes de RAM)
@@ -646,7 +698,7 @@ function renderDevices(){
       <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b>${tName(t)}</b><small>${plural(ds.length,"módulo","módulos")} · ${plural(total,"LED","LEDs")}</small></div>
       ${linked?`<label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${ids.join(",")}" ${on?"checked":""}><span></span></label>`:""}</div>
       <div class="linkbar">${seg}</div>
-      <div class="body">${body}</div></div>`);
+      <div class="body">${body}</div>${persistHTML(ds)}</div>`);
   });
   box.innerHTML=html.join("");
   box.querySelectorAll("[data-ii]").forEach(el=>el.outerHTML=icon(el.dataset.ii));
@@ -662,6 +714,14 @@ function renderDevices(){
   box.querySelectorAll(".zone").forEach(z=>z.onclick=()=>openPicker(z, z.dataset.cur, {kind:"zone", ids:z.dataset.ids.split(",").map(Number), zi:+z.dataset.zi}));
 }
 
+/* o que o chip guarda quando o PC desliga */
+const PERSIST={auto:["check","Guarda a cor sozinho ao desligar o PC"],
+  manual:["save","Guarda só uma cor fixa (botão Gravar na placa)"],
+  none:["alert","Não guarda a cor: volta ao padrão ao religar o PC"]};
+function persistHTML(ds){
+  const k=ds.map(d=>d.persist||"none").sort((a,b)=>["none","manual","auto"].indexOf(a)-["none","manual","auto"].indexOf(b))[0];
+  const [ic,txt]=PERSIST[k]; return `<div class="persist ${k}" title="${k==="none"?"Ative \"Restaurar cores ao ligar o PC\" na Automação":""}">${icon(ic)}${txt}</div>`;
+}
 function renderPC(){
   const el=$("#pcinfo"), pc=S.pc;
   if(!pc){ el.innerHTML=`<span class="pcchip dim" title="Peça ao seu agente de IA: configure o MeuRGB no meu PC">${icon("scan")}PC ainda não configurado por IA</span>`; return; }
@@ -690,19 +750,18 @@ function renderPresets(){
 
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
 const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris"};
+const SETUP_PROMPT=`Configure o MeuRGB, o controlador RGB do meu PC. Leia o arquivo AGENTS.md desta pasta e siga as instruções.
+Primeiro detecte o meu hardware e me diga, em poucas palavras, o que encontrou.
+Depois me faça as perguntas necessárias, uma de cada vez e com opções para eu escolher: que estilo ou jogo eu curto, em quais dispositivos aplicar, como deixar as memórias RAM, se quero algum efeito, se quero modo jogo e horários (como modo noite) e se quero restaurar as cores ao ligar o PC.
+No fim, configure e aplique tudo e me mostre um resumo curto do que ficou.`;
 function renderAI(){
   const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
   let h=`<div class="howto">Um agente de IA identifica sua placa e seus dispositivos RGB, configura tudo e cria visuais sob medida.</div>
     <details class="how" ${S.howOpen?"open":""}><summary>${icon("chevron")}Como usar</summary>
-      <ol>
-        <li>Abra um agente de IA que rode comandos no seu PC (Claude Code, Codex, Gemini CLI, Cursor...) na pasta do MeuRGB.</li>
-        <li>Na primeira vez, peça para ele configurar o seu PC. Ele detecta a placa-mãe, as RAMs, os periféricos e os programas RGB que podem atrapalhar.</li>
-        <li>Depois é só descrever o visual que você quer, do seu jeito. O perfil aparece aqui embaixo.</li>
-      </ol>
-      <div class="ex">Exemplos de pedido</div>
-      <blockquote>Configure o MeuRGB no meu PC.</blockquote>
-      <blockquote style="margin-top:6px">Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.</blockquote>
-      <div class="dim" style="font-size:12px;margin-top:8px">As instruções para o agente ficam no arquivo AGENTS.md.</div>
+      <p class="howp">Abra um agente de IA na pasta do MeuRGB (Claude Code, Codex, Gemini CLI, Cursor...) e cole este prompt. Ele faz as perguntas e configura tudo do seu jeito.</p>
+      <div class="promptbox"><div class="ptext">${esc(SETUP_PROMPT)}</div>
+        <button class="btn sm" id="copyPrompt">${icon("copy")}Copiar prompt</button></div>
+      <p class="howp dim" style="margin-top:8px">Depois é só pedir novos visuais do seu jeito, a qualquer hora.</p>
     </details>`;
   if(a){
     const nz=(a.zones||[]).length;
@@ -720,6 +779,10 @@ function renderAI(){
   }
   box.innerHTML=h;
   box.querySelector(".how").ontoggle=e=>{ S.howOpen=e.target.open; };
+  $("#copyPrompt").onclick=async e=>{ const b=e.currentTarget;
+    try{ await navigator.clipboard.writeText(SETUP_PROMPT); }
+    catch{ const r=document.createRange(); r.selectNodeContents(box.querySelector(".ptext")); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
+    b.innerHTML=icon("check")+"Copiado"; toast("Prompt copiado. Cole no seu agente de IA."); setTimeout(()=>{ b.innerHTML=icon("copy")+"Copiar prompt"; },2000); };
   if(a){
     $("#aiRe").onclick=e=>run(e.currentTarget,()=>useAI(a));
     $("#aiSave").onclick=e=>run(e.currentTarget,async()=>{ S.palettes=(await api("/api/preset",{name:"IA · "+(a.name||"perfil"),colors:a.colors})).palettes; renderPresets(); toast("Salvo nos presets"); });
@@ -797,6 +860,8 @@ $("#applySave").onclick=e=>run(e.currentTarget,()=>commit(true));
 $("#burn").onclick=e=>run(e.currentTarget,()=>commit(true));
 $("#discard").onclick=()=>{ if(!S.applied) return; closePicker(); restore(S.applied); S.preset=null; render(); preview(); toast("Alterações descartadas"); };
 $("#off").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/off",{}); S.fx="static"; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
+$("#fxpill").onclick=e=>run(e.currentTarget,async()=>{ S.fx="static"; await api("/api/effect",{on:false}); await commit(false); render();
+  toast("Efeito parado. As cores ficaram fixas e salvas assim."); });
 $("#reconnect").onclick=e=>connect(e.currentTarget);
 async function savePreset(){ const n=$("#pname").value.trim(); if(!n){ $("#pname").focus(); return; }
   S.palettes=(await api("/api/preset",{name:n,colors:S.colors})).palettes; S.preset=n; $("#pname").value=""; renderPresets(); toast(`Preset "${n}" salvo`); }
@@ -806,32 +871,6 @@ function connect(btn){ return run(btn,async()=>{
   if(!S.connected){ toast("Abrindo o OpenRGB e procurando dispositivos...","busy",0); await api("/api/connect",{}); }
   await loadState(!S.applied); toast(S.connected?plural(S.devices.length,"dispositivo encontrado","dispositivos encontrados"):"Não consegui conectar ao OpenRGB", S.connected?"ok":"err"); }); }
 
-/* ---- importar paleta de imagem (k-means) ---- */
-const card=$("#palCard");
-$("#imgBtn").onclick=()=>$("#file").click();
-$("#file").onchange=e=>e.target.files[0]&&fromImage(e.target.files[0]);
-card.addEventListener("dragover",e=>{ e.preventDefault(); card.classList.add("dragging"); });
-card.addEventListener("dragleave",e=>{ if(!card.contains(e.relatedTarget)) card.classList.remove("dragging"); });
-card.addEventListener("drop",e=>{ e.preventDefault(); card.classList.remove("dragging"); const f=e.dataTransfer.files[0]; if(f) fromImage(f); });
-document.addEventListener("paste",e=>{ if(e.target.tagName==="INPUT") return; const f=[...e.clipboardData.files].find(f=>f.type.startsWith("image/")); if(f) fromImage(f); });
-function fromImage(file){
-  const img=new Image(); img.onload=()=>{
-    const cv=document.createElement("canvas"), W=120, H=Math.max(1,Math.round(120*img.height/img.width));
-    cv.width=W; cv.height=H; const cx=cv.getContext("2d"); cx.drawImage(img,0,0,W,H);
-    const d=cx.getImageData(0,0,W,H).data, px=[];
-    for(let i=0;i<d.length;i+=4){ const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b); if(mx>40&&(mx-mn)>35) px.push([r,g,b]); }
-    if(px.length<20){ toast("A imagem não tem cores fortes o bastante","err"); return; }
-    let cen=Array.from({length:5},(_,i)=>px[Math.floor(i*px.length/5)].slice());
-    for(let it=0;it<12;it++){ const sum=cen.map(()=>[0,0,0,0]);
-      for(const p of px){ let bi=0,bd=1e9; cen.forEach((c,j)=>{ const dd=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2; if(dd<bd){bd=dd;bi=j;} }); const s=sum[bi]; s[0]+=p[0];s[1]+=p[1];s[2]+=p[2];s[3]++; }
-      cen=sum.map((s,j)=>s[3]?[s[0]/s[3],s[1]/s[3],s[2]/s[3],s[3]]:cen[j]); }
-    const vivid=c=>{ const m=Math.max(c[0],c[1],c[2])||1; return c.slice(0,3).map(v=>v/m*255); };
-    S.colors=[...new Set(cen.sort((a,b)=>(b[3]||0)-(a[3]||0)).map(c=>rgb2hex(vivid(c))))];
-    S.preset=null; changed(); toast("Cores extraídas da imagem");
-  };
-  img.src=URL.createObjectURL(file);
-}
-
 /* ===================== automação ===================== */
 const A={auto:{enabled:true,games:[],schedule:[]}, known:{}, status:"", autostart:false};
 const ACTIONS={preset:"Aplicar preset",brightness:"Brilho",off:"Apagar",restore:"Meu visual"};
@@ -840,6 +879,10 @@ function saveAuto(){ clearTimeout(autoT); autoT=setTimeout(()=>api("/api/auto",A
 function presetOptions(sel){ return Object.keys(S.palettes).map(n=>`<option ${n===sel?"selected":""}>${esc(n)}</option>`).join(""); }
 function renderAuto(){
   $("#autostart").checked=A.autostart;
+  const lose=S.devices.filter(d=>d.persist==="none"), names=[...new Set(lose.map(d=>nick(d)||tName(d.type)))];
+  $("#autostartHint").textContent=(names.length?`Recomendado: ${names.join(", ")} não ${lose.length>1?"guardam":"guarda"} a cor sozinho. `:"Seus dispositivos já guardam a cor sozinhos. ")
+    +(A.needs_running?"Fica aberto em segundo plano (~30 MB) por causa do modo jogo, horários ou efeito animado."
+                     :"Ao ligar o PC, devolve as cores e fecha sozinho: não fica nada aberto.");
   const st=$("#astatus"); st.hidden=!A.status; st.innerHTML=A.status?icon("gamepad")+esc(A.status):"";
   $("#knownExe").innerHTML=Object.keys(A.known).map(k=>`<option value="${esc(k)}">${esc(A.known[k])}</option>`).join("");
   const g=$("#gameRules");
@@ -865,7 +908,7 @@ function renderAuto(){
   s.querySelectorAll("[data-sv]").forEach(el=>el.onchange=()=>{ const r=A.auto.schedule[+el.dataset.sv]; r.value=r.action==="brightness"?+el.value:el.value; saveAuto(); });
   s.querySelectorAll("[data-sx]").forEach(b=>b.onclick=()=>{ A.auto.schedule.splice(+b.dataset.sx,1); renderAuto(); saveAuto(); });
 }
-async function loadAuto(){ const j=await api("/api/auto"); Object.assign(A,{auto:j.auto,known:j.known,status:j.status,autostart:j.autostart}); renderAuto(); }
+async function loadAuto(){ const j=await api("/api/auto"); Object.assign(A,{auto:j.auto,known:j.known,status:j.status,autostart:j.autostart,needs_running:j.needs_running}); renderAuto(); }
 function addGame(exe,preset){
   exe=exe.trim(); if(!exe) return false; if(!/\.exe$/i.test(exe)) exe+=".exe";
   if(A.auto.games.some(g=>g.process.toLowerCase()===exe.toLowerCase())) return false;

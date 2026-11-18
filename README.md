@@ -39,15 +39,15 @@ Cada PC tem uma placa-mãe, umas memórias e uns periféricos diferentes. Em vez
 
 ```mermaid
 flowchart LR
-    A["Você: configure o MeuRGB no meu PC"] --> B["Agente detecta placa, RAMs,<br/>periféricos e conflitos"]
-    B --> C["Resolve o que falta<br/>e salva o perfil do PC"]
+    A["Você cola o prompt<br/>pronto do app"] --> B["Agente detecta placa, RAMs,<br/>periféricos e conflitos"]
+    B --> C["Faz as perguntas<br/>e configura tudo"]
     C --> D["Você: quero um visual<br/>cyberpunk roxo e azul"]
     D --> E["Agente cria a paleta<br/>e aplica na hora"]
 ```
 
 | Você pede | O agente faz |
 |---|---|
-| *"Configure o MeuRGB no meu PC."* | Detecta placa-mãe, BIOS, RAMs, GPU, periféricos e os efeitos que cada chip suporta. Acha programas RGB que brigam com o OpenRGB e pergunta antes de desativar. Salva um perfil do PC com apelidos e preferências. |
+| *Cole o prompt pronto do app (Cores com IA → Como usar).* | Detecta placa-mãe, BIOS, RAMs, GPU, periféricos e os efeitos que cada chip suporta. Faz as perguntas uma de cada vez (estilo, dispositivos, efeitos, modo jogo, horários) e configura tudo. Acha programas RGB que brigam com o OpenRGB e pergunta antes de desativar. |
 | *"Quero um visual cyberpunk roxo e azul, teclado branco e RAMs contínuas."* | Monta a paleta, ajusta cada dispositivo e zona, escolhe efeitos e aplica na hora. O perfil aparece no app com histórico. |
 | *"Quando eu abrir o Valorant, deixa tudo vermelho. E à noite diminui o brilho."* | Acha os jogos instalados, cria as regras de modo jogo e os horários. |
 
@@ -59,16 +59,16 @@ As instruções para os agentes ficam no [`AGENTS.md`](AGENTS.md).
 |---|---|
 | **Prévia ao vivo** | O PC muda enquanto você escolhe a cor. Depois é só **Aplicar** ou **Descartar**. |
 | **Seletor de cor próprio** | Quadrado de tom, matiz, código hex e 16 cores prontas para LED. |
+| **Aplicar a paleta em** | Escolha onde a paleta vai: placa-mãe, RAMs, teclado e qualquer outro dispositivo. Os desmarcados mantêm as cores atuais. |
 | **Cor por zona** | Cada zona da placa, cada RAM e o teclado podem ter a sua cor. |
 | **RAMs juntas ou separadas** | Separadas, iguais ou contínuas (o gradiente atravessa os módulos). |
 | **Efeitos animados** | Fluir, Respirar, Ciclo de cores e Arco-íris, em qualquer dispositivo. |
 | **Efeitos do chip** | Os efeitos nativos de cada placa, RAM ou periférico, lidos do próprio hardware. Rodam mesmo com o app fechado. |
 | **30 presets** | Paletas de jogos e clássicos, com busca. |
-| **Paleta de imagem** | Arraste, cole ou escolha uma imagem e as cores saem dela. |
-| **Gravar na placa** | As cores continuam depois de reiniciar, sem nada aberto. |
+| **Gravar na placa** | Cada card mostra se o chip guarda a cor sozinho, só uma cor fixa, ou nada. |
 | **Modo jogo** | Abriu o jogo, o PC troca para o preset dele; fechou, volta ao seu visual. Acha os jogos instalados sozinho (Steam, Epic, Riot, Xbox). |
 | **Horários** | Modo noite com um clique (brilho baixo às 23:00, normal às 08:00), presets por horário, apagar e restaurar. |
-| **Iniciar com o Windows** | Abre escondido e devolve as cores depois de reiniciar, até nas RAMs que não gravam cor. |
+| **Restaurar ao ligar o PC** | Devolve as cores depois de reiniciar (inclusive nas RAMs, que não guardam cor) e **fecha sozinho**: não fica nada na memória. Só continua aberto (~30 MB + OpenRGB) se você usar modo jogo, horários ou efeito animado. |
 | **Compartilhar visual** | Gera um código `MEURGB1-...` para mandar para alguém; quem recebe importa com um clique. |
 
 <details>
@@ -126,7 +126,7 @@ python rgb_controller.py desligar
 ### Testes
 
 ```bash
-python -m unittest discover -s tests -v                    # 41 testes, sem precisar de hardware
+python -m unittest discover -s tests -v                    # 45 testes, sem precisar de hardware
 set MEURGB_HW=1 && python -m unittest tests.test_hardware   # +5 no hardware real (as luzes piscam e voltam)
 ```
 
@@ -142,7 +142,7 @@ Every PC has a different motherboard, RAM and peripherals. Instead of hunting fo
 
 | You ask | The agent does |
 |---|---|
-| *"Set up MeuRGB on my PC."* | Detects motherboard, BIOS, RAM, GPU, peripherals and every chip's built-in effects. Finds vendor RGB apps that fight OpenRGB and asks before disabling them. Saves a PC profile with nicknames and defaults. |
+| *Paste the ready-made prompt from the app (AI colors → How to use).* | Detects motherboard, BIOS, RAM, GPU, peripherals and every chip's built-in effects, then asks you one question at a time (style, devices, effects, game mode, schedules). Finds vendor RGB apps that fight OpenRGB and asks before disabling them. Saves a PC profile with nicknames and defaults. |
 | *"Purple and blue cyberpunk, white keyboard, continuous RAM."* | Builds the palette, tunes each device and zone, picks effects and applies it instantly. The profile shows up in the app with history. |
 
 Agent instructions live in [`AGENTS.md`](AGENTS.md).
@@ -153,10 +153,11 @@ Agent instructions live in [`AGENTS.md`](AGENTS.md).
 - **Custom color picker**, **per-zone colors** and RAM sticks **separate, mirrored or continuous**.
 - **App effects** (Flow, Breathe, Color cycle, Rainbow) on any device.
 - **Chip effects**: each device's built-in effects, read from the hardware itself; they keep running with the app closed.
-- **30 presets** (games and classics) with search, **palette from image**, and **save to board** so colors survive reboots.
+- **Apply the palette to**: pick which devices (motherboard, RAM, keyboard, any other) follow the palette; the rest keep their colors.
+- **30 presets** (games and classics) with search, and each device shows whether its chip keeps colors after power-off.
 - **Game mode**: open a game and the PC switches to its preset; close it and your look comes back. Finds installed games on its own.
-- **Schedules** (one-click night mode), **start with Windows** (restores colors after reboot, even on RAM that can't store them) and **share codes** (`MEURGB1-...`) to swap looks with friends.
-- **41 automated tests** plus 5 opt-in real-hardware tests: `python -m unittest discover -s tests -v`.
+- **Schedules** (one-click night mode), **restore on boot** (brings colors back after reboot, even on RAM that can't store them, then exits so nothing stays in memory) and **share codes** (`MEURGB1-...`) to swap looks with friends.
+- **45 automated tests** plus 5 opt-in real-hardware tests: `python -m unittest discover -s tests -v`.
 
 ### Install
 

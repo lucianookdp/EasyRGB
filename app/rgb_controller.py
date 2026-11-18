@@ -284,10 +284,24 @@ def apply_hw(idx, dev, name, speed_pct, led_colors, palette, save, RGBColor):
         dev.set_colors([RGBColor(*c) for c in led_colors])
 
 
+_MANUAL_SAVE, _AUTO_SAVE = 256, 512
+
+
+def persist_kind(dev):
+    """O que o chip guarda quando o PC desliga: 'auto' (guarda sozinho), 'manual' (só cor fixa, ao gravar)
+    ou 'none' (perde a cor; precisa do MeuRGB ao ligar o PC)."""
+    flags = [int(m.flags or 0) for m in dev.modes if m.name.lower() in ("direct", "static")]
+    if any(f & _AUTO_SAVE for f in flags):
+        return "auto"
+    if any(f & _MANUAL_SAVE for f in flags):
+        return "manual"
+    return "none"
+
+
 def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
-             "effects": hw_effects(d),
+             "effects": hw_effects(d), "persist": persist_kind(d),
              "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones]}
             for i, d in enumerate(c.devices)]
 
@@ -395,7 +409,7 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
                       persist=False, hw=hw)
             except Exception:
                 pass
-            ev.wait(0.06)
+            ev.wait(0.1)   # 10 quadros por segundo: suave e leve para o OpenRGB
 
     th = threading.Thread(target=run, daemon=True)
     _effect.update(thread=th, on=True, kind=kind)
@@ -747,6 +761,8 @@ def run_schedule(s):
 def auto_tick():
     """Um passo do motor de automação (chamado a cada poucos segundos)."""
     auto = load_auto()
+    if not _auto["game"] and not (auto.get("enabled", True) and (auto.get("games") or auto.get("schedule"))):
+        return   # sem regras: não gasta nada
     if not openrgb_running():
         return
     rule = game_rule(auto, running_processes()) if auto.get("games") else None
@@ -851,8 +867,20 @@ def set_autostart(on):
     return autostart_installed(fresh=True)
 
 
+def needs_running():
+    """Só precisa ficar aberto se tiver algo que muda as cores com o tempo."""
+    a = load_auto()
+    if a.get("enabled", True) and (any(g.get("enabled", True) for g in a.get("games", []))
+                                   or any(s.get("enabled", True) for s in a.get("schedule", []))):
+        return True
+    return ((load_state() or {}).get("ui") or {}).get("effect") in EFFECTS
+
+
 def restore_on_boot():
-    """Modo --background: abre o OpenRGB, espera o hardware e reaplica o último visual."""
+    """Modo --background (ao ligar o PC): abre o OpenRGB, devolve o último visual e, se nada precisar ficar
+    rodando (modo jogo, horários ou efeito animado), fecha o OpenRGB e o MeuRGB: não fica nada na memória.
+    As cores continuam nos chips até o PC desligar."""
+    was_open = openrgb_running()
     for _ in range(3):
         if start_openrgb():
             break
@@ -862,9 +890,15 @@ def restore_on_boot():
             client(refresh=True)
             if load_state():
                 apply_saved()
-            return
+            break
         except Exception:
             time.sleep(2)
+    if not needs_running():
+        time.sleep(1)
+        if not was_open:
+            subprocess.run(["taskkill", "/im", "OpenRGB.exe", "/f"], capture_output=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        os._exit(0)
 
 
 # ---------------------------------------------------------------- compartilhar visual
@@ -938,7 +972,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/auto":
             return self._send(200, {"auto": load_auto(), "status": _auto["status"],
                                     "game": _auto["game"], "autostart": autostart_installed(),
-                                    "known": KNOWN_GAMES})
+                                    "known": KNOWN_GAMES, "needs_running": needs_running()})
         if self.path == "/api/games":
             return self._send(200, {"games": find_installed_games()})
         if self.path == "/api/share":
