@@ -129,8 +129,16 @@
   .aimark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--ai-bg);color:var(--ai);border:1px solid #a78bfa40}
   .badge{font-size:11px;font-weight:600;color:var(--ai);background:var(--ai-bg);border:1px solid #a78bfa33;border-radius:6px;padding:1px 7px;white-space:nowrap}
   .howto{font-size:13px;color:var(--muted);line-height:1.6}
-  .prompt{margin-top:10px;font-size:12.5px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;display:flex;gap:8px}
-  .prompt .i{color:var(--ai);margin-top:2px;width:14px;height:14px}
+  .how{margin-top:8px}
+  .how summary{display:inline-flex;align-items:center;gap:5px;cursor:pointer;list-style:none;font-size:12.5px;font-weight:500;color:var(--ai);padding:3px 0;user-select:none}
+  .how summary::-webkit-details-marker{display:none}
+  .how summary:hover{color:#c4b5fd}
+  .how summary .i{width:14px;height:14px;transition:transform .15s}
+  .how[open] summary .i{transform:rotate(90deg)}
+  .how ol{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.6}
+  .how li{margin-bottom:3px}
+  .how .ex{font-size:11.5px;color:var(--dim);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+  .how blockquote{margin:0;padding:2px 0 2px 11px;border-left:2px solid #a78bfa66;font-size:12.5px;font-style:italic;color:var(--text);line-height:1.55}
   .active{margin-top:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);overflow:hidden}
   .active .bar{height:34px}
   .active .ab{padding:11px 12px}
@@ -315,6 +323,7 @@ const I = {
   waves:'<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
   sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
   message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  chevron:'<path d="m9 18 6-6-6-6"/>',
   bookmark:'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
   check:'<path d="M20 6 9 17l-5-5"/>',
   x:'<path d="M18 6 6 18M6 6l12 12"/>',
@@ -546,8 +555,17 @@ function renderPresets(){
 const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
 function renderAI(){
   const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
-  let h=`<div class="howto">Descreva o clima que você quer para um agente de IA que roda no seu PC (Claude Code, Codex, Gemini CLI, Cursor...). Ele cria a paleta, ajusta cada dispositivo e aplica aqui na hora. As instruções para o agente estão no <b>AGENTS.md</b>.</div>
-    <div class="prompt">${icon("message")}<span>“Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.”</span></div>`;
+  let h=`<div class="howto">Peça um clima para um agente de IA e ele aplica aqui na hora.</div>
+    <details class="how" ${S.howOpen?"open":""}><summary>${icon("chevron")}Como usar</summary>
+      <ol>
+        <li>Abra um agente de IA que rode comandos no seu PC (Claude Code, Codex, Gemini CLI, Cursor...) na pasta do MeuRGB.</li>
+        <li>Descreva o visual que você quer, do seu jeito.</li>
+        <li>Ele cria a paleta, ajusta cada dispositivo e aplica. O perfil aparece aqui embaixo.</li>
+      </ol>
+      <div class="ex">Exemplo de pedido</div>
+      <blockquote>Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.</blockquote>
+      <div class="dim" style="font-size:12px;margin-top:8px">As instruções para o agente ficam no arquivo AGENTS.md.</div>
+    </details>`;
   if(a){
     const nz=(a.zones||[]).length;
     h+=`<div class="active"><div class="bar" style="background:${grad(a.colors||[])}"></div><div class="ab">
@@ -561,6 +579,7 @@ function renderAI(){
     if(hist.length>1) h+=`<div class="hist"><div class="ht">Anteriores</div>${hist.slice(1,7).map((x,k)=>`<button class="hrow" data-h="${k+1}" title="Aplicar de novo"><span class="mini" style="background:${grad(x.colors||[])}"></span><span class="nm">${esc(x.name||"Perfil")}</span><span class="tm">${esc((x.created||"").slice(5,10).split("-").reverse().join("/"))}</span></button>`).join("")}</div>`;
   }
   box.innerHTML=h;
+  box.querySelector(".how").ontoggle=e=>{ S.howOpen=e.target.open; };
   if(a){
     $("#aiRe").onclick=e=>run(e.currentTarget,()=>useAI(a));
     $("#aiSave").onclick=e=>run(e.currentTarget,async()=>{ S.palettes=(await api("/api/preset",{name:"IA · "+(a.name||"perfil"),colors:a.colors})).palettes; renderPresets(); toast("Salvo nos presets"); });
