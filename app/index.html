@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeuRGB</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Cg style='mix-blend-mode:screen'%3E%3Ccircle cx='16' cy='12.5' r='6.2' fill='%23ff3b4e'/%3E%3Ccircle cx='12.4' cy='18.6' r='6.2' fill='%2322d36b' style='mix-blend-mode:screen'/%3E%3Ccircle cx='19.6' cy='18.6' r='6.2' fill='%233b82f6' style='mix-blend-mode:screen'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#09090b; --surface:#111113; --surface2:#18181b; --surface3:#1f1f23;
+    --border:#232327; --border2:#33333a; --text:#fafafa; --muted:#a1a1aa; --dim:#71717a;
+    --ok:#22c55e; --err:#ef4444; --ai:#a78bfa; --ai-bg:#a78bfa14;
+    --r:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  button,input{font:inherit;color:inherit}
+  button{cursor:pointer}
+  svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;display:block}
+  .sp{flex:1}
+  .muted{color:var(--muted)} .dim{color:var(--dim)}
+
+  /* ---------- topo ---------- */
+  .top{position:sticky;top:0;z-index:20;background:#09090bd9;backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+  .top .in{max-width:1240px;margin:0 auto;height:58px;padding:0 20px;display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .brand svg{width:28px;height:28px}
+  .ver{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--border2);border-radius:6px;padding:1px 6px}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:0 4px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--err)}
+  .status.on .dot{background:var(--ok);box-shadow:0 0 0 3px #22c55e22}
+  @media(max-width:700px){ #stxt,.top .lbl{display:none} .top .btn{padding:0 9px} .top .in{padding:0 12px;gap:4px} main{padding:14px 12px 140px} }
+
+  /* ---------- botões ---------- */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);font-weight:500;font-size:13px;white-space:nowrap;transition:background .12s,border-color .12s}
+  .btn:hover{background:var(--surface3);border-color:#45454d}
+  .btn.primary{background:var(--text);color:#09090b;border-color:var(--text)}
+  .btn.primary:hover{background:#e4e4e7}
+  .btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover{background:var(--surface2);color:var(--text)}
+  .btn.ai{border-color:#a78bfa55;color:#ddd6fe;background:var(--ai-bg)}
+  .btn.sm{height:30px;padding:0 10px;font-size:12.5px;border-radius:8px}
+  .btn:disabled{opacity:.5;cursor:progress}
+  .ib{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;border:0;background:none;color:var(--muted)}
+  .ib:hover{background:var(--surface2);color:var(--text)}
+  .ib.sm{width:26px;height:26px;border-radius:7px} .ib.sm svg{width:14px;height:14px}
+
+  /* ---------- layout ---------- */
+  main{max-width:1240px;margin:0 auto;padding:20px 20px 120px;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+  .ch{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .ch h2{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .ch p{margin:0;font-size:12.5px;color:var(--dim)}
+  .cb{padding:16px}
+
+  /* ---------- paleta ---------- */
+  .strip{height:52px;border-radius:10px;border:1px solid #ffffff12}
+  .swatches{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .swatch{width:46px;height:46px;border-radius:10px;border:0;box-shadow:inset 0 0 0 1px #ffffff1f;position:relative;transition:transform .1s}
+  .swatch:hover{transform:translateY(-1px)}
+  .swatch.active{box-shadow:inset 0 0 0 1px #ffffff2a,0 0 0 2px var(--bg),0 0 0 4px var(--text)}
+  .swatch.add{background:none;box-shadow:none;border:1px dashed var(--border2);color:var(--muted);display:grid;place-items:center}
+  .swatch.add:hover{color:var(--text);border-color:var(--dim)}
+  .hexline{display:flex;gap:8px;margin-top:12px}
+  .field{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:0 10px;min-width:0;flex:1}
+  .field:focus-within{border-color:var(--border2)}
+  .field .i{color:var(--dim);width:15px;height:15px}
+  .field input{flex:1;min-width:0;height:34px;background:none;border:0;outline:0;font-size:13px}
+  .mono{font-family:"Cascadia Code",ui-monospace,Consolas,monospace!important;font-size:12.5px!important}
+  .controls{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px 18px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+  .controls .full{grid-column:1/-1}
+  @media(max-width:700px){.controls{grid-template-columns:1fr}}
+  .ctl label.lb{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:500}
+  .seg{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:2px;gap:2px}
+  .seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border:0;background:none;color:var(--muted);border-radius:7px;font-size:12.5px;font-weight:500;white-space:nowrap;padding:0 8px}
+  .seg button:hover{color:var(--text)}
+  .seg button.sel{background:var(--surface3);color:var(--text);box-shadow:0 0 0 1px var(--border2)}
+  .seg button svg{width:14px;height:14px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:9px;background:var(--border2);outline:0;margin:13px 0}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--text);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--border2)}
+  .speed{margin-top:8px}
+  .drophint{position:absolute;inset:0;border-radius:var(--r);border:2px dashed var(--text);background:#09090bcc;display:none;place-items:center;font-weight:500;z-index:3}
+  .card.dragging .drophint{display:grid}
+
+  /* ---------- dispositivos ---------- */
+  .devs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .unit{border:1px solid var(--border);border-radius:11px;background:var(--bg);min-width:0}
+  .unit.wide{grid-column:1/-1}
+  .unit.off .body{opacity:.4}
+  .uh{display:flex;align-items:center;gap:10px;padding:12px 12px 0}
+  .uic{width:34px;height:34px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;color:var(--muted);flex:none}
+  .un{flex:1;min-width:0}
+  .un b{display:block;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .un small{display:block;color:var(--dim);font-size:12px}
+  .linkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 12px 0}
+  .linkbar .seg{flex:0 1 360px}
+  .linkbar .hint{font-size:12px;color:var(--dim)}
+  .leds{display:flex;flex-wrap:wrap;gap:3px;padding:12px 12px 2px}
+  .leds i{width:9px;height:9px;border-radius:2.5px}
+  .leds.dense i{width:5px;height:9px;border-radius:1.5px}
+  .leds .br{flex-basis:100%;height:0}
+  .zones{padding:6px 6px 8px}
+  .zone{display:flex;align-items:center;gap:10px;width:100%;padding:6px;border-radius:8px;border:0;background:none;text-align:left}
+  .zone:hover{background:var(--surface2)}
+  .chip{width:22px;height:22px;border-radius:6px;box-shadow:inset 0 0 0 1px #ffffff26;flex:none}
+  .zone .zn{flex:1;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zone .zt{font-size:11.5px;color:var(--dim)}
+  .tag{font-size:10.5px;font-weight:600;color:var(--text);background:var(--surface3);border:1px solid var(--border2);border-radius:5px;padding:0 5px}
+  .subs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:12px}
+  .sub{border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+  .sub.off .leds,.sub.off .zones{opacity:.4}
+  .sub .uh{padding:10px 10px 0}
+  .empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--muted);padding:26px 10px}
+
+  .switch{position:relative;width:32px;height:18px;flex:none}
+  .switch input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+  .switch span{position:absolute;inset:0;border-radius:99px;background:var(--border2);transition:.15s}
+  .switch span::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#d4d4d8;transition:.15s}
+  .switch input:checked+span{background:var(--text)}
+  .switch input:checked+span::after{left:16px;background:#09090b}
+
+  /* ---------- IA ---------- */
+  .aicard{border-color:#a78bfa40;background:linear-gradient(180deg,#a78bfa0d,transparent 140px),var(--surface)}
+  .aicard .ch{border-color:#a78bfa26}
+  .aimark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--ai-bg);color:var(--ai);border:1px solid #a78bfa40}
+  .badge{font-size:11px;font-weight:600;color:var(--ai);background:var(--ai-bg);border:1px solid #a78bfa33;border-radius:6px;padding:1px 7px;white-space:nowrap}
+  .howto{font-size:13px;color:var(--muted);line-height:1.6}
+  .prompt{margin-top:10px;font-size:12.5px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 11px;display:flex;gap:8px}
+  .prompt .i{color:var(--ai);margin-top:2px;width:14px;height:14px}
+  .active{margin-top:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);overflow:hidden}
+  .active .bar{height:34px}
+  .active .ab{padding:11px 12px}
+  .active h3{margin:0;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .active p{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+  .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .meta span{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:1px 7px}
+  .meta svg{width:12px;height:12px}
+  .abtns{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  .hist{margin-top:12px}
+  .hist .ht{font-size:12px;color:var(--dim);margin:0 0 4px 2px}
+  .hrow{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:6px;border-radius:8px;text-align:left}
+  .hrow:hover{background:var(--surface2)}
+  .hrow .mini{width:40px;height:14px;border-radius:4px;flex:none;box-shadow:inset 0 0 0 1px #ffffff1a}
+  .hrow .nm{flex:1;font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hrow .tm{font-size:11.5px;color:var(--dim)}
+
+  /* ---------- presets ---------- */
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .preset{position:relative;border:1px solid var(--border);border-radius:9px;background:var(--bg);padding:0;overflow:hidden;text-align:left}
+  .preset:hover{border-color:var(--border2)}
+  .preset.sel{border-color:var(--text)}
+  .preset .bar{height:26px}
+  .preset .nm{display:block;font-size:12px;padding:6px 8px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .preset.sel .nm{color:var(--text)}
+  .preset .del{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:5px;background:#09090bcc;color:#fff;display:grid;place-items:center;opacity:0}
+  .preset .del svg{width:11px;height:11px}
+  .preset:hover .del{opacity:1}
+  .preset .del.confirm{opacity:1;background:var(--err)}
+  .newp{display:flex;gap:8px;margin-top:12px}
+
+  /* ---------- barra de alterações ---------- */
+  .dirty{position:fixed;left:50%;bottom:18px;transform:translate(-50%,140%);transition:transform .22s ease;z-index:30;width:min(760px,calc(100% - 24px));
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 10px 10px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 50px -12px #000}
+  .dirty.show{transform:translate(-50%,0)}
+  .dirty .msg{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);flex:1;min-width:200px}
+  .dirty .msg b{color:var(--text);font-weight:500}
+  .pulse{width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 3px #f59e0b26;flex:none}
+
+  /* ---------- seletor de cor ---------- */
+  .picker{position:fixed;z-index:50;width:264px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:12px;box-shadow:0 24px 60px -12px #000;display:none}
+  .picker.open{display:block}
+  .sv{position:relative;height:150px;border-radius:8px;cursor:crosshair;touch-action:none}
+  .sv::before,.sv::after{content:"";position:absolute;inset:0;border-radius:8px}
+  .sv::before{background:linear-gradient(90deg,#fff,#fff0)}
+  .sv::after{background:linear-gradient(0deg,#000,#0000)}
+  .knob{position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0006,0 2px 6px #0008;transform:translate(-50%,-50%);z-index:2;pointer-events:none}
+  .hue{position:relative;height:12px;border-radius:99px;margin:12px 0;cursor:pointer;touch-action:none;background:linear-gradient(90deg,#f00,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00)}
+  .hue .knob{top:50%}
+  .prow{display:flex;gap:8px;align-items:center}
+  .pcur{width:34px;height:34px;border-radius:8px;box-shadow:inset 0 0 0 1px #ffffff26;flex:none}
+  .quick{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:10px}
+  .quick button{aspect-ratio:1;border-radius:6px;border:0;box-shadow:inset 0 0 0 1px #ffffff1f}
+  .quick button:hover{transform:scale(1.1)}
+  .pfoot{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border2)}
+  .pfoot:empty{display:none}
+  @media(max-width:560px){.picker.open{left:12px!important;right:12px;width:auto;top:auto!important;bottom:12px}}
+
+  /* ---------- aviso ---------- */
+  #toast{position:fixed;top:70px;right:20px;z-index:60;display:flex;align-items:center;gap:9px;max-width:min(420px,calc(100% - 40px));background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 13px;font-size:13px;box-shadow:0 14px 40px -12px #000;opacity:0;transform:translateY(-6px);transition:.18s;pointer-events:none}
+  #toast.show{opacity:1;transform:none}
+  #toast .i{width:15px;height:15px}
+  #toast.ok .i{color:var(--ok)} #toast.err .i{color:var(--err)} #toast.ai .i{color:var(--ai)}
+  .spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="in">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#18181b" stroke="#2a2a30"/>
+      <g style="isolation:isolate"><circle cx="16" cy="12.6" r="6" fill="#ff3b4e" style="mix-blend-mode:screen"/>
+      <circle cx="12.5" cy="18.6" r="6" fill="#22d36b" style="mix-blend-mode:screen"/>
+      <circle cx="19.5" cy="18.6" r="6" fill="#3b82f6" style="mix-blend-mode:screen"/></g></svg>
+    MeuRGB <span class="ver">v1</span>
+  </div>
+  <div class="sp"></div>
+  <div class="status" id="status"><span class="dot"></span><span id="stxt">Desconectado</span></div>
+  <button class="ib" id="reconnect" title="Reconectar e atualizar dispositivos"><span data-i="refresh"></span></button>
+  <button class="btn" id="burn" title="Grava as cores atuais na memória da placa e das RAMs. Elas continuam depois de reiniciar, sem nenhum programa aberto."><span data-i="cpu-save"></span><span class="lbl">Gravar na placa</span></button>
+  <button class="btn ghost" id="off" title="Apagar todas as luzes"><span data-i="power"></span><span class="lbl">Apagar</span></button>
+</div></div>
+
+<main>
+  <div class="col">
+    <section class="card" id="palCard" style="position:relative">
+      <div class="drophint">Solte a imagem para extrair as cores</div>
+      <div class="ch">
+        <div><h2>Paleta</h2><p>Clique numa cor para editar. O PC já mostra a mudança enquanto você escolhe.</p></div>
+        <div class="sp"></div>
+        <button class="btn sm" id="imgBtn" title="Extrair cores de uma imagem (também dá para arrastar ou colar com Ctrl+V)"><span data-i="image"></span>Da imagem</button>
+        <input type="file" id="file" accept="image/*" hidden>
+      </div>
+      <div class="cb">
+        <div class="strip" id="strip"></div>
+        <div class="swatches" id="swatches"></div>
+        <div class="hexline"><div class="field"><span data-i="hash"></span><input id="hex" class="mono" spellcheck="false" placeholder="Cole uma paleta: #FF2E88, 9B3DFF, rgb(0,217,200)"></div></div>
+
+        <div class="controls">
+          <div class="ctl">
+            <label class="lb">Distribuição</label>
+            <div class="seg" id="mode">
+              <button data-v="gradiente" title="Mistura suave entre as cores"><span data-i="gradient"></span>Gradiente</button>
+              <button data-v="alternado" title="Cores intercaladas LED a LED"><span data-i="dots"></span>Alternado</button>
+              <button data-v="zona" title="Uma cor da paleta para cada zona"><span data-i="grid"></span>Por zona</button>
+            </div>
+          </div>
+          <div class="ctl">
+            <label class="lb">Efeito <span id="spdv" class="dim"></span></label>
+            <div class="seg" id="fxseg">
+              <button data-v="0"><span data-i="square"></span>Estático</button>
+              <button data-v="1"><span data-i="waves"></span>Fluir</button>
+            </div>
+            <input type="range" class="speed" id="spd" min="1" max="10" value="3" title="Velocidade">
+          </div>
+          <div class="ctl full">
+            <label class="lb">Brilho <span id="briv" class="dim">100%</span></label>
+            <input type="range" id="bri" min="5" max="100" value="100" style="margin:6px 0 0">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="ch"><div><h2>Dispositivos</h2><p>Clique numa zona para dar uma cor só para ela.</p></div></div>
+      <div class="cb"><div class="devs" id="devs"></div></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card aicard">
+      <div class="ch">
+        <div class="aimark"><span data-i="sparkles"></span></div>
+        <div><h2>Cores com IA</h2><p>Claude Color</p></div>
+        <div class="sp"></div><span class="badge">Novo</span>
+      </div>
+      <div class="cb" id="ai"></div>
+    </section>
+
+    <section class="card">
+      <div class="ch"><div><h2>Presets</h2><p>Suas paletas salvas.</p></div></div>
+      <div class="cb">
+        <div class="presets" id="presets"></div>
+        <div class="newp">
+          <div class="field"><span data-i="bookmark"></span><input id="pname" placeholder="Salvar paleta atual como..."></div>
+          <button class="btn" id="savePreset">Salvar</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="dirty" id="dirty">
+  <div class="msg"><span class="pulse"></span><span><b>Pré-visualizando no PC.</b> As alterações ainda não foram aplicadas.</span></div>
+  <button class="btn ghost" id="discard">Descartar</button>
+  <button class="btn" id="applySave" title="Aplica e grava na memória da placa e das RAMs"><span data-i="cpu-save"></span>Aplicar e gravar</button>
+  <button class="btn primary" id="apply"><span data-i="check"></span>Aplicar</button>
+</div>
+
+<div class="picker" id="picker">
+  <div class="sv" id="sv"><div class="knob" id="svk"></div></div>
+  <div class="hue" id="hue"><div class="knob" id="huek"></div></div>
+  <div class="prow"><div class="pcur" id="pcur"></div><div class="field"><span data-i="hash"></span><input id="phex" class="mono" maxlength="7" spellcheck="false"></div></div>
+  <div class="quick" id="quick"></div>
+  <div class="pfoot" id="pfoot"></div>
+</div>
+
+<div id="toast"><span id="ticon"></span><span id="tmsg"></span></div>
+
+<script>
+/* ===================== ícones (traço, estilo Lucide) ===================== */
+const I = {
+  refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
+  "cpu-save":'<rect width="16" height="16" x="4" y="4" rx="2"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/><path d="m9 12 2 2 4-4"/>',
+  image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  hash:'<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  gradient:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 3v18"/><path d="M13 3v18" opacity=".55"/><path d="M18 3v18" opacity=".25"/>',
+  dots:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  grid:'<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  square:'<rect width="14" height="14" x="5" y="5" rx="2"/>',
+  waves:'<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+  sparkles:'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
+  message:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  bookmark:'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  plus:'<path d="M5 12h14M12 5v14"/>',
+  trash:'<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  reset:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  cpu:'<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+  memory:'<path d="M6 19v-3M10 19v-3M14 19v-3M18 19v-3M8 11V9M16 11V9M12 11V9M2 15h20"/><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837Z"/>',
+  keyboard:'<path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+  mouse:'<rect x="5" y="2" width="14" height="20" rx="7"/><path d="M12 6v4"/>',
+  gpu:'<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/>',
+  fan:'<path d="M10.827 16.379a6.082 6.082 0 0 1-8.618-7.002l5.412 1.45a6.082 6.082 0 0 1 7.002-8.618l-1.45 5.412a6.082 6.082 0 0 1 8.618 7.002l-5.412-1.45a6.082 6.082 0 0 1-7.002 8.618l1.45-5.412Z"/><path d="M12 12v.01"/>',
+  bulb:'<path d="M9 18h6M10 22h4M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>',
+  plug:'<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  alert:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  loader:'<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  layers:'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65M22 12.65l-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  pencil:'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+};
+const icon = (n, cls="") => `<svg class="i ${cls}" viewBox="0 0 24 24">${I[n]||""}</svg>`;
+document.querySelectorAll("[data-i]").forEach(el=>el.outerHTML=icon(el.dataset.i));
+
+/* ===================== estado ===================== */
+const $ = s => document.querySelector(s);
+const S = {
+  colors:["#FF2E88","#FF6B3D","#FFB547","#9B3DFF","#00D9C8"], mode:"gradiente", bri:100, fx:false, speed:3,
+  overrides:{}, disabled:new Set(), links:{DRAM:"mirror"},
+  devices:[], connected:false, palettes:{}, preset:null,
+  claude:{active:null,history:[]}, claudeSeen:null, applied:null,
+};
+const snap = () => JSON.stringify({c:S.colors,m:S.mode,b:S.bri,o:S.overrides,d:[...S.disabled].sort(),l:S.links,f:S.fx,s:S.speed});
+function restore(js){ const o=JSON.parse(js); S.colors=o.c; S.mode=o.m; S.bri=o.b; S.overrides=o.o; S.disabled=new Set(o.d); S.links=o.l; S.fx=o.f; S.speed=o.s; }
+
+/* ===================== cor ===================== */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const hex2rgb = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const rgb2hex = c => "#"+c.map(v=>clamp(Math.round(v),0,255).toString(16).padStart(2,"0")).join("").toUpperCase();
+function rgb2hsv([r,g,b]){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; let h=0;
+  if(d){ h = mx===r ? ((g-b)/d)%6 : mx===g ? (b-r)/d+2 : (r-g)/d+4; h*=60; if(h<0) h+=360; }
+  return [h, mx?d/mx:0, mx]; }
+function hsv2rgb(h,s,v){ const f=n=>{ const k=(n+h/60)%6; return v-v*s*Math.max(0,Math.min(k,4-k,1)); }; return [f(5)*255,f(3)*255,f(1)*255]; }
+const lerp=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+function gradient(cols,n){ if(n<=0) return []; if(cols.length===1) return Array(n).fill(cols[0]); const c=cols.map(hex2rgb);
+  return Array.from({length:n},(_,i)=>{ const x=(n===1?0:i/(n-1))*(c.length-1), k=Math.min(Math.floor(x),c.length-2); return rgb2hex(lerp(c[k],c[k+1],x-k)); }); }
+const grad = c => !c.length ? "#27272a" : c.length===1 ? c[0] : `linear-gradient(90deg,${c.join(",")})`;
+function parse(txt){
+  const out=[]; txt.replace(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/gi,(_,r,g,b)=>{out.push(rgb2hex([r,g,b].map(Number)));return " ";})
+  .replace(/#([0-9a-f]{6}|[0-9a-f]{3})\b|\b([0-9a-f]{6})\b/gi,(_,a,b)=>{ let h=a||b; if(h.length===3) h=[...h].map(c=>c+c).join(""); out.push("#"+h.toUpperCase()); });
+  return out;
+}
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ===================== mesma lógica de cores do servidor ===================== */
+function zoneColors(n,zi){ if(!n) return []; const p=S.colors;
+  if(S.mode==="zona"||n===1) return Array(n).fill(p[zi%p.length]);
+  if(S.mode==="alternado") return Array.from({length:n},(_,i)=>p[i%p.length]);
+  return gradient(p,n); }
+const enabledIds = () => S.devices.map(d=>d.id).filter(id=>!S.disabled.has(id));
+const byType = () => { const m={}; S.devices.forEach(d=>(m[d.type] ||= []).push(d)); return m; };
+function groups(){ const g=[]; Object.entries(byType()).forEach(([t,ds])=>{ const lm=S.links[t];
+  if(ds.length>1 && (lm==="mirror"||lm==="span")) g.push({ids:ds.map(d=>d.id),mode:lm}); }); return g; }
+function plan(){
+  const ids=enabledIds(), res={}, done=new Set(), ov=S.overrides;
+  for(const g of groups()){
+    const mem=g.ids.filter(i=>ids.includes(i)); if(mem.length<2 || g.mode!=="span") continue;
+    const devs=mem.map(i=>S.devices.find(d=>d.id===i)); mem.forEach(i=>res[i]=[]);
+    const nz=Math.max(...devs.map(d=>d.zones.length));
+    for(let zi=0;zi<nz;zi++){
+      const segs=devs.filter(d=>zi<d.zones.length).map(d=>[d.id,d.zones[zi].leds]);
+      const base=zoneColors(segs.reduce((a,[,n])=>a+n,0),zi); let pos=0;
+      segs.forEach(([id,n])=>{ const f=(ov[id]||{})[zi]; res[id].push(...(f?Array(n).fill(f):base.slice(pos,pos+n))); pos+=n; });
+    }
+    mem.forEach(i=>done.add(i));
+  }
+  S.devices.forEach(d=>{ if(!done.has(d.id)) res[d.id]=d.zones.flatMap((z,zi)=>{ const f=(ov[d.id]||{})[zi]; return f?Array(z.leds).fill(f):zoneColors(z.leds,zi); }); });
+  return res;
+}
+function payload(extra={}){
+  return {colors:S.colors, mode:S.mode, brightness:S.bri, devices:S.devices.length?enabledIds():null,
+          overrides:S.overrides, groups:groups(), ui:{links:S.links, fx:S.fx, speed:S.speed}, ...extra};
+}
+
+/* ===================== API ===================== */
+async function api(path, body){
+  let r; try{ r=await fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined}); }
+  catch{ throw new Error("O MeuRGB está fechado. Abra o MeuRGB.bat de novo."); }
+  let j; try{ j=await r.json(); }catch{ throw new Error("O servidor do MeuRGB não respondeu."); }
+  if(!r.ok||j.ok===false) throw new Error(j.error||"Erro desconhecido"); return j;
+}
+async function run(btn, fn){ if(btn) btn.disabled=true; try{ await fn(); }catch(e){ toast(e.message,"err",5000); } finally{ if(btn) btn.disabled=false; } }
+function toast(msg, kind="ok", ms=2600){
+  const t=$("#toast"); t.className="show "+kind; $("#tmsg").textContent=msg;
+  $("#ticon").innerHTML=icon({err:"alert",busy:"loader",ai:"sparkles"}[kind]||"check", kind==="busy"?"spin":"");
+  clearTimeout(t._h); if(ms) t._h=setTimeout(()=>t.className=kind,ms);
+}
+function failures(j){ const bad=(j.report||[]).filter(r=>!r.ok); if(bad.length) toast("Falhou em: "+bad.map(b=>b.device).join(", "),"err",5000); return bad.length; }
+
+/* ---- pré-visualização no hardware: rápida, sem fila acumulada ---- */
+let pvBusy=false, pvAgain=false, pvTimer=null, fxTimer=null;
+function preview(){
+  if(!S.connected) return;
+  if(S.fx){ clearTimeout(fxTimer); fxTimer=setTimeout(()=>api("/api/effect",payload({on:true,speed:S.speed})).catch(e=>toast(e.message,"err")),350); return; }
+  if(pvBusy){ pvAgain=true; return; }
+  clearTimeout(pvTimer);
+  pvTimer=setTimeout(async()=>{
+    pvBusy=true;
+    try{ failures(await api("/api/preview",payload())); }catch(e){ toast(e.message,"err",4000); }
+    pvBusy=false; if(pvAgain){ pvAgain=false; preview(); }
+  },40);
+}
+function changed(){ render(); preview(); }
+
+async function commit(save){
+  toast(save?"Aplicando e gravando na placa...":"Aplicando...","busy",0);
+  const j=await api("/api/apply",payload({save}));
+  if(S.fx) await api("/api/effect",payload({on:true,speed:S.speed}));
+  S.applied=snap(); renderDirty();
+  if(!failures(j)) toast(save?"Aplicado e gravado. As cores continuam depois de reiniciar.":"Aplicado","ok");
+}
+
+/* ===================== render ===================== */
+let picking=null; // {kind:"pal", i} | {kind:"zone", ids, zi}
+function render(){ renderPalette(); renderDevices(); renderDirty(); }
+
+function renderPalette(fromText){
+  $("#strip").style.background=grad(S.colors);
+  if(!fromText) $("#hex").value=S.colors.join(", ");
+  const box=$("#swatches"); box.innerHTML="";
+  S.colors.forEach((c,i)=>{
+    const b=document.createElement("button"); b.className="swatch"+(picking?.kind==="pal"&&picking.i===i?" active":""); b.style.background=c; b.title=c+" (clique para editar)";
+    b.onclick=()=>openPicker(b,c,{kind:"pal",i});
+    box.appendChild(b);
+  });
+  const a=document.createElement("button"); a.className="swatch add"; a.title="Adicionar cor"; a.innerHTML=icon("plus");
+  a.onclick=()=>{ S.colors.push(S.colors[S.colors.length-1]); S.preset=null; changed(); const all=document.querySelectorAll(".swatch:not(.add)"); openPicker(all[all.length-1],S.colors.at(-1),{kind:"pal",i:S.colors.length-1}); };
+  box.appendChild(a);
+  document.querySelectorAll("#mode button").forEach(b=>b.classList.toggle("sel",b.dataset.v===S.mode));
+  document.querySelectorAll("#fxseg button").forEach(b=>b.classList.toggle("sel",(b.dataset.v==="1")===S.fx));
+  $("#spd").style.display=S.fx?"":"none"; $("#spdv").textContent=S.fx?`velocidade ${S.speed}`:"";
+  $("#bri").value=S.bri; $("#briv").textContent=S.bri+"%"; $("#spd").value=S.speed;
+  document.querySelectorAll(".preset").forEach(p=>p.classList.toggle("sel",p.dataset.name===S.preset));
+}
+
+const TYPE = {MOTHERBOARD:["cpu","Placa-mãe"],DRAM:["memory","Memória RAM"],KEYBOARD:["keyboard","Teclado"],MOUSE:["mouse","Mouse"],GPU:["gpu","Placa de vídeo"],COOLER:["fan","Cooler"],LEDSTRIP:["bulb","Fita de LED"]};
+const tIcon=t=>(TYPE[t]||["bulb"])[0], tName=t=>(TYPE[t]||[null,t])[1];
+const plural=(n,s,p)=>`${n} ${n===1?s:p}`;
+
+function ledsHTML(rows){
+  const total=rows.reduce((a,r)=>a+r.length,0), dense=total>40;
+  return `<div class="leds ${dense?"dense":""}" style="filter:brightness(${0.35+0.65*S.bri/100})">`+
+    rows.map(r=>r.slice(0,120).map(c=>`<i style="background:${c};box-shadow:0 0 6px -1px ${c}"></i>`).join("")).join('<span class="br"></span>')+`</div>`;
+}
+function zonesHTML(dev, ids, colorsOf){
+  return dev.zones.map((z,zi)=>{
+    const over=(S.overrides[dev.id]||{})[zi], cols=colorsOf(zi), uniq=[...new Set(cols)];
+    const bg=uniq.length>1?grad(uniq.filter((_,i)=>i%Math.max(1,Math.floor(uniq.length/6))===0)):(uniq[0]||"#27272a");
+    return `<button class="zone" data-ids="${ids.join(",")}" data-zi="${zi}" data-cur="${uniq[0]||"#FFFFFF"}" title="Escolher uma cor só para esta zona">
+      <span class="chip" style="background:${bg}"></span><span class="zn">${esc(z.name)}</span>
+      ${over?'<span class="tag">Manual</span>':''}<span class="zt">${plural(z.leds,"LED","LEDs")}</span></button>`;
+  }).join("");
+}
+function zoneCols(p, dev){ let pos=0; const map={}; dev.zones.forEach((z,zi)=>{ map[zi]=(p[dev.id]||[]).slice(pos,pos+z.leds); pos+=z.leds; }); return zi=>map[zi]||[]; }
+
+function renderDevices(){
+  const box=$("#devs");
+  if(!S.connected){ box.innerHTML=`<div class="empty unit wide">${icon("plug")}<div>O OpenRGB não está conectado.</div><button class="btn primary" id="cbtn">Conectar</button></div>`; $("#cbtn").onclick=e=>connect(e.currentTarget); return; }
+  if(!S.devices.length){ box.innerHTML=`<div class="empty unit wide">${icon("alert")}<div>Conectado, mas nenhum dispositivo RGB foi encontrado.</div></div>`; return; }
+  const p=plan(), html=[];
+  Object.entries(byType()).forEach(([t,ds])=>{
+    const total=ds.reduce((a,d)=>a+d.zones.reduce((x,z)=>x+z.leds,0),0);
+    if(ds.length===1){
+      const d=ds[0], on=!S.disabled.has(d.id);
+      html.push(`<div class="unit ${on?"":"off"}">
+        <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b>${esc(d.name)}</b><small>${tName(t)} · ${plural(total,"LED","LEDs")}</small></div>
+        <label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${d.id}" ${on?"checked":""}><span></span></label></div>
+        <div class="body">${ledsHTML([p[d.id]||[]])}<div class="zones">${zonesHTML(d,[d.id],zoneCols(p,d))}</div></div></div>`);
+      return;
+    }
+    // grupo (ex.: 2 pentes de RAM)
+    const lm=S.links[t]||"separate", linked=lm!=="separate", ids=ds.map(d=>d.id), on=ids.some(i=>!S.disabled.has(i));
+    const seg=`<div class="seg" data-link="${t}">
+        <button data-v="separate" class="${lm==="separate"?"sel":""}">Separadas</button>
+        <button data-v="mirror" class="${lm==="mirror"?"sel":""}">Juntas, iguais</button>
+        <button data-v="span" class="${lm==="span"?"sel":""}">Juntas, contínuas</button></div>`;
+    const hint={separate:"Cada módulo com suas próprias cores.",mirror:"Os módulos mostram exatamente as mesmas cores.",span:"O gradiente atravessa os módulos como se fossem um só."}[lm];
+    let body;
+    if(linked){
+      body=`${ledsHTML(ids.map(i=>p[i]||[]))}<div class="zones">${zonesHTML(ds[0],ids,zoneCols(p,ds[0]))}</div>`;
+    }else{
+      body=`<div class="subs">`+ds.map((d,k)=>{ const o=!S.disabled.has(d.id); return `<div class="sub ${o?"":"off"}">
+        <div class="uh"><div class="un"><b>Módulo ${k+1}</b><small>${esc(d.name)}</small></div>
+        <label class="switch"><input type="checkbox" data-tog="${d.id}" ${o?"checked":""}><span></span></label></div>
+        ${ledsHTML([p[d.id]||[]])}<div class="zones">${zonesHTML(d,[d.id],zoneCols(p,d))}</div></div>`; }).join("")+`</div>`;
+    }
+    html.push(`<div class="unit wide ${on?"":"off"}">
+      <div class="uh"><div class="uic">${icon(tIcon(t))}</div><div class="un"><b>${tName(t)}</b><small>${plural(ds.length,"módulo","módulos")} · ${plural(total,"LED","LEDs")}</small></div>
+      ${linked?`<label class="switch" title="Ligar ou deixar de fora"><input type="checkbox" data-tog="${ids.join(",")}" ${on?"checked":""}><span></span></label>`:""}</div>
+      <div class="linkbar">${seg}<span class="hint">${hint}</span></div>
+      <div class="body">${body}</div></div>`);
+  });
+  box.innerHTML=html.join("");
+  box.querySelectorAll("[data-tog]").forEach(el=>el.onchange=()=>{ el.dataset.tog.split(",").map(Number).forEach(i=>el.checked?S.disabled.delete(i):S.disabled.add(i)); changed(); });
+  box.querySelectorAll("[data-link] button").forEach(b=>b.onclick=()=>{
+    const t=b.closest("[data-link]").dataset.link, ds=byType()[t]; S.links[t]=b.dataset.v;
+    if(b.dataset.v!=="separate"){ const lead=S.overrides[ds[0].id]; ds.slice(1).forEach(d=>{ if(lead) S.overrides[d.id]={...lead}; else delete S.overrides[d.id]; }); }
+    changed(); });
+  box.querySelectorAll(".zone").forEach(z=>z.onclick=()=>openPicker(z, z.dataset.cur, {kind:"zone", ids:z.dataset.ids.split(",").map(Number), zi:+z.dataset.zi}));
+}
+
+function renderDirty(){ $("#dirty").classList.toggle("show", S.applied!==null && snap()!==S.applied); }
+
+function renderPresets(){
+  const box=$("#presets"); box.innerHTML="";
+  Object.entries(S.palettes).forEach(([name,c])=>{
+    const d=document.createElement("button"); d.className="preset"+(name===S.preset?" sel":""); d.dataset.name=name; d.title=name;
+    d.innerHTML=`<div class="bar" style="background:${grad(c)}"></div><span class="nm">${esc(name)}</span><span class="del" title="Excluir">${icon("trash")}</span>`;
+    d.onclick=()=>{ S.colors=[...c]; S.preset=name; changed(); };
+    const del=d.querySelector(".del");
+    del.onclick=ev=>{ ev.stopPropagation();
+      if(!del.classList.contains("confirm")){ del.classList.add("confirm"); del.title="Clique de novo para excluir"; setTimeout(()=>del.classList.remove("confirm"),2500); return; }
+      run(null,async()=>{ S.palettes=(await api("/api/preset",{name,delete:true})).palettes; renderPresets(); toast("Preset excluído"); }); };
+    box.appendChild(d);
+  });
+}
+
+const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
+function renderAI(){
+  const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
+  let h=`<div class="howto">Descreva o clima que você quer no chat do Claude. Ele cria a paleta, ajusta cada dispositivo e aplica aqui na hora.</div>
+    <div class="prompt">${icon("message")}<span>“Quero um visual cyberpunk roxo e azul, com o teclado branco e as RAMs contínuas.”</span></div>`;
+  if(a){
+    const nz=(a.zones||[]).length;
+    h+=`<div class="active"><div class="bar" style="background:${grad(a.colors||[])}"></div><div class="ab">
+      <h3>${esc(a.name||"Perfil da IA")}<span class="badge">Ativo</span></h3>
+      ${a.description?`<p>${esc(a.description)}</p>`:""}
+      <div class="meta"><span>${icon("layers")}${MODE[a.mode]||"Gradiente"}</span><span>${icon("sun")}${a.brightness??100}%</span>
+        ${nz?`<span>${icon("pencil")}${plural(nz,"ajuste","ajustes")} por zona</span>`:""}${a.fluir?`<span>${icon("waves")}Fluindo</span>`:""}
+        <span>${icon("clock")}${esc((a.created||"").slice(11,16))}</span></div>
+      <div class="abtns"><button class="btn sm" id="aiRe">${icon("refresh")}Reaplicar</button><button class="btn sm" id="aiSave">${icon("bookmark")}Salvar como preset</button></div>
+    </div></div>`;
+    if(hist.length>1) h+=`<div class="hist"><div class="ht">Anteriores</div>${hist.slice(1,7).map((x,k)=>`<button class="hrow" data-h="${k+1}" title="Aplicar de novo"><span class="mini" style="background:${grad(x.colors||[])}"></span><span class="nm">${esc(x.name||"Perfil")}</span><span class="tm">${esc((x.created||"").slice(5,10).split("-").reverse().join("/"))}</span></button>`).join("")}</div>`;
+  }
+  box.innerHTML=h;
+  if(a){
+    $("#aiRe").onclick=e=>run(e.currentTarget,()=>useAI(a));
+    $("#aiSave").onclick=e=>run(e.currentTarget,async()=>{ S.palettes=(await api("/api/preset",{name:"IA · "+(a.name||"perfil"),colors:a.colors})).palettes; renderPresets(); toast("Salvo nos presets"); });
+    box.querySelectorAll(".hrow").forEach(r=>r.onclick=()=>run(r,()=>useAI(hist[+r.dataset.h])));
+  }
+}
+async function useAI(p){
+  toast("Aplicando perfil da IA...","busy",0);
+  const j=await api("/api/claude",p); S.claude=await api("/api/claude"); S.claudeSeen=S.claude.active?.created||"";
+  await loadState(true); if(!failures(j)) toast(`${p.name||"Perfil"} aplicado`,"ai");
+}
+
+/* ===================== seletor de cor ===================== */
+const QUICK=["#FF0000","#FF4D00","#FF9500","#FFD000","#A8FF00","#00FF3C","#00FFB3","#00E5FF","#0095FF","#2B4BFF","#6A00FF","#B000FF","#FF00D4","#FF2E88","#FFB070","#FFFFFF"];
+const P={hsv:[0,1,1], el:$("#picker")};
+$("#quick").innerHTML=QUICK.map(c=>`<button style="background:${c}" data-c="${c}" title="${c}"></button>`).join("");
+function pickerHex(){ return rgb2hex(hsv2rgb(...P.hsv)); }
+function drawPicker(skipHex){
+  const [h,s,v]=P.hsv, hex=pickerHex();
+  $("#sv").style.background=`hsl(${h},100%,50%)`;
+  Object.assign($("#svk").style,{left:s*100+"%",top:(1-v)*100+"%",background:hex});
+  Object.assign($("#huek").style,{left:h/360*100+"%",background:`hsl(${h},100%,50%)`});
+  $("#pcur").style.background=hex; if(!skipHex) $("#phex").value=hex;
+}
+function setPicked(hex){
+  if(!picking) return;
+  if(picking.kind==="pal"){ S.colors[picking.i]=hex; S.preset=null; }
+  else picking.ids.forEach(id=>{ (S.overrides[id] ||= {})[picking.zi]=hex; });
+  changed();
+}
+function openPicker(anchor, hex, ctx){
+  picking=ctx; P.hsv=rgb2hsv(hex2rgb(hex)); drawPicker();
+  const foot=$("#pfoot"); foot.innerHTML="";
+  if(ctx.kind==="pal" && S.colors.length>1){
+    foot.innerHTML=`<button class="btn sm ghost" id="pRemove">${icon("trash")}Remover cor</button>`;
+    $("#pRemove").onclick=()=>{ S.colors.splice(ctx.i,1); S.preset=null; closePicker(); changed(); };
+  }
+  if(ctx.kind==="zone"){
+    const manual=ctx.ids.some(id=>(S.overrides[id]||{})[ctx.zi]);
+    foot.innerHTML=`<span class="muted" style="font-size:12px;align-self:center;flex:1">Cor só desta zona</span>`+(manual?`<button class="btn sm" id="pReset">${icon("reset")}Seguir a paleta</button>`:"");
+    if(manual) $("#pReset").onclick=()=>{ ctx.ids.forEach(id=>{ if(S.overrides[id]){ delete S.overrides[id][ctx.zi]; if(!Object.keys(S.overrides[id]).length) delete S.overrides[id]; } }); closePicker(); changed(); };
+  }
+  const el=P.el; el.classList.add("open");
+  const r=anchor.getBoundingClientRect(), w=el.offsetWidth, h=el.offsetHeight;
+  let top=r.bottom+8; if(top+h>innerHeight-8) top=Math.max(8,r.top-h-8);
+  el.style.left=clamp(r.left,8,innerWidth-w-8)+"px"; el.style.top=top+"px";
+  if(ctx.kind==="pal") renderPalette();
+}
+function closePicker(){ if(!picking) return; picking=null; P.el.classList.remove("open"); renderPalette(); }
+function drag(area, fn){
+  area.addEventListener("pointerdown",e=>{ area.setPointerCapture(e.pointerId); fn(e); const mv=ev=>fn(ev);
+    area.addEventListener("pointermove",mv); area.addEventListener("pointerup",()=>area.removeEventListener("pointermove",mv),{once:true}); });
+}
+drag($("#sv"),e=>{ const r=$("#sv").getBoundingClientRect(); P.hsv[1]=clamp((e.clientX-r.left)/r.width,0,1); P.hsv[2]=1-clamp((e.clientY-r.top)/r.height,0,1); drawPicker(); setPicked(pickerHex()); });
+drag($("#hue"),e=>{ const r=$("#hue").getBoundingClientRect(); P.hsv[0]=clamp((e.clientX-r.left)/r.width,0,1)*359.9; drawPicker(); setPicked(pickerHex()); });
+$("#phex").addEventListener("input",e=>{ const p=parse(e.target.value.startsWith("#")?e.target.value:"#"+e.target.value); if(p.length&&/^#?[0-9a-f]{6}$/i.test(e.target.value)){ P.hsv=rgb2hsv(hex2rgb(p[0])); drawPicker(true); setPicked(p[0]); } });
+$("#quick").onclick=e=>{ const c=e.target.dataset?.c; if(!c) return; P.hsv=rgb2hsv(hex2rgb(c)); drawPicker(); setPicked(c); };
+document.addEventListener("pointerdown",e=>{ if(picking && !P.el.contains(e.target) && !e.target.closest(".swatch,.zone")) closePicker(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePicker(); });
+addEventListener("resize",closePicker);
+
+/* ===================== eventos ===================== */
+$("#hex").addEventListener("input",e=>{ const p=parse(e.target.value); if(p.length){ S.colors=p; S.preset=null; renderPalette(true); renderDevices(); renderDirty(); preview(); } });
+document.querySelectorAll("#mode button").forEach(b=>b.onclick=()=>{ S.mode=b.dataset.v; changed(); });
+$("#bri").oninput=e=>{ S.bri=+e.target.value; changed(); };
+$("#spd").oninput=e=>{ S.speed=+e.target.value; changed(); };
+document.querySelectorAll("#fxseg button").forEach(b=>b.onclick=()=>run(null,async()=>{
+  const on=b.dataset.v==="1"; if(on===S.fx) return; S.fx=on; render();
+  if(on){ await api("/api/effect",payload({on:true,speed:S.speed})); toast("Fluindo. Deixe o MeuRGB aberto para o efeito continuar."); }
+  else { await api("/api/effect",{on:false}); preview(); }
+}));
+$("#apply").onclick=e=>run(e.currentTarget,()=>commit(false));
+$("#applySave").onclick=e=>run(e.currentTarget,()=>commit(true));
+$("#burn").onclick=e=>run(e.currentTarget,()=>commit(true));
+$("#discard").onclick=()=>{ if(!S.applied) return; closePicker(); restore(S.applied); S.preset=null; render(); preview(); toast("Alterações descartadas"); };
+$("#off").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/off",{}); S.fx=false; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
+$("#reconnect").onclick=e=>connect(e.currentTarget);
+async function savePreset(){ const n=$("#pname").value.trim(); if(!n){ $("#pname").focus(); return; }
+  S.palettes=(await api("/api/preset",{name:n,colors:S.colors})).palettes; S.preset=n; $("#pname").value=""; renderPresets(); toast(`Preset "${n}" salvo`); }
+$("#savePreset").onclick=e=>run(e.currentTarget,savePreset);
+$("#pname").onkeydown=e=>{ if(e.key==="Enter") run(null,savePreset); };
+function connect(btn){ return run(btn,async()=>{
+  if(!S.connected){ toast("Abrindo o OpenRGB e procurando dispositivos...","busy",0); await api("/api/connect",{}); }
+  await loadState(!S.applied); toast(S.connected?plural(S.devices.length,"dispositivo encontrado","dispositivos encontrados"):"Não consegui conectar ao OpenRGB", S.connected?"ok":"err"); }); }
+
+/* ---- importar paleta de imagem (k-means) ---- */
+const card=$("#palCard");
+$("#imgBtn").onclick=()=>$("#file").click();
+$("#file").onchange=e=>e.target.files[0]&&fromImage(e.target.files[0]);
+card.addEventListener("dragover",e=>{ e.preventDefault(); card.classList.add("dragging"); });
+card.addEventListener("dragleave",e=>{ if(!card.contains(e.relatedTarget)) card.classList.remove("dragging"); });
+card.addEventListener("drop",e=>{ e.preventDefault(); card.classList.remove("dragging"); const f=e.dataTransfer.files[0]; if(f) fromImage(f); });
+document.addEventListener("paste",e=>{ if(e.target.tagName==="INPUT") return; const f=[...e.clipboardData.files].find(f=>f.type.startsWith("image/")); if(f) fromImage(f); });
+function fromImage(file){
+  const img=new Image(); img.onload=()=>{
+    const cv=document.createElement("canvas"), W=120, H=Math.max(1,Math.round(120*img.height/img.width));
+    cv.width=W; cv.height=H; const cx=cv.getContext("2d"); cx.drawImage(img,0,0,W,H);
+    const d=cx.getImageData(0,0,W,H).data, px=[];
+    for(let i=0;i<d.length;i+=4){ const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b); if(mx>40&&(mx-mn)>35) px.push([r,g,b]); }
+    if(px.length<20){ toast("A imagem não tem cores fortes o bastante","err"); return; }
+    let cen=Array.from({length:5},(_,i)=>px[Math.floor(i*px.length/5)].slice());
+    for(let it=0;it<12;it++){ const sum=cen.map(()=>[0,0,0,0]);
+      for(const p of px){ let bi=0,bd=1e9; cen.forEach((c,j)=>{ const dd=(p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2; if(dd<bd){bd=dd;bi=j;} }); const s=sum[bi]; s[0]+=p[0];s[1]+=p[1];s[2]+=p[2];s[3]++; }
+      cen=sum.map((s,j)=>s[3]?[s[0]/s[3],s[1]/s[3],s[2]/s[3],s[3]]:cen[j]); }
+    const vivid=c=>{ const m=Math.max(c[0],c[1],c[2])||1; return c.slice(0,3).map(v=>v/m*255); };
+    S.colors=[...new Set(cen.sort((a,b)=>(b[3]||0)-(a[3]||0)).map(c=>rgb2hex(vivid(c))))];
+    S.preset=null; changed(); toast("Cores extraídas da imagem");
+  };
+  img.src=URL.createObjectURL(file);
+}
+
+/* ===================== estado do servidor ===================== */
+async function loadState(useLast){
+  const s=await api("/api/state");
+  S.connected=s.connected; S.devices=s.devices||[]; S.palettes=s.palettes||{};
+  $("#status").classList.toggle("on",s.connected);
+  $("#stxt").textContent=s.connected?`OpenRGB · ${plural(S.devices.length,"dispositivo","dispositivos")}`:"Desconectado";
+  if(s.error) toast(s.error,"err",5000);
+  if(s.claude){ S.claude=s.claude; if(S.claudeSeen===null) S.claudeSeen=s.claude.active?.created||""; }
+  if(useLast){
+    const L=s.last||{};
+    if(L.palette?.length) S.colors=L.palette;
+    if(L.mode) S.mode=L.mode;
+    if(L.brightness) S.bri=L.brightness;
+    S.overrides=L.overrides||{}; S.disabled=new Set();
+    if(Array.isArray(L.devices)) S.devices.forEach(d=>{ if(!L.devices.includes(d.id)) S.disabled.add(d.id); });
+    const ui=L.ui||{}; S.links={DRAM:"mirror",...(ui.links||{})};
+    if(!ui.links && Array.isArray(L.groups)) L.groups.forEach(g=>{ const d=S.devices.find(x=>x.id===g.ids[0]); if(d) S.links[d.type]=g.mode; });
+    S.speed=ui.speed||3; S.fx=!!s.effect; S.preset=null;
+    S.applied=snap();
+  }else S.fx=!!s.effect;
+  renderPresets(); renderAI(); render();
+}
+
+// quando a IA aplica um perfil pelo chat, a tela atualiza sozinha
+setInterval(async()=>{
+  try{
+    const c=await api("/api/claude"); const created=c.active?.created||"";
+    if(S.claudeSeen!==null && created && created!==S.claudeSeen){
+      S.claudeSeen=created; S.claude=c; closePicker(); await loadState(true);
+      toast(`IA aplicou: ${c.active.name||"novo perfil"}`,"ai",4500);
+    }
+    if(!S.connected) await loadState(!S.applied);
+  }catch{}
+},3000);
+
+render(); renderAI();
+loadState(true).catch(e=>toast(e.message,"err",6000));
+</script>
+</body>
+</html>

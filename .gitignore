@@ -1,0 +1,13 @@
+# baixados pelo instalador
+OpenRGB/
+download/
+app/lib/
+
+# estado local de cada PC
+app/last_state.json
+app/claude_color.json
+configurado.ok
+*.lnk
+
+__pycache__/
+*.pyc
