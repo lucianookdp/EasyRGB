@@ -333,14 +333,14 @@ class TestAutomation(TempFiles):
     @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
     def test_tick_switches_to_game_and_back(self):
         devs = fake_pc()
-        rc.save_auto({"games": [{"process": "cs2.exe", "preset": "Counter-Strike 2"}]})
+        rc.save_auto({"games": [{"process": "cs2.exe", "preset": "Valorant"}]})
         with mock.patch.object(rc, "client", return_value=FakeClient(devs)), \
                 mock.patch.object(rc, "openrgb_running", return_value=True):
             rc.apply(HEX("#123456"), 100, persist=True)
             with mock.patch.object(rc, "running_processes", return_value={"cs2.exe"}):
                 rc.auto_tick()
             self.assertEqual(rc._auto["game"]["process"], "cs2.exe")
-            self.assertEqual(devs[1].calls[-1][1][0], (0xFF, 0x9F, 0x1C))  # 1ª cor do preset CS2
+            self.assertEqual(devs[1].calls[-1][1][0], (0xFF, 0x46, 0x55))  # 1ª cor do preset Valorant
             with mock.patch.object(rc, "running_processes", return_value=set()):
                 rc.auto_tick()
             self.assertIsNone(rc._auto["game"])
@@ -414,16 +414,16 @@ class TestShare(unittest.TestCase):
 class TestPresets(unittest.TestCase):
     def test_palettes_file(self):
         pal = json.loads((APP / "palettes.json").read_text(encoding="utf-8"))
-        self.assertGreaterEqual(len(pal), 25)
+        self.assertTrue(10 <= len(pal) <= 16, "lista enxuta: entre 10 e 16 presets")
         for name, cols in pal.items():
             self.assertTrue(cols, name)
             for c in cols:
                 self.assertRegex(c, r"^#[0-9A-F]{6}$", f"{name}: {c}")
                 self.assertGreaterEqual(max(rc.parse_colors(c)[0]), 0x80, f"{name}: {c} escura demais para LED")
         for keep in ("GTA VI - Vice City Sunset", "GTA VI - Neon Leonida", "Branco Frio", "Matrix", "Fogo", "Oceano",
-                     "Roxo Profundo", "Valorant", "Cyberpunk 2077"):
+                     "Roxo Profundo", "Synthwave", "Valorant", "Cyberpunk 2077", "Portal"):
             self.assertIn(keep, pal)
-        for gone in ("Trabalho (suave)", "GTA VI - Praia Dourada"):
+        for gone in ("Trabalho (suave)", "GTA VI - Praia Dourada", "Super Mario", "Pac-Man", "Halo", "DOOM"):
             self.assertNotIn(gone, pal)
 
     def test_find_preset(self):

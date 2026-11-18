@@ -64,7 +64,7 @@ As instruções para os agentes ficam no [`AGENTS.md`](AGENTS.md).
 | **RAMs juntas ou separadas** | Separadas, iguais ou contínuas (o gradiente atravessa os módulos). |
 | **Efeitos animados** | Fluir, Respirar, Ciclo de cores e Arco-íris, em qualquer dispositivo. |
 | **Efeitos do chip** | Os efeitos nativos de cada placa, RAM ou periférico, lidos do próprio hardware. Rodam mesmo com o app fechado. |
-| **30 presets** | Paletas de jogos e clássicos, com busca. |
+| **14 presets** | Temas que mais se usam em setups (Synthwave, Vaporwave, Pôr do Sol, Aurora...) e alguns jogos que você reconhece pela cor. |
 | **Gravar na placa** | Cada card mostra se o chip guarda a cor sozinho, só uma cor fixa, ou nada. |
 | **Modo jogo** | Abriu o jogo, o PC troca para o preset dele; fechou, volta ao seu visual. Acha os jogos instalados sozinho (Steam, Epic, Riot, Xbox). |
 | **Horários** | Modo noite com um clique (brilho baixo às 23:00, normal às 08:00), presets por horário, apagar e restaurar. |
@@ -74,7 +74,11 @@ As instruções para os agentes ficam no [`AGENTS.md`](AGENTS.md).
 <details>
 <summary><b>Presets incluídos</b></summary>
 
-GTA VI (Vice City Sunset, Neon Leonida), Cyberpunk 2077, Valorant, Portal, Halo, Minecraft, Fortnite (raridades), DOOM, Zelda (Hyrule), Overwatch, League of Legends (Hextech), Elden Ring, Hollow Knight, Rocket League, Counter-Strike 2, Super Mario, Sonic, Pac-Man, Destiny 2 (elementos), Genshin Impact (elementos), Hades, Among Us, Tron, Synthwave, Roxo Profundo, Oceano, Fogo, Matrix e Branco Frio.
+**Temas:** Synthwave, Vaporwave, Pôr do Sol, Aurora, Roxo Profundo, Oceano, Fogo, Matrix e Branco Frio.
+
+**Jogos que você reconhece pela cor:** GTA VI (Vice City Sunset e Neon Leonida), Cyberpunk 2077, Valorant e Portal.
+
+Quer outro? Peça para a IA criar, ou salve o seu pelo próprio app.
 </details>
 
 <details>
@@ -154,7 +158,7 @@ Agent instructions live in [`AGENTS.md`](AGENTS.md).
 - **App effects** (Flow, Breathe, Color cycle, Rainbow) on any device.
 - **Chip effects**: each device's built-in effects, read from the hardware itself; they keep running with the app closed.
 - **Apply the palette to**: pick which devices (motherboard, RAM, keyboard, any other) follow the palette; the rest keep their colors.
-- **30 presets** (games and classics) with search, and each device shows whether its chip keeps colors after power-off.
+- **14 presets** (popular setup themes like Synthwave, Vaporwave and Aurora, plus a few games you know by their colors) with search, and each device shows whether its chip keeps colors after power-off.
 - **Game mode**: open a game and the PC switches to its preset; close it and your look comes back. Finds installed games on its own.
 - **Schedules** (one-click night mode), **restore on boot** (brings colors back after reboot, even on RAM that can't store them, then exits so nothing stays in memory) and **share codes** (`MEURGB1-...`) to swap looks with friends.
 - **45 automated tests** plus 5 opt-in real-hardware tests: `python -m unittest discover -s tests -v`.

@@ -679,15 +679,14 @@ def apply_saved(state=None, persist=False, **changes):
 AUTO_FILE = HERE / "automations.json"
 # executável -> preset sugerido (o usuário pode trocar ou adicionar outros pela interface)
 KNOWN_GAMES = {
-    "VALORANT-Win64-Shipping.exe": "Valorant", "Cyberpunk2077.exe": "Cyberpunk 2077", "cs2.exe": "Counter-Strike 2",
-    "FortniteClient-Win64-Shipping.exe": "Fortnite - Raridades", "Minecraft.Windows.exe": "Minecraft",
-    "League of Legends.exe": "League of Legends - Hextech", "RocketLeague.exe": "Rocket League",
-    "Overwatch.exe": "Overwatch", "eldenring.exe": "Elden Ring", "hollow_knight.exe": "Hollow Knight",
-    "DOOMEternalx64vk.exe": "DOOM", "DOOMTheDarkAges.exe": "DOOM", "HaloInfinite.exe": "Halo",
-    "MCC-Win64-Shipping.exe": "Halo", "destiny2.exe": "Destiny 2 - Elementos",
-    "GenshinImpact.exe": "Genshin Impact - Elementos", "Hades.exe": "Hades", "Hades2.exe": "Hades",
-    "Among Us.exe": "Among Us", "portal2.exe": "Portal", "GTA5.exe": "GTA VI - Vice City Sunset",
-    "GTA5_Enhanced.exe": "GTA VI - Vice City Sunset",
+    "VALORANT-Win64-Shipping.exe": "Valorant", "Cyberpunk2077.exe": "Cyberpunk 2077", "portal2.exe": "Portal",
+    "GTA5.exe": "GTA VI - Vice City Sunset", "GTA5_Enhanced.exe": "GTA VI - Vice City Sunset",
+    "cs2.exe": "Fogo", "FortniteClient-Win64-Shipping.exe": "Vaporwave", "Minecraft.Windows.exe": "Matrix",
+    "League of Legends.exe": "Aurora", "RocketLeague.exe": "Oceano", "Overwatch.exe": "Pôr do Sol",
+    "eldenring.exe": "Fogo", "hollow_knight.exe": "Branco Frio", "DOOMEternalx64vk.exe": "Fogo",
+    "DOOMTheDarkAges.exe": "Fogo", "HaloInfinite.exe": "Matrix", "MCC-Win64-Shipping.exe": "Matrix",
+    "destiny2.exe": "Aurora", "GenshinImpact.exe": "Aurora", "Hades.exe": "Fogo", "Hades2.exe": "Fogo",
+    "Among Us.exe": "Vaporwave",
 }
 _auto = {"game": None, "fired": {}, "status": "", "thread": None}
 
