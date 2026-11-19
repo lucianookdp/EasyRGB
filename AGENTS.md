@@ -65,6 +65,14 @@ em segundo plano (~30 MB do EasyRGB + ~60 MB do OpenRGB) se houver modo jogo, ho
    ```
    - `nicknames`: id do dispositivo (de `detectar`) -> nome amigável.
    - `links`: padrão de agrupamento por tipo (`DRAM`, `GPU`...): `separate`, `mirror` (iguais) ou `span` (contínuas).
+   - `vendors` (opcional): periféricos pintados **por cima do programa do fabricante**, sem desativá-lo. Veja
+     `vendor_bridges` em `detectar`: cada PC é diferente, então só configure o que existe nele.
+     Ex.: `"vendors": {"logitech": {"devices": [{"type": "mouse", "zones": 2, "name": "G502"}]}}`.
+     `type`: `mouse`, `keyboard`, `headset`, `mousemat`, `speaker` ou `all` (todas as luzes da marca numa cor só,
+     o padrão). `zones` = quantas áreas de luz o aparelho tem. `{"enabled": false}` desliga a ponte.
+     Para a Logitech, peça para ligar no G HUB a opção que permite jogos e aplicativos controlarem a iluminação.
+     Teclados Logitech que o OpenRGB enxerga são pintados tecla por tecla pelo G HUB automaticamente.
+     Hoje existe ponte para **Logitech G HUB**; para outras marcas, use o OpenRGB e avise sobre o conflito.
 4. **Aplique um primeiro visual** que combine com o PC (pergunte o gosto do usuário, ou use um preset).
 
 ## 2. Criar visuais: o usuário descreve um clima e você aplica
@@ -91,7 +99,12 @@ No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perf
 
 - `mode`: `gradiente`, `alternado` ou `zona` (uma cor da paleta por zona).
 - `effect`: efeito animado pelo app, em todos os dispositivos: `static`, `fluir`, `respirar`, `ciclo`, `arcoiris`,
-  `musica` (reage ao som do PC) ou `temperatura` (cor pela temperatura; ajuste em `automacao.extras`).
+  `musica` (reage ao som do PC), `onda` (onda de cores com a paleta; `"direction"`: `direita`, `esquerda`,
+  `baixo`, `cima`, `centro` ou `dentro`), `estrelas` (LEDs piscam como estrelas), `tela` (copia as cores da tela)
+  ou `teclas` (cada tecla apertada solta um anel de cor). No teclado esses efeitos seguem a posição real das teclas.
+- `peripheral_effects` (opcional): efeito próprio de um periférico, separado do computador. Ex.:
+  `"effect": "static", "peripheral_effects": {"teclado": "onda"}` deixa placa e RAMs paradas e só o teclado em onda.
+  `estrelas`, `tela` e `teclas` são feitos para teclado; use-os aqui em vez de no `effect` do PC inteiro.
   `speed` vai de 1 a 10. Só roda enquanto o EasyRGB está aberto.
 - `hw`: efeito **nativo do chip** de um dispositivo (nomes exatos vêm de `detectar` ou `listar`, ex.: `Breathing`,
   `Chase`, `Rainbow`). `speed` de 0 a 100. Roda sozinho, mesmo com o app fechado. Efeitos com `colors: "led"` ou
@@ -134,8 +147,7 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
 - Presets padrão ficam em `app/palettes.json` (não edite). Os do usuário ficam em `app/my_presets.json`
   (crie pelo app ou escrevendo nesse arquivo: `{"Nome": ["#RRGGBB", ...]}`).
 - Teclado: cor por tecla com chaves `"L<índice>"` em `overrides` (índices e nomes em `led_names` do `detectar`).
-- `automacao` aceita `"hotkeys": true` (atalhos Ctrl+Alt + setas/E/L) e `"extras": {"temp_source": "gpu"|"cpu",
-  "temp_min": 40, "temp_max": 80}`. O EasyRGB roda sem janela, com ícone na bandeja; erros em `app/easyrgb.log`.
+- `automacao` aceita `"hotkeys": true` (atalhos Ctrl+Alt + setas/E/L). O EasyRGB roda sem janela, com ícone na bandeja; erros em `app/easyrgb.log`.
 
 ## Outros comandos
 

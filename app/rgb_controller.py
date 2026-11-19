@@ -28,6 +28,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import vendors  # noqa: E402  (pontes com G HUB e outros programas de fabricante)
 sys.path.insert(0, str(HERE / "lib"))  # biblioteca openrgb-python instalada dentro da pasta do app
 PALETTES_FILE = HERE / "palettes.json"
 STATE_FILE = HERE / "last_state.json"
@@ -223,6 +225,59 @@ def client(refresh=False, autostart=True):
         raise RuntimeError(f"Não consegui conectar ao OpenRGB: {last}")
 
 
+_vend = {"t": 0.0, "devs": [], "keys": [], "sig": None}
+
+
+def vendor_devices(openrgb_devs=()):
+    """Dispositivos controlados por cima do programa do fabricante (G HUB...). Só entra o que existe neste PC
+    e não foi desligado pela IA no pc.json ("vendors": {"logitech": {"enabled": false}})."""
+    if os.environ.get("EASYRGB_NO_VENDORS"):
+        return []
+    cfg = (load_pc() or {}).get("vendors") or {}
+    has = {b.key: any(b.key in _maker(d) for d in openrgb_devs) for b in vendors.BRIDGES}
+    sig = json.dumps([cfg, has], sort_keys=True)
+    if time.time() - _vend["t"] < 15 and sig == _vend["sig"]:
+        return _vend["devs"]
+    devs, keys = [], []
+    for b in vendors.BRIDGES:
+        c = cfg.get(b.key) or {}
+        try:
+            ok = c.get("enabled", True) is not False and b.available()
+        except Exception:
+            ok = False
+        if not ok:
+            if b.key in _vend["keys"]:
+                b.stop()   # devolve as luzes ao programa do fabricante
+            continue
+        keys.append(b.key)
+        old = [d for d in _vend["devs"] if d.backend == b.key]
+        if old and sig == _vend["sig"]:
+            devs += old
+        elif c.get("devices") or not has[b.key]:   # sem config e já visto pelo OpenRGB: não duplica
+            devs += b.devices(c.get("devices"))
+    _vend.update(t=time.time(), devs=devs, keys=keys, sig=sig)
+    return devs
+
+
+def _maker(dev):
+    """Nome + fabricante do dispositivo (o OpenRGB chama o G PRO de "PRO Gaming Keyboard", mas sabe que é Logitech)."""
+    meta = getattr(dev, "metadata", None)
+    return f"{getattr(dev, 'name', '')} {getattr(meta, 'vendor', '') or ''}".lower()
+
+
+def all_devices(c):
+    """Dispositivos do OpenRGB + os controlados por cima do programa do fabricante (ids depois dos do OpenRGB)."""
+    return list(c.devices) + vendor_devices(c.devices)
+
+
+def vendor_route(dev):
+    """Ponte que deve pintar um dispositivo do OpenRGB (ex.: teclado Logitech com o G HUB aberto)."""
+    if isinstance(dev, vendors.VirtualDevice):
+        return None
+    name = _maker(dev)
+    return next((b for b in vendors.BRIDGES if b.key in _vend["keys"] and b.key in name), None)
+
+
 def reset_client():
     global _client
     with _lock:
@@ -299,6 +354,8 @@ _MANUAL_SAVE, _AUTO_SAVE = 256, 512
 def persist_kind(dev):
     """O que o chip guarda quando o PC desliga: 'auto' (guarda sozinho), 'manual' (só cor fixa, ao gravar)
     ou 'none' (perde a cor; precisa do EasyRGB ao ligar o PC)."""
+    if getattr(dev, "persist", None) or vendor_route(dev):
+        return "vendor"   # o programa do fabricante volta ao perfil dele quando o EasyRGB fecha
     flags = [int(m.flags or 0) for m in dev.modes if m.name.lower() in ("direct", "static")]
     if any(f & _AUTO_SAVE for f in flags):
         return "auto"
@@ -310,19 +367,21 @@ def persist_kind(dev):
 def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
+             "backend": getattr(d, "backend", None) or (vendor_route(d).key if vendor_route(d) else "openrgb"),
              "effects": hw_effects(d), "persist": persist_kind(d),
              "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones],
              **({"led_names": [getattr(l, "name", "") for l in getattr(d, "leds", None) or []]}
                 if dev_type(d) == "KEYBOARD" else {})}
-            for i, d in enumerate(c.devices)]
+            for i, d in enumerate(all_devices(c))]
 
 
 def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, offset=0.0, fast=False,
-          overrides=None, groups=None, persist=True, ui=None, hw=None):
+          overrides=None, groups=None, persist=True, ui=None, hw=None, frame=None):
     """Envia as cores para o hardware.
     devices: ids incluídos (None = todos) | overrides: {"<id>": {"<zona>": "#RRGGBB"}}
     hw: {"<id>": {"mode": "Breathing", "speed": 0-100}} -> efeito nativo do chip nesse dispositivo
-    persist=False: só pré-visualização (não grava o estado salvo do app)."""
+    persist=False: só pré-visualização (não grava o estado salvo do app).
+    frame: função (id, dispositivo, cores) -> cores, usada pelos efeitos que pintam LED por LED (onda...)."""
     if not palette:
         raise ValueError("Paleta vazia")
     from openrgb.utils import RGBColor
@@ -330,7 +389,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
     for attempt in (1, 2):
         try:
             c = client()
-            devs = c.devices
+            devs = all_devices(c)
             ids = [i for i in range(len(devs)) if devices is None or i in devices]
             plan = plan_colors(devs, ids, palette, mode, offset, overrides, groups)
             report = []
@@ -339,7 +398,16 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                     dev, cols = devs[idx], plan.get(idx) or []
                     if not cols:
                         continue
+                    if frame:
+                        cols = frame(idx, dev, cols)
                     try:
+                        vb = vendor_route(dev)
+                        if vb:   # pinta por cima do programa do fabricante, sem brigar com ele
+                            sc = [scale(x, brightness) for x in cols]
+                            if not vb.paint_keys([getattr(l, "name", "") for l in dev.leds], sc):
+                                raise RuntimeError(f"{vb.app} não respondeu")
+                            report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
+                            continue
                         if str(idx) in hw:
                             if not fast:  # efeitos animados do app não mexem em quem usa efeito do chip
                                 h = hw[str(idx)]
@@ -378,7 +446,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
 def turn_off():
     c = client()
     with _lock:
-        for dev in c.devices:
+        for dev in all_devices(c):
             try:
                 dev.off()
             except Exception:
@@ -387,9 +455,10 @@ def turn_off():
 
 # ---------------------------------------------------------------- efeitos animados pelo app
 # Funcionam em qualquer dispositivo, mas só enquanto o EasyRGB está aberto.
-EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris", "musica", "temperatura")
+EFFECTS = ("fluir", "respirar", "ciclo", "arcoiris", "musica", "onda", "estrelas", "tela", "teclas")
+SPATIAL = {"onda": 20, "estrelas": 15, "tela": 12, "teclas": 30}   # efeitos LED por LED -> quadros por segundo
+WAVE_DIRS = ("direita", "esquerda", "baixo", "cima", "centro", "dentro")
 RAINBOW = [(255, 0, 0), (255, 140, 0), (255, 255, 0), (0, 255, 60), (0, 200, 255), (60, 0, 255), (220, 0, 255)]
-TEMP_SCALE = [(0, 110, 255), (0, 220, 190), (255, 200, 0), (255, 40, 0)]   # frio -> quente
 
 
 class AudioMeter:
@@ -412,32 +481,6 @@ class AudioMeter:
             return 0.0
 
 
-def read_temperature(source="gpu"):
-    """Temperatura em °C da placa de vídeo NVIDIA (nvidia-smi) ou do processador (sensor ACPI). None se não der."""
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    if source in ("gpu", "auto"):
-        try:
-            out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
-                                 capture_output=True, text=True, timeout=5, creationflags=flags).stdout
-            return float(out.split()[0])
-        except Exception:
-            if source == "gpu":
-                return None
-    try:
-        out = subprocess.run(["powershell", "-NoProfile", "-Command",
-                              "(Get-CimInstance -Namespace root/wmi MSAcpi_ThermalZoneTemperature | "
-                              "Select-Object -First 1).CurrentTemperature"],
-                             capture_output=True, text=True, timeout=8, creationflags=flags).stdout
-        return round(float(out.strip()) / 10 - 273.15, 1)
-    except Exception:
-        return None
-
-
-def temp_color(t, lo=40, hi=80):
-    pos = max(0.0, min(1.0, (t - lo) / max(1, hi - lo)))
-    return gradient(TEMP_SCALE, 1, pos or 1e-6)[0]
-
-
 def _frame(kind, palette, brightness, t, speed):
     """Paleta, brilho e deslocamento de um quadro da animação."""
     f = speed / 20.0  # velocidade 1..10 -> 0.05..0.5 voltas por segundo
@@ -451,57 +494,201 @@ def _frame(kind, palette, brightness, t, speed):
     return palette, brightness, ((t * f) % 1.0) or 1e-6   # fluir
 
 
-def start_effect(palette, brightness, mode, devices, speed, overrides=None, groups=None, kind="fluir", hw=None):
+_pos_cache = {}
+
+
+def _positions(idx, dev, n):
+    k = (idx, getattr(dev, "name", ""), n)
+    if k not in _pos_cache:
+        pos, kb = vendors.led_positions(dev)
+        if len(pos) != n:
+            pos, kb = [((i + 0.5) / n, 0.5) for i in range(n)], False
+        _pos_cache[k] = (pos, kb)
+    return _pos_cache[k]
+
+
+def _axis(x, y, d):
+    return {"esquerda": 1 - x, "baixo": y, "cima": 1 - y, "centro": abs(x - 0.5) * 2,
+            "dentro": 1 - abs(x - 0.5) * 2}.get(d, x)
+
+
+def wave_colors(palette, pos, t, speed, direction="direita"):
+    """Onda de cores com a paleta da pessoa, andando na direção escolhida (como a do G HUB)."""
+    f = speed / 20.0
+    return [gradient(palette, 1, ((_axis(x, y, direction) - t * f) % 1.0) or 1e-6)[0] for x, y in pos]
+
+
+def star_colors(palette, pos, t, speed, state, key):
+    """Estrelas: cada LED acende e apaga em seu próprio ritmo, com uma cor da paleta."""
+    import math
+    import random
+    st = state.get(key)
+    if not st or len(st) != len(pos):
+        rnd = random.Random(hash(key))
+        st = state[key] = [(rnd.uniform(1.2, 3.5), rnd.random(), palette[rnd.randrange(len(palette))]) for _ in pos]
+    f = speed / 3.0
+    out = []
+    for per, ph, c in st:
+        s = max(0.0, math.sin(2 * math.pi * (t * f / per + ph))) ** 6
+        out.append(lerp(scale(c, 6), c, s))
+    return out
+
+
+def screen_shot():
+    """Tela reduzida a 22x6 pontos (uma grade do tamanho de um teclado), leve de ler 12x por segundo."""
+    from PIL import ImageEnhance, ImageGrab
+    im = ImageGrab.grab().convert("RGB").resize((22, 6))
+    return ImageEnhance.Color(im).enhance(1.6)
+
+
+def screen_colors(shot, pos, kb):
+    if shot is None:
+        return [(0, 0, 0)] * len(pos)
+    if not kb:
+        return [shot.resize((1, 1)).getpixel((0, 0))] * len(pos)
+    return [shot.getpixel((min(21, max(0, int(x * 22))), min(5, max(0, int(y * 6))))) for x, y in pos]
+
+
+class KeyWatch:
+    """Vê quais teclas acabaram de ser apertadas (só para a luz; nada é guardado nem enviado)."""
+
+    def __init__(self):
+        import ctypes
+        self.get = ctypes.windll.user32.GetAsyncKeyState
+        self.keys = [k for k in vendors.KEYMAP.values() if k["vk"]]
+        self.down, self.hits = set(), []
+
+    def poll(self, now):
+        for k in self.keys:
+            pressed = bool(self.get(k["vk"]) & 0x8000)
+            if pressed and k["vk"] not in self.down:
+                self.hits.append((k["x"] / vendors.KEY_W, k["y"] / vendors.KEY_H, now))
+            (self.down.add if pressed else self.down.discard)(k["vk"])
+        self.hits = [h for h in self.hits if now - h[2] < 1.5][-12:]
+
+
+def ripple_colors(palette, pos, kb, now, speed, hits):
+    """Ondulação: cada tecla apertada solta um anel de cor que se espalha pelo teclado."""
+    import math
+    base = scale(palette[0], 8)
+    if not kb:   # mouse, RAM...: piscam junto com a digitação
+        k = max([max(0.0, 1 - (now - h[2]) / 0.5) for h in hits] or [0.0])
+        return [lerp(base, palette[0], k)] * len(pos)
+    out = []
+    for x, y in pos:
+        best, col = 0.0, palette[0]
+        for i, (hx, hy, ht) in enumerate(hits):
+            age = now - ht
+            d = math.hypot((x - hx) * vendors.KEY_W, (y - hy) * vendors.KEY_H)
+            r = age * speed * 4.0
+            k = max(0.0, 1 - abs(d - r) / 1.3) * max(0.0, 1 - age / 1.5)
+            if k > best:
+                best, col = k, palette[(i + 1) % len(palette)]
+        out.append(lerp(base, col, best))
+    return out
+
+
+def effect_map(kind, opts, ids):
+    """Efeito de cada dispositivo. kind = efeito do computador; opts["pfx"] = {"<id>": efeito} para periféricos
+    (ex.: teclado com onda e PC parado). Formato antigo: opts["fxdevs"] = só esses animam."""
+    pfx = {str(k): v for k, v in ((opts or {}).get("pfx") or {}).items() if v in EFFECTS or v == "static"}
+    fxdevs = (opts or {}).get("fxdevs")
+    out = {}
+    for i in ids:
+        k = pfx.get(str(i)) or (kind if not isinstance(fxdevs, list) or i in fxdevs else "static")
+        out[i] = k if k in EFFECTS else "static"
+    return out
+
+
+def has_animation(ui):
+    """Algum dispositivo anima neste visual salvo?"""
+    ui = ui or {}
+    return ui.get("effect") in EFFECTS or any(v in EFFECTS for v in (ui.get("pfx") or {}).values())
+
+
+def effect_colors(kind, palette, cols, pos, kb, now, speed, ctx):
+    """Cores de um quadro para um dispositivo, LED por LED (cada dispositivo pode ter seu próprio efeito)."""
+    import math
+    f = speed / 20.0
+    n = len(cols)
+    if kind == "respirar":
+        k = 0.08 + 0.92 * (0.5 - 0.5 * math.cos(2 * math.pi * now * f * 1.5))
+        return [tuple(round(v * k) for v in c) for c in cols]
+    if kind == "ciclo":
+        return [gradient(palette, 1, ((now * f * 0.6) % 1.0) or 1e-6)[0]] * n
+    if kind == "fluir":
+        return gradient(palette, n, ((now * f) % 1.0) or 1e-6)
+    if kind == "arcoiris":
+        return gradient(RAINBOW, n, ((now * f) % 1.0) or 1e-6)
+    if kind == "musica":
+        lv = 0.1 + 0.9 * ctx["level"] ** 0.7
+        return [tuple(round(v * lv) for v in c) for c in gradient(palette, n, ctx["shift"] or 1e-6)]
+    if kind == "onda":
+        return wave_colors(palette, pos, now, speed, ctx["dir"])
+    if kind == "estrelas":
+        return star_colors(palette, pos, now, speed, ctx["stars"], ctx["idx"])
+    if kind == "tela":
+        return screen_colors(ctx["shot"], pos, kb)
+    if kind == "teclas":
+        return ripple_colors(palette, pos, kb, now, speed, ctx["keys"].hits if ctx["keys"] else [])
+    return cols
+
+
+def start_effect(palette, brightness, mode, devices, speed, overrides=None, groups=None, kind="fluir", hw=None,
+                 opts=None):
     stop_effect()
-    kind = kind if kind in EFFECTS else "fluir"
+    opts = opts or {}
+    kind = kind if kind in EFFECTS else "static"
     ev = threading.Event()
     _effect["stop"] = ev
 
     def run():
         apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw)
-        t0 = time.time()
-        if kind == "musica":
+        try:
+            n = len(all_devices(client()))
+        except Exception:
+            return
+        kinds = {i: k for i, k in effect_map(kind, opts, [i for i in range(n) if devices is None or i in devices]).items()
+                 if k in EFFECTS}
+        if not kinds:
+            return   # tudo parado: a paleta já foi aplicada
+        need = set(kinds.values())
+        meter = None
+        if "musica" in need:
             try:
                 meter = AudioMeter()
             except Exception:
                 meter = None
-            level, shift = 0.0, 0.0
-            while not ev.is_set():
-                p = meter.peak() if meter else 0.0
-                level = max(p, level * 0.82)            # sobe na hora, desce suave
-                shift = (shift + level * speed * 0.004) % 1.0
-                try:
-                    apply(palette, brightness * (0.1 + 0.9 * level ** 0.7), mode, devices, offset=shift or 1e-6,
-                          fast=True, overrides=overrides, groups=groups, persist=False, hw=hw)
-                except Exception:
-                    pass
-                ev.wait(0.05)
-            return
-        if kind == "temperatura":
-            ex = (load_auto().get("extras") or {})
-            src, lo, hi = ex.get("temp_source", "gpu"), float(ex.get("temp_min", 40)), float(ex.get("temp_max", 80))
-            while not ev.is_set():
-                t = read_temperature(src)
-                if t is not None:
-                    _effect["temp"] = t
-                    try:
-                        apply([temp_color(t, lo, hi)], brightness, mode, devices, fast=True, overrides=overrides,
-                              groups=groups, persist=False, hw=hw)
-                    except Exception:
-                        pass
-                ev.wait(2.0)   # temperatura muda devagar: 1 leitura a cada 2 s
-            return
+        ctx = {"level": 0.0, "shift": 0.0, "stars": {}, "keys": KeyWatch() if "teclas" in need else None,
+               "dir": opts.get("dir") if opts.get("dir") in WAVE_DIRS else "direita", "shot": None, "idx": 0}
+        fps = max([SPATIAL.get(k, 10) for k in need] + [20 if meter else 10])
+        live, t0 = sorted(kinds), time.time()
         while not ev.is_set():
-            pal, bri, off = _frame(kind, palette, brightness, time.time() - t0, speed)
+            now = time.time() - t0
+            if meter:
+                ctx["level"] = max(meter.peak(), ctx["level"] * 0.82)   # sobe na hora, desce suave
+                ctx["shift"] = (ctx["shift"] + ctx["level"] * speed * 0.004 * 20 / fps) % 1.0
+            if "tela" in need:
+                try:
+                    ctx["shot"] = screen_shot()
+                except Exception:
+                    ctx["shot"] = None
+            if ctx["keys"]:
+                ctx["keys"].poll(now)
+
+            def fr(idx, dev, cols, now=now):
+                pos, kb = _positions(idx, dev, len(cols))
+                ctx["idx"] = idx
+                return effect_colors(kinds.get(idx, "static"), palette, cols, pos, kb, now, speed, ctx)
             try:
-                apply(pal, bri, mode, devices, offset=off, fast=True, overrides=overrides, groups=groups,
-                      persist=False, hw=hw)
+                apply(palette, brightness, mode, live, fast=True, overrides=overrides, groups=groups,
+                      persist=False, hw=hw, frame=fr)
             except Exception:
                 pass
-            ev.wait(0.1)   # 10 quadros por segundo: suave e leve para o OpenRGB
+            ev.wait(1.0 / fps)
 
     th = threading.Thread(target=run, daemon=True)
-    _effect.update(thread=th, on=True, kind=kind)
+    _effect.update(thread=th, on=has_animation({"effect": kind, "pfx": opts.get("pfx")}), kind=kind)
     th.start()
 
 
@@ -561,7 +748,9 @@ def delete_user_preset(name):
 
 
 def find_preset(name):
-    def norm(s):
+    def norm(s):   # sem acento, sem espaço: "Pôr do Sol" == "por do sol"
+        import unicodedata
+        s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
         return re.sub(r"[^a-z0-9]", "", s.lower()).replace("gtavi", "gta6")
     key = norm(name or "")
     for k, v in load_palettes().items():
@@ -647,20 +836,36 @@ def resolve_profile(p, devs):
     return ids, overrides, groups, links, hw
 
 
+def _pfx_from_profile(p, ids):
+    """IA: "peripheral_effects": {"teclado": "onda"} -> efeito só nesse periférico."""
+    out = {}
+    try:
+        devs = all_devices(client())
+    except Exception:
+        return out
+    for sel, k in (p.get("peripheral_effects") or {}).items():
+        for di in _match_devices(sel, devs):
+            out[str(di)] = k
+    return out
+
+
 def apply_claude(p, allow_effect=True):
     pal = parse_colors(p.get("colors", []))
     if not pal:
         raise ValueError("Perfil de IA sem cores")
-    devs = client(refresh=True).devices
+    devs = all_devices(client(refresh=True))
     ids, overrides, groups, links, hw = resolve_profile(p, devs)
     stop_effect()
     bri, mode = int(p.get("brightness", 100)), p.get("mode", "gradiente")
     kind = p.get("effect") or ("fluir" if p.get("fluir") else "static")
     speed = float(p.get("speed", 3))
     rep = apply(pal, bri, mode, ids, bool(p.get("save")), overrides=overrides, groups=groups, hw=hw,
-                ui={"links": links, "effect": kind, "speed": speed})
-    if allow_effect and kind in EFFECTS:
-        start_effect(pal, bri, mode, ids, speed, overrides, groups, kind, hw)
+                ui={"links": links, "effect": kind, "speed": speed, "dir": p.get("direction"),
+                    "pfx": _pfx_from_profile(p, ids)})
+    if allow_effect and (kind in EFFECTS or p.get("peripheral_effects")):
+        start_effect(pal, bri, mode, ids, speed, overrides, groups, kind, hw, {"dir": p.get("direction"),
+                                                                              "fxdevs": p.get("effect_devices"),
+                                                                              "pfx": _pfx_from_profile(p, ids)})
     prof = dict(p, colors=[to_hex(c) for c in pal], created=time.strftime("%Y-%m-%d %H:%M:%S"))
     data = load_claude()
     hist = [h for h in data.get("history", []) if h.get("name") != prof.get("name")]
@@ -737,6 +942,7 @@ def detect_system():
         "system": {k: s.get(k) for k in ("motherboard", "bios", "cpu", "ram", "gpu", "os")},
         "usb_hid_devices": s.get("usb"),
         "rgb_software_conflicts": found,
+        "vendor_bridges": vendors.detect_bridges(),
         "openrgb_devices": [],
     }
     if openrgb_running():
@@ -752,6 +958,11 @@ def detect_system():
     if any(f["running"] for f in found):
         tips.append("Há software RGB de fabricante rodando: ele pode sobrescrever as cores. Pergunte ao usuário "
                     "antes de desativar a inicialização dele (nunca desinstale).")
+    for b in report["vendor_bridges"]:
+        if b["installed"]:
+            tips.append(f"{b['app']} instalado: o EasyRGB pinta por cima dele (sem desativar). Peça para ligar no "
+                        "programa a opção que deixa jogos/aplicativos controlarem a iluminação e pergunte quais "
+                        "periféricos dessa marca a pessoa tem, para preencher pc.json -> vendors.")
     if openrgb_running() and not report["openrgb_devices"]:
         tips.append("OpenRGB não achou dispositivos: confira https://openrgb.org/devices.html, se o OpenRGB está "
                     "como admin e se o RGB não está desligado na BIOS.")
@@ -765,7 +976,7 @@ _conf_cache = {"t": 0.0, "v": []}
 def running_conflicts():
     """Programas RGB de fabricante abertos agora (podem trocar as cores por cima do EasyRGB). Cache de 15 s."""
     if time.time() - _conf_cache["t"] < 15:
-        return _conf_cache["v"]
+        return _bridged(_conf_cache["v"])
     try:
         procs = running_processes()
         hits = [name for name, pat in _RGB_SOFTWARE.items()
@@ -773,7 +984,13 @@ def running_conflicts():
     except Exception:
         hits = []
     _conf_cache.update(t=time.time(), v=hits)
-    return hits
+    return _bridged(hits)
+
+
+def _bridged(hits):
+    """Tira da lista os programas que o EasyRGB já controla por cima (não brigam mais)."""
+    apps = {b.app for b in vendors.BRIDGES if b.key in _vend["keys"]}
+    return [h for h in hits if h not in apps]
 
 
 def load_pc():
@@ -810,9 +1027,9 @@ def apply_saved(state=None, persist=False, **changes):
     stop_effect()
     rep = apply(pal, int(L.get("brightness", 100)), L.get("mode", "gradiente"), L.get("devices"), False,
                 overrides=L.get("overrides"), groups=L.get("groups"), hw=L.get("hw"), persist=persist, ui=ui)
-    if ui.get("effect") in EFFECTS:
+    if has_animation(ui):
         start_effect(pal, int(L.get("brightness", 100)), L.get("mode", "gradiente"), L.get("devices"),
-                     float(ui.get("speed", 3)), L.get("overrides"), L.get("groups"), ui["effect"], L.get("hw"))
+                     float(ui.get("speed", 3)), L.get("overrides"), L.get("groups"), ui["effect"], L.get("hw"), ui)
     return rep
 
 
@@ -821,7 +1038,7 @@ AUTO_FILE = HERE / "automations.json"
 # executável -> preset sugerido (o usuário pode trocar ou adicionar outros pela interface)
 KNOWN_GAMES = {
     "VALORANT-Win64-Shipping.exe": "Valorant", "Cyberpunk2077.exe": "Cyberpunk 2077", "portal2.exe": "Portal",
-    "GTA5.exe": "GTA VI - Vice City Sunset", "GTA5_Enhanced.exe": "GTA VI - Vice City Sunset",
+    "GTA5.exe": "GTA VI", "GTA5_Enhanced.exe": "GTA VI",
     "cs2.exe": "Fogo", "FortniteClient-Win64-Shipping.exe": "Vaporwave", "Minecraft.Windows.exe": "Matrix",
     "League of Legends.exe": "Aurora", "RocketLeague.exe": "Oceano", "Overwatch.exe": "Pôr do Sol",
     "eldenring.exe": "Fogo", "hollow_knight.exe": "Branco Frio", "DOOMEternalx64vk.exe": "Fogo",
@@ -841,16 +1058,12 @@ def load_auto():
     a.setdefault("games", [])
     a.setdefault("schedule", [])
     a.setdefault("hotkeys", False)
-    a.setdefault("extras", {})
     return a
 
 
 def save_auto(a):
-    ex = a.get("extras") or {}
     clean = {"enabled": bool(a.get("enabled", True)),
              "hotkeys": bool(a.get("hotkeys", False)),
-             "extras": {"temp_source": ex.get("temp_source", "gpu") if ex.get("temp_source") in ("gpu", "cpu") else "gpu",
-                        "temp_min": int(ex.get("temp_min", 40)), "temp_max": int(ex.get("temp_max", 80))},
              "games": [{"process": str(g["process"]).strip(), "preset": g.get("preset", ""),
                         "enabled": g.get("enabled", True)} for g in a.get("games", []) if g.get("process")],
              "schedule": [{"time": str(s["time"])[:5], "action": s.get("action", "preset"), "value": s.get("value"),
@@ -1021,7 +1234,9 @@ def needs_running():
         return True
     if a.get("hotkeys"):   # atalhos de teclado precisam do EasyRGB aberto (escondido, na bandeja)
         return True
-    return ((load_state() or {}).get("ui") or {}).get("effect") in EFFECTS
+    if vendor_devices() or _vend["keys"]:   # G HUB e cia. voltam ao perfil deles se o EasyRGB fechar
+        return True
+    return has_animation((load_state() or {}).get("ui"))
 
 
 def restore_on_boot():
@@ -1081,7 +1296,7 @@ def read_share_code(code):
 
 # ---------------------------------------------------------------- ações rápidas (atalhos e bandeja)
 _rev = {"n": 0, "off": False, "msg": ""}   # a interface recarrega quando "n" muda
-_FX_CYCLE = ("static", "fluir", "respirar", "musica")
+_FX_CYCLE = ("static", "onda", "respirar", "estrelas", "musica")
 
 
 def _pt():
@@ -1149,7 +1364,9 @@ def quick(action, value=None):
         apply_saved(L, persist=True, ui=ui)
         names = {"static": ("Estático", "Static"), "fluir": ("Fluir", "Flow"), "respirar": ("Respirar", "Breathe"),
                  "musica": ("Música", "Music"), "ciclo": ("Ciclo de cores", "Color cycle"),
-                 "arcoiris": ("Arco-íris", "Rainbow"), "temperatura": ("Temperatura", "Temperature")}
+                 "arcoiris": ("Arco-íris", "Rainbow"), "onda": ("Onda de cores", "Color wave"),
+                 "estrelas": ("Estrelas", "Starlight"), "tela": ("Cor da tela", "Screen color"),
+                 "teclas": ("Reação às teclas", "Key ripple")}
         _bump(("Efeito: " if pt else "Effect: ") + names.get(ui["effect"], (ui["effect"],) * 2)[0 if pt else 1])
 
 
@@ -1322,12 +1539,13 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     reset_client()
                     st["error"] = str(e)
+                st["conflicts"] = running_conflicts()   # depois dos dispositivos: G HUB com ponte não é conflito
             return self._send(200, st)
         if self.path == "/api/claude":
             return self._send(200, dict(load_claude(), effect=_effect["on"],
                                         effect_kind=_effect.get("kind") if _effect["on"] else "static",
                                         pc_configured=(load_pc() or {}).get("configured"),
-                                        state_rev=_rev["n"], temp=_effect.get("temp")))
+                                        state_rev=_rev["n"]))
         if self.path == "/api/detect":
             return self._send(200, detect_system())
         if self.path == "/api/auto":
@@ -1367,7 +1585,8 @@ class Handler(BaseHTTPRequestHandler):
                               ui=body.get("ui"), hw=body.get("hw"))
                     start_effect(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
                                  body.get("mode", "gradiente"), body.get("devices"), float(body.get("speed", 3)),
-                                 body.get("overrides"), body.get("groups"), body.get("kind", "fluir"), body.get("hw"))
+                                 body.get("overrides"), body.get("groups"), body.get("kind", "fluir"), body.get("hw"),
+                                 body.get("ui"))
                 else:
                     stop_effect()
                 return self._send(200, {"ok": True, "effect": _effect["on"]})
@@ -1382,8 +1601,6 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/quick":
                 quick(body.get("action"), body.get("value"))
                 return self._send(200, {"ok": True})
-            if self.path == "/api/temp":
-                return self._send(200, {"ok": True, "temp": read_temperature(body.get("source", "gpu"))})
             if self.path == "/api/autostart":
                 return self._send(200, {"ok": True, "autostart": set_autostart(bool(body.get("on")))})
             if self.path == "/api/share":

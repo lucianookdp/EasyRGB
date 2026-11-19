@@ -99,7 +99,8 @@ def social_preview():
     for i in range(H):  # leve brilho colorido no fundo
         t = i / H
         d.line([(0, i), (W, i)], fill=(int(9 + 18 * (1 - t)), 9, int(11 + 22 * t)))
-    img.paste(logo(120), (80, 90), logo(120))
+    mark = tray_logo(120)
+    img.paste(mark, (80, 90), mark)
     d.text((80, 240), "EasyRGB", font=font(84, True), fill=(250, 250, 250))
     d.text((84, 345), "Your PC's RGB, set up by AI.", font=font(34), fill=(212, 212, 216))
     d.text((84, 402), "Open-source RGB controller for Windows", font=font(24), fill=(161, 161, 170))
@@ -122,10 +123,11 @@ def social_preview():
 
 
 if __name__ == "__main__":
-    icon = logo(256)
+    # O mesmo desenho em todo lugar: brilho de traço grosso, sem fundo (nítido do favicon ao atalho).
+    icon = tray_logo(256)
     icon.save(ROOT / "app" / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     icon.save(ROOT / "app" / "icon.png")     # favicon e logo do topo da página
-    tray_logo(64).save(ROOT / "app" / "tray.png")   # bandeja: só o brilho, sem fundo, traço grosso
+    tray_logo(64).save(ROOT / "app" / "tray.png")   # bandeja
     icon.save(ROOT / "docs" / "icon.png")    # logo do README
     social_preview().save(ROOT / "docs" / "social-preview.png", optimize=True)
     print("ok: app/icon.ico, app/icon.png, docs/icon.png, docs/social-preview.png")

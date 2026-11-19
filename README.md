@@ -52,17 +52,18 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 | | |
 |---|---|
 | **AI setup** | The agent detects motherboard, BIOS, RAM, GPU, peripherals, each chip's built-in effects and conflicting vendor apps, then configures everything. Instructions live in [`AGENTS.md`](AGENTS.md). |
-| **AI looks** | *"Purple and blue cyberpunk, white keyboard, continuous RAM"*: the agent builds and applies it, with history in the app. |
+| **AI looks** | *"Purple and blue cyberpunk, white keyboard, continuous RAM"*: the agent builds and applies it. The **AI colors** button copies the prompt in one click. |
 | **Live preview** | Your PC changes while you pick a color, then **Apply** or **Discard**. |
-| **Apply the palette to** | Choose which devices (motherboard, RAM, keyboard, any other) follow the palette. |
+| **Computer & peripherals** | One clear screen: **Computer** (motherboard, RAM, strips, coolers) and **Peripherals**, one block per device (e.g. *Keyboard – Logitech G PRO*). Each can follow the palette or not, and run **its own effect**: computer still, keyboard in a color wave. |
+| **Works on top of vendor apps** | No more fighting Logitech G HUB: EasyRGB paints your Logitech keyboard key by key through G HUB's own lighting SDK, with G HUB still open. Close EasyRGB and G HUB goes back to its profile. The AI only enables what exists on *your* PC. |
 | **Per-zone colors** | Give any zone its own color. RAM sticks can be separate, mirrored or continuous. |
-| **Effects** | App effects (Flow, Breathe, Color cycle, Rainbow) and each chip's native effects, read from your hardware. |
+| **Effects** | **Color wave** in your own colors (pick direction and speed), Breathe, Color cycle, Rainbow, Flow and Music for any device. Keyboard-only: **Key ripple**, **Starlight** and **Screen color**, using each key's real position. Plus each chip's native effects, read from your hardware. |
 | **Game mode** | Open a game and the PC switches to its preset; close it and your look comes back. |
 | **Night mode & schedules** | Dim at night, back to normal in the morning, presets at set times. |
 | **Restore on PC start** | Brings colors back after a reboot (even on RAM that can't store them) and **exits by itself**: nothing stays in memory. |
 | **Music, shortcuts & tray** | Lights that dance to what's playing, global Ctrl+Alt shortcuts, and a tray icon next to the clock (no window, ~35 MB). |
-| **Keyboard highlights** | Color WASD, arrows, numbers, F-keys and more on their own. Warns when vendor apps (e.g. Logitech G HUB) fight for your lights. |
-| **Presets & gallery** | 14 built-in presets that never change, plus your own. Share looks with `EASYRGB1-...` codes and browse the [community gallery](GALLERY.md). |
+| **Keyboard highlights** | Color WASD, arrows, numbers, F-keys and more on their own. Warns when a vendor app with no bridge yet fights for your lights. |
+| **Presets & gallery** | 13 built-in presets that never change, plus your own. Share looks with `EASYRGB1-...` codes and browse the [community gallery](GALLERY.md). |
 | **English / Português** | Follows your system language. Dark theme, like most RGB apps, so LED colors look true. |
 
 <details>
@@ -79,13 +80,14 @@ python rgb_controller.py ia look.json        # apply an AI-made look
 python rgb_controller.py listar              # devices, zones and chip effects
 python rgb_controller.py automacao rules.json
 python rgb_controller.py iniciar-com-windows sim
-python -m unittest discover -s tests -v      # 50 tests, no hardware needed
+python -m unittest discover -s tests -v      # 67 tests, no hardware needed
 ```
 </details>
 
 ## Resumo em português
 
-O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `EasyRGB.bat`. O app fica em português ou inglês conforme o idioma do seu sistema.
+O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `EasyRGB.bat`.
+A tela separa **Computador** e **Periféricos** (ex.: *Teclado – Logitech G PRO*), cada um com o próprio efeito, como a **onda de cores** com as suas cores. O EasyRGB pinta o teclado Logitech **por cima do G HUB**, sem conflito. O app fica em português ou inglês conforme o idioma do seu sistema.
 
 ---
 

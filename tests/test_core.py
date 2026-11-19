@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 sys.path.insert(0, str(APP))
 
+os.environ["EASYRGB_NO_VENDORS"] = "1"   # testes nao mexem no G HUB de verdade
 import rgb_controller as rc  # noqa: E402
 
 try:
@@ -430,15 +431,15 @@ class TestPresets(unittest.TestCase):
             for c in cols:
                 self.assertRegex(c, r"^#[0-9A-F]{6}$", f"{name}: {c}")
                 self.assertGreaterEqual(max(rc.parse_colors(c)[0]), 0x80, f"{name}: {c} escura demais para LED")
-        for keep in ("GTA VI - Vice City Sunset", "GTA VI - Neon Leonida", "Branco Frio", "Matrix", "Fogo", "Oceano",
+        for keep in ("GTA VI", "Branco Frio", "Matrix", "Fogo", "Oceano",
                      "Roxo Profundo", "Synthwave", "Valorant", "Cyberpunk 2077", "Portal"):
             self.assertIn(keep, pal)
-        for gone in ("Trabalho (suave)", "GTA VI - Praia Dourada", "Super Mario", "Pac-Man", "Halo", "DOOM"):
+        for gone in ("Trabalho (suave)", "GTA VI - Praia Dourada", "GTA VI - Vice City Sunset", "GTA VI - Neon Leonida", "Super Mario", "Pac-Man", "Halo", "DOOM"):
             self.assertNotIn(gone, pal)
 
     def test_find_preset(self):
-        self.assertEqual(rc.find_preset("gta6")[0], "GTA VI - Vice City Sunset")
-        self.assertEqual(rc.find_preset("leonida")[0], "GTA VI - Neon Leonida")
+        self.assertEqual(rc.find_preset("synth")[0], "Synthwave")
+        self.assertEqual(rc.find_preset("por do sol")[0], "Pôr do Sol")
         self.assertEqual(rc.find_preset("zzz"), (None, None))
 
 
@@ -629,6 +630,150 @@ class TestParity(unittest.TestCase):
                 for a, b in zip(py[i], pj):
                     self.assertTrue(all(abs(x - y) <= 1 for x, y in zip(a, b)),
                                     f"{c['mode']} {c['links']} dispositivo {i}: py {a} js {b}")
+
+
+
+# ------------------------------------------------------------------ programas de fabricante e efeitos LED a LED
+import vendors  # noqa: E402
+
+
+class FakeBridge(vendors.LogitechBridge):
+    def __init__(self):
+        self.painted, self.keys = [], []
+
+    def available(self):
+        return True
+
+    def stop(self):
+        pass
+
+    def paint(self, dev, cols):
+        self.painted.append((dev.name, cols))
+
+    def paint_keys(self, names, cols):
+        self.keys.append((names, cols))
+        return True
+
+
+class Led:
+    def __init__(self, name):
+        self.name = name
+
+
+class TestVendors(TempFiles):
+    def setUp(self):
+        super().setUp()
+        import vendors
+        self.vendors = vendors
+        self.br = FakeBridge()
+        self.p_env = mock.patch.dict(os.environ, {"EASYRGB_NO_VENDORS": ""})
+        self.p_br = mock.patch.object(vendors, "BRIDGES", [self.br])
+        self.p_env.start(); self.p_br.start()
+        rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+
+    def tearDown(self):
+        self.p_br.stop(); self.p_env.stop()
+        rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+        super().tearDown()
+
+    def test_keymap_has_the_whole_keyboard(self):
+        km = self.vendors.KEYMAP
+        self.assertGreaterEqual(len(km), 100)
+        self.assertEqual(self.vendors.key_of("Key: A")["sc"], 0x1E)
+        self.assertEqual(self.vendors.key_of("Key: Escape")["vk"], 0x1B)
+        self.assertEqual(self.vendors.key_of("Key: \ (ANSI)")["sc"], 0x2B)
+        self.assertLess(km["q"]["x"], km["p"]["x"])
+
+    def test_virtual_device_joins_list_and_gets_colors(self):
+        c = FakeClient(fake_pc())
+        with mock.patch.object(rc, "client", return_value=c):
+            devs = rc.all_devices(c)
+            self.assertEqual(len(devs), 5)   # 4 do OpenRGB + "todas as luzes Logitech"
+            rc.apply(HEX("#FF0000 #0000FF"), 100, persist=False)
+        self.assertEqual(self.br.painted[-1][0], "Logitech (G HUB)")
+        self.assertEqual(rc.persist_kind(devs[4]), "vendor")
+        self.assertEqual(rc.running_conflicts.__name__, "running_conflicts")
+        self.assertEqual(rc._bridged(["Logitech G HUB", "Corsair iCUE"]), ["Corsair iCUE"])
+
+    def test_pc_json_picks_devices_and_zones(self):
+        rc.save_pc({"vendors": {"logitech": {"devices": [{"type": "mouse", "zones": 2, "name": "G502"}]}}})
+        c = FakeClient(fake_pc())
+        devs = rc.all_devices(c)
+        self.assertEqual(devs[4].name, "G502")
+        self.assertEqual(len(devs[4].zones), 2)
+        rc.save_pc({"vendors": {"logitech": {"enabled": False}}})
+        self.assertEqual(len(rc.all_devices(c)), 4)
+
+    def test_logitech_keyboard_seen_by_openrgb_goes_through_ghub(self):
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 3)], [FakeMode("Direct", 32, 1)])
+        kb.leds = [Led("Key: A"), Led("Key: S"), Led("Logo")]
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()   # o nome não diz a marca; o OpenRGB diz
+        c = FakeClient([kb])
+        with mock.patch.object(rc, "client", return_value=c):
+            self.assertEqual(len(rc.all_devices(c)), 1)   # não cria o "todas as luzes" de novo
+            rc.apply(HEX("#FF0000"), 100, persist=False)
+        self.assertEqual(self.br.keys[-1][0], ["Key: A", "Key: S", "Logo"])
+        self.assertFalse([x for x in kb.calls if x[0] == "colors"])   # OpenRGB não mexeu (sem conflito)
+
+
+class TestSpatialEffects(unittest.TestCase):
+    def test_wave_moves_and_respects_direction(self):
+        pal = HEX("#FF0000 #0000FF")
+        pos = [(0.0, 0.5), (0.5, 0.5)]
+        a = rc.wave_colors(pal, pos, 0.0, 3)
+        b = rc.wave_colors(pal, pos, 1.0, 3)
+        self.assertNotEqual(a, b)
+        self.assertEqual(rc._axis(0.2, 0.0, "esquerda"), 0.8)
+        self.assertEqual(rc._axis(0.5, 0.0, "centro"), 0.0)
+
+    def test_keyboard_positions_follow_the_layout(self):
+        kb = FakeDev("Teclado", 5, [FakeZone("Keyboard", 12)], [])
+        kb.leds = [Led("Key: " + k) for k in "QWERTYUIOP"] + [Led("Key: Escape"), Led("Key: Space")]
+        pos, real = __import__("vendors").led_positions(kb)
+        self.assertTrue(real)
+        self.assertLess(pos[0][0], pos[9][0])          # Q fica à esquerda do P
+        self.assertLess(pos[10][1], pos[11][1])        # Esc fica acima do Espaço
+
+    def test_stars_and_ripple_stay_in_palette_range(self):
+        pal = HEX("#00FF00 #FF00FF")
+        pos = [(i / 10, 0.5) for i in range(10)]
+        st = rc.star_colors(pal, pos, 1.3, 3, {}, 0)
+        self.assertEqual(len(st), 10)
+        self.assertTrue(all(0 <= v <= 255 for c in st for v in c))
+        rip = rc.ripple_colors(pal, pos, True, 0.1, 3, [(0.5, 0.5, 0.0)])
+        self.assertGreater(max(sum(c) for c in rip), sum(rc.scale(pal[0], 8)))
+        self.assertEqual(len(set(rc.ripple_colors(pal, pos, False, 0.1, 3, [(0.5, 0.5, 0.0)]))), 1)
+
+    def test_screen_colors_per_key(self):
+        from PIL import Image
+        im = Image.new("RGB", (22, 6), (0, 0, 255))
+        im.putpixel((0, 0), (255, 0, 0))
+        self.assertEqual(rc.screen_colors(im, [(0.0, 0.0), (0.9, 0.9)], True), [(255, 0, 0), (0, 0, 255)])
+        self.assertEqual(len(rc.screen_colors(None, [(0, 0)], True)), 1)
+
+    def test_each_device_can_have_its_own_effect(self):
+        m = rc.effect_map("static", {"pfx": {"3": "onda"}}, [0, 1, 2, 3])
+        self.assertEqual(m, {0: "static", 1: "static", 2: "static", 3: "onda"})
+        m = rc.effect_map("respirar", {"pfx": {"3": "teclas"}}, [0, 3])
+        self.assertEqual(m, {0: "respirar", 3: "teclas"})
+        self.assertEqual(rc.effect_map("onda", {"fxdevs": [3]}, [0, 3]), {0: "static", 3: "onda"})  # formato antigo
+        self.assertTrue(rc.has_animation({"effect": "static", "pfx": {"3": "onda"}}))
+        self.assertFalse(rc.has_animation({"effect": "static", "pfx": {"3": "static"}}))
+
+    def test_effect_colors_for_every_kind(self):
+        pal = HEX("#FF0000 #00FF00 #0000FF")
+        cols = [(255, 0, 0)] * 6
+        pos = [(i / 6, 0.5) for i in range(6)]
+        ctx = {"level": 0.5, "shift": 0.3, "stars": {}, "keys": None, "dir": "direita", "shot": None, "idx": 0}
+        for k in rc.EFFECTS:
+            out = rc.effect_colors(k, pal, cols, pos, False, 1.2, 3, ctx)
+            self.assertEqual(len(out), 6, k)
+            self.assertTrue(all(0 <= v <= 255 for c in out for v in c), k)
+
+    def test_new_effects_are_known(self):
+        for k in ("onda", "estrelas", "tela", "teclas"):
+            self.assertIn(k, rc.EFFECTS)
+            self.assertIn(k, rc.SPATIAL)
 
 
 if __name__ == "__main__":
