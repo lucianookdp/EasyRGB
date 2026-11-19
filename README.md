@@ -80,7 +80,7 @@ python rgb_controller.py ia look.json        # apply an AI-made look
 python rgb_controller.py listar              # devices, zones and chip effects
 python rgb_controller.py automacao rules.json
 python rgb_controller.py iniciar-com-windows sim
-python -m unittest discover -s tests -v      # 71 tests, no hardware needed
+python -m unittest discover -s tests -v      # 74 tests, no hardware needed
 ```
 </details>
 

@@ -141,6 +141,31 @@ def _pid(image):
     return None
 
 
+def _started_at(pid):
+    """Hora (epoch) em que o processo abriu, ou None."""
+    try:
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x1000, False, int(pid))   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return None
+        c, e, k, u = (ctypes.c_ulonglong() for _ in range(4))
+        good = k32.GetProcessTimes(h, ctypes.byref(c), ctypes.byref(e), ctypes.byref(k), ctypes.byref(u))
+        k32.CloseHandle(h)
+        return c.value / 1e7 - 11644473600 if good else None
+    except Exception:
+        return None
+
+
+def uptime():
+    """Segundos desde que o Windows ligou."""
+    try:
+        f = ctypes.windll.kernel32.GetTickCount64
+        f.restype = ctypes.c_ulonglong
+        return f() / 1000.0
+    except Exception:
+        return 1e9
+
+
 def _running(*names):
     try:
         out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True,
@@ -158,10 +183,14 @@ class LogitechBridge:
     OPENRGB_TYPE = {"keyboard": 5, "mouse": 6, "mousemat": 7, "headset": 8, "speaker": 12, "all": 19}
 
     AGENT = "lghub_agent.exe"
+    SETTLE = 20     # o G HUB acabou de abrir: espera ele terminar de carregar antes de conectar
+    YOUNG = 90      # conectou com o G HUB ainda novo: reconecta uma vez depois disso (ele recarrega o perfil)
+    BOOT = 180      # logo depois de ligar o PC, espera o G HUB em vez de mexer no teclado pelo OpenRGB
 
     def __init__(self):
         self.dll, self.ok, self.lock = None, False, threading.RLock()
         self.pid, self.retry_at, self.fails, self.checked = None, 0.0, 0, 0.0
+        self.born, self.young = 0.0, False
 
     @staticmethod
     def dll_path():
@@ -179,7 +208,10 @@ class LogitechBridge:
         return next((p for p in cands if p.exists()), None)
 
     def available(self):
-        return self.dll_path() is not None and _running("lghub_agent.exe", "lghub.exe")
+        if self.dll_path() is None:
+            return False
+        # ao ligar o PC o G HUB abre depois do EasyRGB: o teclado espera por ele (não briga pelo OpenRGB)
+        return _running("lghub_agent.exe", "lghub.exe") or uptime() < self.BOOT
 
     def restarted(self):
         """True se o G HUB fechou ou reabriu desde a conexão (aí é preciso conectar de novo). Olha a cada 5 s."""
@@ -187,6 +219,10 @@ class LogitechBridge:
             if not self.ok or time.time() - self.checked < 5:
                 return False
             self.checked = time.time()
+            if self.young and time.time() - self.born >= self.YOUNG:   # o G HUB terminou de carregar
+                self.young = False
+                self.stop()
+                return True
             if _pid(self.AGENT) != self.pid:
                 self.stop()
                 return True
@@ -205,6 +241,10 @@ class LogitechBridge:
             pid = _pid(self.AGENT)
             if not p or not pid:
                 return False
+            born = _started_at(pid) or 0.0
+            if time.time() - born < self.SETTLE:
+                self.retry_at = born + self.SETTLE
+                return False
             d = self.dll or ctypes.WinDLL(str(p))
             d.LogiLedInitWithName.argtypes = [ctypes.c_char_p]
             for fn in ("LogiLedInitWithName", "LogiLedSetTargetDevice", "LogiLedSetLighting",
@@ -215,6 +255,7 @@ class LogitechBridge:
                 return False
             time.sleep(0.4)   # o G HUB leva um instante para aceitar comandos depois de conectar
             self.ok, self.pid, self.fails, self.checked = True, pid, 0, time.time()
+            self.born, self.young = born, time.time() - born < self.YOUNG
             return True
 
     def stop(self):

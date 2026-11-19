@@ -760,6 +760,50 @@ class TestVendors(TempFiles):
         self.assertFalse([x for x in kb.calls if x[0] == "colors"])   # OpenRGB não mexeu (sem conflito)
 
 
+class TestLogitechStartup(unittest.TestCase):
+    """Ao ligar o PC: o G HUB abre depois e recarrega o perfil. O EasyRGB espera e reconecta na hora certa."""
+    def setUp(self):
+        self.b = vendors.LogitechBridge()
+        self.dll = mock.MagicMock()
+        self.dll.LogiLedInitWithName.return_value = True
+        self.p = [mock.patch.object(vendors.LogitechBridge, "dll_path", return_value=Path("x.dll")),
+                  mock.patch.object(vendors, "_pid", return_value=111),
+                  mock.patch.object(vendors.ctypes, "WinDLL", return_value=self.dll, create=True),
+                  mock.patch.object(vendors.time, "sleep")]
+        for x in self.p:
+            x.start()
+
+    def tearDown(self):
+        for x in self.p:
+            x.stop()
+
+    def test_waits_while_ghub_is_loading(self):
+        with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5):
+            self.assertFalse(self.b.start())
+        self.dll.LogiLedInitWithName.assert_not_called()
+
+    def test_reconnects_once_after_ghub_settles(self):
+        now = vendors.time.time()
+        with mock.patch.object(vendors, "_started_at", return_value=now - 30):
+            self.assertTrue(self.b.start())
+        self.assertTrue(self.b.young)
+        self.b.born, self.b.checked = now - 100, 0.0
+        self.assertTrue(self.b.restarted())     # passou do tempo de carregar: reconecta
+        self.assertFalse(self.b.ok)
+        with mock.patch.object(vendors, "_started_at", return_value=now - 100):
+            self.b.retry_at = 0.0
+            self.assertTrue(self.b.start())
+        self.assertFalse(self.b.young)
+        self.b.checked = 0.0
+        self.assertFalse(self.b.restarted())    # já estável: não fica reconectando
+
+    def test_waits_for_ghub_right_after_boot(self):
+        with mock.patch.object(vendors, "uptime", return_value=30), mock.patch.object(vendors, "_running", return_value=False):
+            self.assertTrue(self.b.available())
+        with mock.patch.object(vendors, "uptime", return_value=3000), mock.patch.object(vendors, "_running", return_value=False):
+            self.assertFalse(self.b.available())
+
+
 class TestSpatialEffects(unittest.TestCase):
     def test_wave_moves_and_respects_direction(self):
         pal = HEX("#FF0000 #0000FF")
