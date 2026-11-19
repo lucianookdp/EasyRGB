@@ -400,6 +400,15 @@ class TestAutomation(TempFiles):
 
 
 # ------------------------------------------------------------------ compartilhar
+class TestOldFiles(TempFiles):
+    def test_old_automation_file_with_temperature_extras(self):
+        rc.AUTO_FILE.write_text(json.dumps({"enabled": True, "games": [], "schedule": [], "hotkeys": False,
+                                            "extras": {"temp_source": "gpu", "temp_min": 40, "temp_max": 80}}),
+                                encoding="utf-8")
+        a = rc.load_auto()
+        self.assertNotIn("extras", a)
+
+
 class TestShare(unittest.TestCase):
     def test_roundtrip(self):
         code = rc.share_code({"palette": ["#FF2E88", "#00D9C8"], "mode": "zona", "brightness": 70, "name": "Praia",
@@ -605,6 +614,27 @@ process.stdout.write(JSON.stringify(out));
 
 
 @unittest.skipUnless(NODE, "Node.js não instalado")
+class TestResponsive(unittest.TestCase):
+    """A tela precisa caber em janelas estreitas e celulares (375 px) sem rolagem para o lado."""
+    def setUp(self):
+        self.html = (APP / "index.html").read_text(encoding="utf-8")
+
+    def test_has_small_screen_rules(self):
+        self.assertIn('name="viewport" content="width=device-width', self.html)
+        for w in ("@media(max-width:700px)", "@media(max-width:420px)"):
+            self.assertIn(w, self.html)
+
+    def test_no_grid_column_wider_than_a_phone(self):
+        css = self.html[: self.html.index("</style>")]
+        # o último valor vence: só confere a regra final de cada grade
+        for sel in (".perlist", ".devs", ".games"):
+            rule = css[css.rindex(sel + "{grid-template-columns"):]
+            rule = rule[: rule.index("}")]
+            self.assertIn("min(", rule, f"{sel} precisa de min(...,100%) para caber no celular")
+        for px in re.findall(r"minmax\((\d+)px", css):
+            self.assertLessEqual(int(px), 340)
+
+
 class TestParity(unittest.TestCase):
     def test_plan_python_equals_js(self):
         devs = [{"id": i, "type": ["MOTHERBOARD", "DRAM", "DRAM", "KEYBOARD"][i],
@@ -703,6 +733,20 @@ class TestVendors(TempFiles):
         self.assertEqual(len(devs[4].zones), 2)
         rc.save_pc({"vendors": {"logitech": {"enabled": False}}})
         self.assertEqual(len(rc.all_devices(c)), 4)
+
+    def test_repaints_when_ghub_opens_after_easyrgb(self):
+        """Ao ligar o PC o G HUB abre depois: o EasyRGB conecta de novo e repinta o visual salvo."""
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 1)], [FakeMode("Direct", 32, 1)])
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        self.br.ok, self.br.retry_at = False, 0.0
+        self.br.restarted = lambda: False
+        with mock.patch.object(rc, "openrgb_running", return_value=True),              mock.patch.object(rc, "client", return_value=FakeClient([kb])),              mock.patch.object(rc, "load_state", return_value={"palette": ["#FF0000"]}),              mock.patch.object(rc, "apply_saved") as again:
+            rc.vendor_tick()
+            again.assert_called_once()
+            self.br.ok = True
+            again.reset_mock()
+            rc.vendor_tick()
+            again.assert_not_called()   # conectado e sem reinício: não repinta à toa
 
     def test_logitech_keyboard_seen_by_openrgb_goes_through_ghub(self):
         kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 3)], [FakeMode("Direct", 32, 1)])

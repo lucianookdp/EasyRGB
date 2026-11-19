@@ -1058,6 +1058,7 @@ def load_auto():
     a.setdefault("games", [])
     a.setdefault("schedule", [])
     a.setdefault("hotkeys", False)
+    a.pop("extras", None)   # sobra da versão com "temperatura do PC" (removida)
     return a
 
 
@@ -1117,8 +1118,27 @@ def run_schedule(s):
             apply_saved(persist=True, palette=hexes, overrides={}, hw={})
 
 
+def vendor_tick():
+    """O programa do fabricante (G HUB) abriu ou reabriu depois do EasyRGB, por exemplo ao ligar o PC:
+    conecta de novo e repinta o visual salvo por cima dele."""
+    if os.environ.get("EASYRGB_NO_VENDORS") or not openrgb_running():
+        return
+    try:
+        vendor_devices(client(autostart=False).devices)
+    except Exception:
+        return
+    for b in vendors.BRIDGES:
+        if b.key in _vend["keys"] and (b.restarted() or not b.ok) and time.time() >= b.retry_at and load_state():
+            try:
+                apply_saved()
+            except Exception:
+                pass
+            return
+
+
 def auto_tick():
     """Um passo do motor de automação (chamado a cada poucos segundos)."""
+    vendor_tick()
     auto = load_auto()
     if not _auto["game"] and not (auto.get("enabled", True) and (auto.get("games") or auto.get("schedule"))):
         return   # sem regras: não gasta nada

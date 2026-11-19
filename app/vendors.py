@@ -11,6 +11,7 @@ import ctypes
 import os
 import subprocess
 import threading
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------- mapa do teclado
@@ -126,6 +127,20 @@ class VirtualDevice:
 
 
 # ---------------------------------------------------------------- Logitech G HUB
+def _pid(image):
+    """PID do processo (ou None). Serve para saber se o programa do fabricante reiniciou."""
+    try:
+        out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {image}", "/FO", "CSV", "/NH"], capture_output=True,
+                             text=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), timeout=8).stdout
+        for line in out.splitlines():
+            parts = [x.strip('"') for x in line.split('","')]
+            if len(parts) > 1 and parts[0].lower() == image.lower():
+                return int(parts[1])
+    except Exception:
+        pass
+    return None
+
+
 def _running(*names):
     try:
         out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True,
@@ -142,8 +157,11 @@ class LogitechBridge:
     ZONE_TYPES = {"keyboard": 0, "mouse": 3, "mousemat": 4, "headset": 8, "speaker": 14}
     OPENRGB_TYPE = {"keyboard": 5, "mouse": 6, "mousemat": 7, "headset": 8, "speaker": 12, "all": 19}
 
+    AGENT = "lghub_agent.exe"
+
     def __init__(self):
-        self.dll, self.ok, self.lock = None, False, threading.Lock()
+        self.dll, self.ok, self.lock = None, False, threading.RLock()
+        self.pid, self.retry_at, self.fails, self.checked = None, 0.0, 0, 0.0
 
     @staticmethod
     def dll_path():
@@ -163,21 +181,40 @@ class LogitechBridge:
     def available(self):
         return self.dll_path() is not None and _running("lghub_agent.exe", "lghub.exe")
 
+    def restarted(self):
+        """True se o G HUB fechou ou reabriu desde a conexão (aí é preciso conectar de novo). Olha a cada 5 s."""
+        with self.lock:
+            if not self.ok or time.time() - self.checked < 5:
+                return False
+            self.checked = time.time()
+            if _pid(self.AGENT) != self.pid:
+                self.stop()
+                return True
+            return False
+
     def start(self):
         with self.lock:
             if self.ok:
+                self.restarted()
+            if self.ok:
                 return True
-            p = self.dll_path()
-            if not p:
+            if time.time() < self.retry_at:   # G HUB ainda abrindo: tenta de novo daqui a pouco
                 return False
-            d = ctypes.WinDLL(str(p))
+            self.retry_at = time.time() + 3
+            p = self.dll_path()
+            pid = _pid(self.AGENT)
+            if not p or not pid:
+                return False
+            d = self.dll or ctypes.WinDLL(str(p))
             d.LogiLedInitWithName.argtypes = [ctypes.c_char_p]
             for fn in ("LogiLedInitWithName", "LogiLedSetTargetDevice", "LogiLedSetLighting",
                        "LogiLedSetLightingForKeyWithKeyName", "LogiLedSetLightingForTargetZone"):
                 getattr(d, fn).restype = ctypes.c_bool
+            self.dll = d
             if not d.LogiLedInitWithName(b"EasyRGB"):
                 return False
-            self.dll, self.ok = d, True
+            time.sleep(0.4)   # o G HUB leva um instante para aceitar comandos depois de conectar
+            self.ok, self.pid, self.fails, self.checked = True, pid, 0, time.time()
             return True
 
     def stop(self):
@@ -226,14 +263,18 @@ class LogitechBridge:
             return False
         d = self.dll
         with self.lock:
-            d.LogiLedSetTargetDevice(4)   # teclados com cor por tecla
+            good = bool(d.LogiLedSetTargetDevice(4))   # teclados com cor por tecla
             for name, c in zip(led_names, cols):
                 k = key_of(name)
                 if k and k["sc"] is not None:
-                    d.LogiLedSetLightingForKeyWithKeyName(k["sc"], *self._pct(c))
+                    good = bool(d.LogiLedSetLightingForKeyWithKeyName(k["sc"], *self._pct(c))) or good
                 elif str(name).strip().lower() in ("logo", "g logo"):
                     d.LogiLedSetLightingForKeyWithKeyName(0xFFFF1, *self._pct(c))
-        return True
+            self.fails = 0 if good else self.fails + 1
+            if self.fails >= 5:   # o G HUB parou de aceitar: reconecta
+                self.stop()
+                return False
+        return good
 
 
 BRIDGES = [LogitechBridge()]
