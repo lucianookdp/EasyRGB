@@ -227,8 +227,8 @@ def serve(inp=None, out=None):
 
 # ---------------------------------------------------------------- install into AI apps
 def claude_desktop_configs():
-    """Onde o Claude Desktop lê a configuração: %APPDATA%\Claude (instalador normal) e, na versão da
-    Microsoft Store, a pasta virtual do pacote em %LOCALAPPDATA%\Packages\Claude_*."""
+    """Where Claude Desktop reads its config: %APPDATA%/Claude (regular installer) and, for the Microsoft Store
+    version, the package folder under %LOCALAPPDATA%/Packages/Claude_*."""
     import os
     paths = [Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json"]
     pkgs = Path(os.environ.get("LOCALAPPDATA", "")) / "Packages"
@@ -242,6 +242,10 @@ def server_command():
     """Command an AI app runs to start this server."""
     if FROZEN:
         return {"command": sys.executable, "args": ["--mcp"]}
+    import os
+    launcher = Path(os.environ.get("WINDIR", r"C:\Windows")) / "py.exe"   # acha o Python instalado na hora
+    if launcher.exists():
+        return {"command": str(launcher), "args": [str(SRC / "mcp_server.py")]}
     exe = Path(sys.executable)
     py = exe.with_name("python.exe") if exe.name.lower() == "pythonw.exe" else exe
     return {"command": str(py), "args": [str(SRC / "mcp_server.py")]}
