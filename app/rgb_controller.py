@@ -27,8 +27,16 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+# Dois jeitos de rodar: pelo código (python app/rgb_controller.py) ou empacotado (EasyRGB.exe, sem precisar de Python).
+FROZEN = bool(getattr(sys, "frozen", False))
+SRC = Path(__file__).resolve().parent
+# HERE = dados que mudam (estado, perfil do PC, presets do usuário, log); RES = arquivos que vêm com o app.
+HERE = Path(sys.executable).resolve().parent / "app" if FROZEN else SRC
+RES = Path(getattr(sys, "_MEIPASS", SRC))
+ROOT = HERE.parent   # pasta do EasyRGB (OpenRGB, instalador, configurado.ok)
+if FROZEN:
+    HERE.mkdir(exist_ok=True)
+sys.path.insert(0, str(SRC))
 import vendors  # noqa: E402  (pontes com G HUB e outros programas de fabricante)
 # Bibliotecas ficam dentro do app, separadas por versão do Python (Pillow e outras têm partes compiladas:
 # as de um Python não servem em outro). Se o Python do PC mudar, o app instala de novo sozinho.
@@ -40,7 +48,7 @@ sys.path.insert(0, str(LIB))
 
 def ensure_libs():
     """Instala as bibliotecas para o Python atual, uma vez (usa a internet só nessa hora)."""
-    if (LIB / ".ok").exists():
+    if FROZEN or (LIB / ".ok").exists():   # o EasyRGB.exe já vem com tudo
         return True
     py = Path(sys.executable).with_name("python.exe")
     exe = py if py.exists() else Path(sys.executable)
@@ -58,12 +66,14 @@ def ensure_libs():
         return True
     print("pip falhou:", (r.stderr or r.stdout)[-800:])
     return False
-PALETTES_FILE = HERE / "palettes.json"
+
+
+PALETTES_FILE = RES / "palettes.json"
 STATE_FILE = HERE / "last_state.json"
 CLAUDE_FILE = HERE / "claude_color.json"
-OPENRGB_EXE = HERE.parent / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
+OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -976,7 +986,7 @@ def detect_system():
             found.append({"software": name, "running": bool(hit["processes"] or hit["services"]),
                           "starts_with_windows": bool(hit["tasks"] or hit["services"]), "evidence": hit})
     report = {
-        "app": {"name": APP_NAME, "version": VERSION, "folder": str(HERE.parent),
+        "app": {"name": APP_NAME, "version": VERSION, "folder": str(ROOT), "packaged_exe": FROZEN,
                 "openrgb_installed": OPENRGB_EXE.exists(), "openrgb_running": openrgb_running(),
                 "pawnio_driver": bool(s.get("pawnio")), "library_ok": (HERE / "lib" / "openrgb").exists(),
                 "ui_url": f"http://127.0.0.1:{UI_PORT}/", "pc_profile": PC_FILE.exists()},
@@ -1248,9 +1258,23 @@ TASK_NAME = "EasyRGB"
 _autostart_cache = {"t": 0.0, "v": False}
 
 
+def first_run_setup():
+    """Primeira vez do EasyRGB.exe: roda o instalador (OpenRGB oficial + driver PawnIO) como administrador e espera."""
+    setup = ROOT / "1-Configurar (admin).ps1"
+    if not setup.exists():
+        return False
+    subprocess.run(["powershell", "-NoProfile", "-Command",
+                    f"Start-Process powershell -Verb RunAs -Wait -ArgumentList "
+                    f"'-NoProfile','-ExecutionPolicy','Bypass','-File','\"{setup}\"'"],
+                   check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return (ROOT / "configurado.ok").exists()
+
+
 def launcher():
     """Programa que a tarefa de inicialização chama. O pyw.exe do Windows acha o Python instalado na hora,
     então trocar ou atualizar o Python não quebra o "Restaurar ao ligar o PC"."""
+    if FROZEN:
+        return Path(sys.executable)
     pyw = Path(os.environ.get("WINDIR", r"C:\Windows")) / "pyw.exe"
     if pyw.exists():
         return pyw
@@ -1287,7 +1311,8 @@ def set_autostart(on):
     import tempfile
     user = os.environ.get("USERDOMAIN", "") + "\\" + os.environ.get("USERNAME", "")
     if on:
-        ps = (f"$a = New-ScheduledTaskAction -Execute '{exe}' -Argument '\"{HERE / 'rgb_controller.py'}\" --background' "
+        arg = "--background" if FROZEN else f'"{SRC / "rgb_controller.py"}" --background'   # o .exe chama ele mesmo
+        ps = (f"$a = New-ScheduledTaskAction -Execute '{exe}' -Argument '{arg}' "
               f"-WorkingDirectory '{HERE}'\n"
               f"$t = New-ScheduledTaskTrigger -AtLogOn -User '{user}'\n"
               f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
@@ -1579,7 +1604,7 @@ def start_tray(url):
         Menu.SEPARATOR,
         Item(T("Sair do EasyRGB", "Quit EasyRGB"), quit_app),
     )
-    img = HERE / "tray.png" if (HERE / "tray.png").exists() else HERE / "icon.ico"   # PNG transparente
+    img = RES / "tray.png" if (RES / "tray.png").exists() else RES / "icon.ico"   # PNG transparente
     icon = pystray.Icon(APP_NAME, Image.open(img), APP_NAME, menu)   # ao passar o mouse: só o nome
     _tray["icon"] = icon
     threading.Thread(target=icon.run, daemon=True).start()
@@ -1602,9 +1627,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.path = self.path.split("?", 1)[0]   # ignora ?parâmetros (ex.: /?v=2)
         if self.path in ("/", "/index.html"):
-            return self._send(200, (HERE / "index.html").read_bytes(), "text/html")
+            return self._send(200, (RES / "index.html").read_bytes(), "text/html")
         if self.path in ("/icon.png", "/favicon.ico"):
-            return self._send(200, (HERE / "icon.png").read_bytes(), "image/png")
+            return self._send(200, (RES / "icon.png").read_bytes(), "image/png")
         if self.path == "/api/state":
             st = {"app": APP_NAME, "version": VERSION, "palettes": load_palettes(), "user_presets": list(user_presets()),
                   "conflicts": running_conflicts(),
@@ -1697,6 +1722,9 @@ class Handler(BaseHTTPRequestHandler):
                 rep, prof = apply_claude(body)
                 return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
                                         "effect_kind": _effect.get("kind") if _effect["on"] else "static"})
+            if self.path == "/api/mcp":   # botão "Usar no Claude Desktop"
+                import mcp_server
+                return self._send(200, {"ok": True, "file": str(mcp_server.install_claude_desktop())})
             if self.path == "/api/preset":
                 name = (body.get("name") or "").strip()
                 if body.get("delete"):
@@ -1769,6 +1797,26 @@ def cli(argv):
         return default
 
     cmd = argv[0]
+    if cmd == "mcp-claude-desktop":   # liga o EasyRGB ao Claude Desktop (controle das luzes pelo chat)
+        import mcp_server
+        print("OK:", mcp_server.install_claude_desktop(), "- reinicie o Claude Desktop.")
+        return
+    if cmd == "autoteste":   # confere se tudo que o app precisa carrega (usado no build do .exe)
+        res = {"frozen": FROZEN, "python": sys.version.split()[0]}
+        for name, fn in (("openrgb", lambda: __import__("openrgb.utils")), ("pillow", lambda: __import__("PIL.ImageGrab")),
+                         ("pystray", lambda: __import__("pystray")), ("pycaw", lambda: __import__("pycaw.pycaw")),
+                         ("audio", lambda: AudioMeter().peak() if "--sem-hardware" not in argv else 0),
+                         ("screen", lambda: screen_shot().size if "--sem-hardware" not in argv else 0),
+                         ("mcp", lambda: __import__("mcp_server")), ("vendors", lambda: vendors.detect_bridges())):
+            try:
+                fn()
+                res[name] = "ok"
+            except Exception as e:
+                res[name] = f"ERRO: {e!r}"
+        for f in ("index.html", "palettes.json", "icon.png", "tray.png"):
+            res[f] = "ok" if (RES / f).exists() else "FALTA"
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+        sys.exit(0 if all(v == "ok" for k, v in res.items() if k not in ("frozen", "python")) else 1)
     if cmd == "bibliotecas":   # usado pelo instalador: instala as bibliotecas para este Python
         ok = ensure_libs()
         print(("OK: bibliotecas em " if ok else "ERRO ao instalar as bibliotecas em ") + str(LIB))
@@ -1844,11 +1892,19 @@ def cli(argv):
 
 
 if __name__ == "__main__":
+    if "--mcp" in sys.argv:   # servidor MCP para apps de IA (Claude Desktop, Cursor...): fala pelo stdin/stdout
+        import mcp_server
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdin.reconfigure(encoding="utf-8")
+        mcp_server.serve()
+        sys.exit(0)
     if sys.stderr is None or sys.stdout is None:   # aberto com pythonw (sem janela): erros vão para o log
         _log = open(HERE / "easyrgb.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stderr = _log
         print(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {APP_NAME} v{VERSION}")
     ensure_libs()   # Python novo no PC: instala as bibliotecas para ele (só na primeira vez)
+    if FROZEN and not sys.argv[1:] and not (ROOT / "configurado.ok").exists():
+        first_run_setup()   # EasyRGB.exe aberto pela primeira vez: instala OpenRGB e driver (pede admin uma vez)
     args = [a for a in sys.argv[1:] if a not in ("--no-browser", "--background")]
     if args:
         cli(args)

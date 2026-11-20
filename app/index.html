@@ -507,6 +507,7 @@
         <div class="tic big"><span data-i="cpuchip"></span></div>
         <div><h2>Computador</h2><p>Placa-mãe, memórias, fitas de LED e coolers.</p></div>
         <div class="sp"></div>
+        <button class="btn ghost sm" id="mcpBtn" title="Deixa o Claude Desktop mudar as luzes direto pelo chat"><span data-i="message"></span>Usar no Claude Desktop</button>
         <button class="btn ai aibtn" id="aiCopy" title="Copia o prompt para você colar no seu agente de IA (Claude, ChatGPT, Gemini...)"><span data-i="sparkles"></span>Cores com IA</button>
       </div>
       <div class="cb">
@@ -844,6 +845,9 @@ const EN={
   "Ajuste fino por zona":"Fine-tune by zone","Zonas e teclas":"Zones and keys","Apagar":"Off",
   "Clique numa zona para dar uma cor só para ela, ou escolha um efeito do próprio chip.":"Click a zone to give it its own color, or pick an effect from the chip itself.",
   "Modo jogo, horários, modo noite e atalhos":"Game mode, schedules, night mode and shortcuts",
+  "Usar no Claude Desktop":"Use in Claude Desktop",
+  "Deixa o Claude Desktop mudar as luzes direto pelo chat":"Lets Claude Desktop change your lights right from the chat",
+  "Pronto! Reinicie o Claude Desktop e peça as cores pelo chat.":"Done! Restart Claude Desktop and ask for colors in the chat.",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
   "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com EASYRGB1-":"Invalid code: it must start with EASYRGB1-",
@@ -1232,6 +1236,7 @@ async function copyPromptQuick(){
   toast(tr("Copiado! Cole no seu agente de IA."),"ai",3500);
 }
 $("#aiCopy").onclick=copyPromptQuick;
+$("#mcpBtn").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/mcp",{}); toast(tr("Pronto! Reinicie o Claude Desktop e peça as cores pelo chat."),"ai",6000); });
 async function copySetupPrompt(btn){
   try{ await navigator.clipboard.writeText(SETUP_PROMPT); }
   catch{ const ta=document.createElement("textarea"); ta.value=SETUP_PROMPT; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }

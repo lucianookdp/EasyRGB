@@ -27,7 +27,28 @@
 > [!NOTE]
 > **Version 1 (V1).** First public release. It works day to day, but it will still change a lot.
 
-## Start here
+## Easiest: download and double-click
+
+1. Download **EasyRGB-windows.zip** from [Releases](../../releases/latest) and extract it (e.g. to `C:\EasyRGB`).
+2. Open **`EasyRGB.exe`**. No Python needed. The first time, Windows asks for administrator permission once
+   (it installs official OpenRGB and the signed PawnIO driver).
+3. Pick your colors in the app. Done.
+
+Want AI to set it up for you, or to change the lights by chatting? See below.
+
+## Control your lights from an AI chat (MCP)
+
+EasyRGB includes an [MCP](https://modelcontextprotocol.io) server, so AI apps can change your lights while you chat:
+*"make everything purple"*, *"keyboard wave in GTA VI colors"*, *"lights off"*.
+
+- **Claude Desktop:** in EasyRGB click **Use in Claude Desktop** (or run `EasyRGB.exe mcp-claude-desktop`), then restart Claude Desktop.
+- **Claude Code:** `claude mcp add easyrgb -- C:\EasyRGB\EasyRGB.exe --mcp`
+- **Cursor, VS Code and others:** add a stdio server with command `C:\EasyRGB\EasyRGB.exe` and args `["--mcp"]`
+  (from source: `python app/mcp_server.py`).
+
+Tools: `easyrgb_status`, `easyrgb_apply_look`, `easyrgb_brightness`, `easyrgb_lights`.
+
+## Set up with an AI agent
 
 EasyRGB is a **template**: an AI agent installs it and adapts it to *your* PC (devices, chip effects, conflicts) **before you even open it**. No technical knowledge needed.
 
@@ -48,6 +69,7 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 | | |
 |---|---|
 | **AI setup** | The agent detects motherboard, BIOS, RAM, GPU, peripherals, each chip's built-in effects and conflicting vendor apps, then configures everything. Instructions live in [`AGENTS.md`](AGENTS.md). |
+| **AI chat control (MCP)** | Claude Desktop, Claude Code, Cursor and other MCP apps change your lights while you chat. |
 | **AI looks** | *"Purple and blue cyberpunk, white keyboard, continuous RAM"*: the agent builds and applies it. The **AI colors** button copies the prompt in one click. |
 | **Live preview** | Your PC changes while you pick a color, then **Apply** or **Discard**. |
 | **Computer & peripherals** | One clear screen: **Computer** (motherboard, RAM, strips, coolers) and **Peripherals**, one block per device (e.g. *Keyboard – Logitech G PRO*). Each can follow the palette or not, and run **its own effect**: computer still, keyboard in a color wave. |
@@ -65,7 +87,7 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 <details>
 <summary><b>Manual install, commands and tests</b></summary>
 
-**Requirements:** Windows 10/11, [Python 3](https://www.python.org/downloads/), [OpenRGB-supported](https://openrgb.org/devices.html) hardware.
+**Requirements:** Windows 10/11 and [OpenRGB-supported](https://openrgb.org/devices.html) hardware. Running from source also needs [Python 3](https://www.python.org/downloads/); `EasyRGB.exe` doesn't.
 Without an agent: run `EasyRGB.bat` and choose *Open anyway*. It installs official OpenRGB 1.1, the Python libraries (`openrgb-python`, Pillow, pystray, pycaw; reinstalled automatically if your Python version changes) and the signed PawnIO driver, and disables (without deleting) the ASRock Polychrome startup task. Undo with `Voltar para ASRock (admin).ps1`.
 
 ```bash
@@ -76,7 +98,8 @@ python rgb_controller.py ia look.json        # apply an AI-made look
 python rgb_controller.py listar              # devices, zones and chip effects
 python rgb_controller.py automacao rules.json
 python rgb_controller.py iniciar-com-windows sim
-python -m unittest discover -s tests -v      # 77 tests, no hardware needed
+python -m unittest discover -s tests -v      # 82 tests, no hardware needed
+python tools/build_exe.py                    # builds EasyRGB.exe + zip (CI does this on every push)
 ```
 </details>
 
@@ -84,6 +107,7 @@ python -m unittest discover -s tests -v      # 77 tests, no hardware needed
 
 O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos e configura tudo sozinho, só perguntando as cores que você curte. Os efeitos você escolhe depois no app. Depois é só abrir o `EasyRGB.bat`.
 A tela separa **Computador** e **Periféricos** (ex.: *Teclado – Logitech G PRO*), cada um com o próprio efeito, como a **onda de cores** com as suas cores. O EasyRGB pinta o teclado Logitech **por cima do G HUB**, sem conflito. O app fica em português ou inglês conforme o idioma do seu sistema.
+**Mais fácil ainda:** baixe o `EasyRGB-windows.zip` em Releases, extraia e abra o `EasyRGB.exe` (não precisa de Python). E com o botão **Usar no Claude Desktop** você muda as luzes conversando com a IA (MCP).
 
 ---
 

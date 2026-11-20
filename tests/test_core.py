@@ -399,6 +399,74 @@ class TestAutomation(TempFiles):
         self.assertTrue(all(p == p.lower() for p in procs))
 
 
+class TestMcpServer(unittest.TestCase):
+    """Servidor MCP: apps de IA (Claude Desktop, Cursor...) controlam as luzes pelo chat."""
+    def setUp(self):
+        import mcp_server
+        self.m = mcp_server
+        self.sent = []
+        st = {"connected": True, "palettes": {"GTA VI": ["#F1047A", "#BB08F7"], "Synthwave": ["#FF2BD6", "#00E1FF"]},
+              "devices": [{"id": 0, "name": "Board", "type": "MOTHERBOARD", "zones": [{"name": "A", "leds": 6}]},
+                          {"id": 3, "name": "PRO Gaming Keyboard", "type": "KEYBOARD", "zones": [{"name": "K", "leds": 94}]}],
+              "last": {"palette": ["#111111", "#222222"], "brightness": 80, "mode": "gradiente",
+                       "ui": {"effect": "static", "pfx": {"3": "onda"}, "speed": 3, "links": {"DRAM": "mirror"}}},
+              "pc": {"nicknames": {"3": "Teclado"}}}
+
+        def fake(path, body=None, timeout=60):
+            self.sent.append((path, body))
+            return st if path == "/api/state" else {"ok": True, "report": [{"device": "Board", "ok": True}]}
+        self.p = [mock.patch.object(mcp_server, "_call", side_effect=fake),
+                  mock.patch.object(mcp_server, "ensure_app")]
+        for x in self.p:
+            x.start()
+
+    def tearDown(self):
+        for x in self.p:
+            x.stop()
+
+    def rpc(self, method, params=None, mid=1):
+        return self.m.handle({"jsonrpc": "2.0", "id": mid, "method": method, "params": params or {}})
+
+    def test_handshake_and_tools(self):
+        r = self.rpc("initialize", {"protocolVersion": "2025-06-18"})["result"]
+        self.assertEqual(r["serverInfo"]["name"], "easyrgb")
+        self.assertIn("tools", r["capabilities"])
+        self.assertIsNone(self.m.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        names = [t["name"] for t in self.rpc("tools/list")["result"]["tools"]]
+        self.assertEqual(names, ["easyrgb_status", "easyrgb_apply_look", "easyrgb_brightness", "easyrgb_lights"])
+        self.assertIn("error", self.rpc("nada/aqui"))
+
+    def test_status_uses_nicknames(self):
+        r = self.rpc("tools/call", {"name": "easyrgb_status", "arguments": {}})["result"]
+        out = json.loads(r["content"][0]["text"])
+        self.assertFalse(r["isError"])
+        self.assertEqual(out["devices"][1]["name"], "Teclado")
+        self.assertIn("GTA VI", out["presets"])
+
+    def test_apply_preset_keeps_keyboard_effect(self):
+        r = self.rpc("tools/call", {"name": "easyrgb_apply_look", "arguments": {"preset": "synthwave"}})["result"]
+        self.assertFalse(r["isError"], r)
+        path, prof = self.sent[-1]
+        self.assertEqual(path, "/api/claude")
+        self.assertEqual(prof["colors"], ["#FF2BD6", "#00E1FF"])
+        self.assertEqual(prof["brightness"], 80)
+        self.assertEqual(prof["peripheral_effects"], {"PRO Gaming Keyboard": "onda"})
+
+    def test_errors_are_reported_to_the_ai(self):
+        r = self.rpc("tools/call", {"name": "easyrgb_apply_look", "arguments": {"preset": "nao existe"}})["result"]
+        self.assertTrue(r["isError"])
+        self.assertIn("Preset not found", r["content"][0]["text"])
+
+    def test_stdio_loop(self):
+        import io
+        inp = io.StringIO('{"jsonrpc":"2.0","id":7,"method":"ping"}' + "\n" + "not json" + "\n")
+        out = io.StringIO()
+        self.m.serve(inp, out)
+        lines = [json.loads(x) for x in out.getvalue().splitlines()]
+        self.assertEqual(lines[0], {"jsonrpc": "2.0", "id": 7, "result": {}})
+        self.assertEqual(lines[1]["error"]["code"], -32700)
+
+
 class TestStartupTask(unittest.TestCase):
     """O "Restaurar ao ligar o PC" não pode quebrar quando o Python do PC muda de versão."""
     def test_broken_task_counts_as_off(self):

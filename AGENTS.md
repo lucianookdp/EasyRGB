@@ -12,6 +12,12 @@ EasyRGB is a palette-based RGB controller on top of OpenRGB 1.1 (SDK server on p
 App in `app/rgb_controller.py` (local server + CLI), UI in `app/index.html` (http://127.0.0.1:6750), opened by
 `EasyRGB.bat`. The UI follows the system language (English or Portuguese; `?lang=en|pt` forces one).
 All commands below run inside the `app/` folder. CLI command names are Portuguese (`detectar`, `configurar`, `ia`...).
+If the folder has **`EasyRGB.exe`** (the downloaded release, no Python), use `EasyRGB.exe <command>` from the root
+instead of `python rgb_controller.py <command>` (same commands; no `bibliotecas` step needed).
+
+**MCP:** `python app/mcp_server.py` or `EasyRGB.exe --mcp` is a stdio MCP server (tools `easyrgb_status`,
+`easyrgb_apply_look`, `easyrgb_brightness`, `easyrgb_lights`). `mcp-claude-desktop` adds it to Claude Desktop.
+If you are an MCP-capable chat app with these tools, just use them; no terminal needed.
 
 ## 0. Quick setup (the prompt from `START-HERE.txt`, the README and the app's AI button)
 
@@ -174,6 +180,8 @@ When the user asks for something like "when I open Valorant, make it red" or "di
 - `python rgb_controller.py aplicar <preset or colors> [--brilho 80] [--modo zona] [--gravar]`
 - `python rgb_controller.py compartilhar` / `importar EASYRGB1-...`: share codes to swap looks between people.
 - `python rgb_controller.py bibliotecas`: installs the libraries for the current Python.
+- `python rgb_controller.py autoteste`: checks every library, audio, screen capture and resource loads.
+- `python rgb_controller.py mcp-claude-desktop`: connects EasyRGB to Claude Desktop (MCP).
 - `python rgb_controller.py desligar`: lights off.
 
 ## Tests

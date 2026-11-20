@@ -16,3 +16,5 @@ app/automations.json
 app/easyrgb.log
 app/my_presets.json
 *.log
+build/
+dist/

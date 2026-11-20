@@ -29,12 +29,14 @@ try {
     }
 
     Write-Host "[2/4] Bibliotecas (openrgb-python, Pillow, bandeja, audio)..." -ForegroundColor Cyan
+    if (Test-Path (Join-Path $base 'EasyRGB.exe')) { Write-Host "      ja vem dentro do EasyRGB.exe." } else {
     # usa o Python que existir: "python" ou o lançador "py" do python.org
     $py = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } elseif (Get-Command py -ErrorAction SilentlyContinue) { 'py' } else { $null }
     if (-not $py) { throw "Python 3 nao encontrado. Instale em https://www.python.org/downloads/ e rode de novo." }
     & $py (Join-Path $base 'app\rgb_controller.py') bibliotecas
     if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar as bibliotecas (precisa de internet nesta etapa)." }
     Write-Host "      OK" -ForegroundColor Green
+    }
 
     Write-Host "[3/4] Desligando o ASRock Polychrome da inicializacao (reversivel)..." -ForegroundColor Cyan
     Get-Process AsrPolychromeRGB -ErrorAction SilentlyContinue | Stop-Process -Force

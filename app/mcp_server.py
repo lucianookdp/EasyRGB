@@ -1,0 +1,261 @@
+"""EasyRGB MCP server: lets AI chat apps (Claude Desktop, Claude Code, Cursor, VS Code...) control the PC's RGB.
+
+Speaks the Model Context Protocol over stdio (JSON-RPC 2.0, one message per line) using only the standard library.
+It talks to the local EasyRGB app (http://127.0.0.1:6750) and starts it if it isn't running.
+
+Run:  python app/mcp_server.py      or      EasyRGB.exe --mcp
+"""
+import json
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+BASE = "http://127.0.0.1:6750"
+PROTOCOL = "2025-06-18"
+FROZEN = bool(getattr(sys, "frozen", False))
+SRC = Path(__file__).resolve().parent
+
+INSTRUCTIONS = (
+    "EasyRGB controls this PC's RGB lighting (motherboard, RAM, LED strips, keyboard and other peripherals). "
+    "When the user describes a look or mood, call easyrgb_apply_look with vivid, saturated colors (2 to 5 hex colors). "
+    "Call easyrgb_status first if you need the device list, the current look or preset names. "
+    "Answer the user in their own language."
+)
+
+EFFECTS = ["static", "onda", "respirar", "ciclo", "arcoiris", "fluir", "musica", "estrelas", "tela", "teclas"]
+EFFECT_HELP = ("static=no animation, onda=color wave, respirar=breathe, ciclo=color cycle, arcoiris=rainbow, "
+               "fluir=flow, musica=reacts to music, estrelas=starlight (keyboard), tela=screen colors (keyboard), "
+               "teclas=key-press ripple (keyboard)")
+
+TOOLS = [
+    {"name": "easyrgb_status",
+     "description": "Current RGB look (palette, effects, brightness), the PC's RGB devices and the available presets.",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "easyrgb_apply_look",
+     "description": "Apply a lighting look to the PC. Give either `colors` or `preset`; anything left out keeps its "
+                    "current value. Saved as the user's look and shown in the EasyRGB app history. "
+                    "Animated effects run while EasyRGB is open. Effects: " + EFFECT_HELP + ".",
+     "inputSchema": {"type": "object", "properties": {
+         "name": {"type": "string", "description": "Short name for the look, e.g. 'Cyberpunk night'"},
+         "colors": {"type": "array", "items": {"type": "string"}, "description": "2-5 hex colors like #FF2E88"},
+         "preset": {"type": "string", "description": "Name of a preset from easyrgb_status (e.g. 'GTA VI')"},
+         "brightness": {"type": "integer", "minimum": 5, "maximum": 100},
+         "mode": {"type": "string", "enum": ["gradiente", "alternado", "zona"],
+                  "description": "gradiente=smooth gradient, alternado=alternating LEDs, zona=one color per zone"},
+         "effect": {"type": "string", "enum": EFFECTS, "description": "Effect for the computer (board, RAM, strips)"},
+         "peripheral_effects": {"type": "object", "additionalProperties": {"type": "string", "enum": EFFECTS},
+                                "description": "Per-peripheral effect, e.g. {\"teclado\": \"onda\"} (keyboard wave)"},
+         "speed": {"type": "integer", "minimum": 1, "maximum": 10},
+         "direction": {"type": "string", "enum": ["direita", "esquerda", "baixo", "cima", "centro", "dentro"],
+                       "description": "Color wave direction: right, left, down, up, center-out, outside-in"}}}},
+    {"name": "easyrgb_brightness",
+     "description": "Change the brightness of all lights (5-100%) without changing the colors.",
+     "inputSchema": {"type": "object", "properties": {"percent": {"type": "integer", "minimum": 5, "maximum": 100}},
+                     "required": ["percent"]}},
+    {"name": "easyrgb_lights",
+     "description": "Turn all RGB lights off, or back on with the saved look.",
+     "inputSchema": {"type": "object", "properties": {"on": {"type": "boolean"}}, "required": ["on"]}},
+]
+
+
+# ---------------------------------------------------------------- EasyRGB app
+def _call(path, body=None, timeout=60):
+    req = urllib.request.Request(BASE + path, data=None if body is None else json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"},
+                                 method="GET" if body is None else "POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read()).get("error")
+        except Exception:
+            msg = None
+        raise RuntimeError(msg or f"EasyRGB error {e.code}")
+
+
+def _running():
+    try:
+        _call("/api/claude", timeout=3)
+        return True
+    except Exception:
+        return False
+
+
+def ensure_app():
+    """Start the EasyRGB app in the background if it is closed (tray icon, no window)."""
+    if _running():
+        return
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
+    if FROZEN:
+        cmd = [sys.executable, "--no-browser"]
+    else:
+        pyw = Path(sys.executable).with_name("pythonw.exe")
+        cmd = [str(pyw if pyw.exists() else sys.executable), str(SRC / "rgb_controller.py"), "--no-browser"]
+    subprocess.Popen(cmd, cwd=str(SRC if not FROZEN else Path(sys.executable).parent), creationflags=flags,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(90):
+        time.sleep(1)
+        if _running():
+            return
+    raise RuntimeError("EasyRGB didn't start. Open EasyRGB once to finish its setup.")
+
+
+# ---------------------------------------------------------------- tools
+def tool_status(_args):
+    st = _call("/api/state")
+    last = st.get("last") or {}
+    ui = last.get("ui") or {}
+    devs = [{"id": d["id"], "name": (st.get("pc") or {}).get("nicknames", {}).get(str(d["id"])) or d["name"],
+             "type": d["type"], "leds": sum(z["leds"] for z in d["zones"])} for d in st.get("devices", [])]
+    return {"connected": st.get("connected"), "devices": devs,
+            "look": {"colors": last.get("palette"), "brightness": last.get("brightness"), "mode": last.get("mode"),
+                     "effect": ui.get("effect", "static"), "peripheral_effects": ui.get("pfx") or {}},
+            "presets": list((st.get("palettes") or {}).keys()),
+            "conflicts": st.get("conflicts") or []}
+
+
+def tool_apply(args):
+    st = _call("/api/state")
+    last = st.get("last") or {}
+    ui = last.get("ui") or {}
+    colors = args.get("colors")
+    if not colors and args.get("preset"):
+        want = args["preset"].strip().lower()
+        pal = st.get("palettes") or {}
+        name = next((n for n in pal if n.lower() == want), None) or next((n for n in pal if want in n.lower()), None)
+        if not name:
+            raise RuntimeError(f"Preset not found: {args['preset']}. Available: {', '.join(pal)}")
+        colors = pal[name]
+        args.setdefault("name", name)
+    colors = colors or last.get("palette")
+    if not colors:
+        raise RuntimeError("Give `colors` or `preset`.")
+    pfx_names = {}
+    if "peripheral_effects" not in args and ui.get("pfx"):   # keep per-device effects the user set
+        devs = {str(d["id"]): d["name"] for d in st.get("devices", [])}
+        pfx_names = {devs[k]: v for k, v in ui["pfx"].items() if k in devs}
+    profile = {"name": args.get("name") or "AI look", "colors": colors,
+               "brightness": int(args.get("brightness", last.get("brightness", 100))),
+               "mode": args.get("mode", last.get("mode", "gradiente")),
+               "effect": args.get("effect", ui.get("effect", "static")),
+               "speed": int(args.get("speed", ui.get("speed", 3))),
+               "direction": args.get("direction", ui.get("dir", "direita")),
+               "peripheral_effects": args.get("peripheral_effects", pfx_names),
+               "links": ui.get("links") or {}}
+    res = _call("/api/claude", profile)
+    bad = [r["device"] for r in res.get("report", []) if not r.get("ok")]
+    return {"applied": profile["name"], "colors": colors, "effect": profile["effect"],
+            "peripheral_effects": profile["peripheral_effects"], "failed_devices": bad}
+
+
+def tool_brightness(args):
+    _call("/api/quick", {"action": "brightness", "value": int(args["percent"])})
+    return {"brightness": int(args["percent"])}
+
+
+def tool_lights(args):
+    if args.get("on"):
+        L = (_call("/api/state").get("last") or {})
+        if not L.get("palette"):
+            raise RuntimeError("No saved look yet: apply one first.")
+        ui = L.get("ui") or {}
+        _call("/api/effect", {"on": True, "persist": True, "colors": L["palette"], "brightness": L.get("brightness", 100),
+                              "mode": L.get("mode", "gradiente"), "devices": L.get("devices"),
+                              "overrides": L.get("overrides", {}), "groups": L.get("groups", []), "hw": L.get("hw", {}),
+                              "kind": ui.get("effect", "static"), "speed": ui.get("speed", 3), "ui": ui})
+        return {"lights": "on"}
+    _call("/api/off", {})
+    return {"lights": "off"}
+
+
+HANDLERS = {"easyrgb_status": tool_status, "easyrgb_apply_look": tool_apply,
+            "easyrgb_brightness": tool_brightness, "easyrgb_lights": tool_lights}
+
+
+# ---------------------------------------------------------------- MCP (JSON-RPC over stdio)
+def handle(msg):
+    method, mid = msg.get("method"), msg.get("id")
+    if mid is None:   # notification (e.g. notifications/initialized): no reply
+        return None
+    if method == "initialize":
+        ver = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL
+        return {"jsonrpc": "2.0", "id": mid, "result": {
+            "protocolVersion": ver, "capabilities": {"tools": {"listChanged": False}},
+            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.1.0"},
+            "instructions": INSTRUCTIONS}}
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": mid, "result": {}}
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": mid, "result": {"tools": TOOLS}}
+    if method == "tools/call":
+        p = msg.get("params") or {}
+        fn = HANDLERS.get(p.get("name"))
+        if not fn:
+            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": f"Unknown tool {p.get('name')}"}}
+        try:
+            ensure_app()
+            out = fn(dict(p.get("arguments") or {}))
+            return {"jsonrpc": "2.0", "id": mid, "result": {
+                "content": [{"type": "text", "text": json.dumps(out, ensure_ascii=False)}], "isError": False}}
+        except Exception as e:
+            return {"jsonrpc": "2.0", "id": mid, "result": {
+                "content": [{"type": "text", "text": f"EasyRGB: {e}"}], "isError": True}}
+    return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+
+def serve(inp=None, out=None):
+    inp = inp or sys.stdin
+    out = out or sys.stdout
+    for line in inp:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            msg = json.loads(line)
+        except ValueError:
+            reply = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+        else:
+            reply = handle(msg)
+        if reply is not None:
+            out.write(json.dumps(reply, ensure_ascii=False) + "\n")
+            out.flush()
+
+
+# ---------------------------------------------------------------- install into AI apps
+def claude_desktop_config():
+    import os
+    return Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json"
+
+
+def server_command():
+    """Command an AI app runs to start this server."""
+    if FROZEN:
+        return {"command": sys.executable, "args": ["--mcp"]}
+    exe = Path(sys.executable)
+    py = exe.with_name("python.exe") if exe.name.lower() == "pythonw.exe" else exe
+    return {"command": str(py), "args": [str(SRC / "mcp_server.py")]}
+
+
+def install_claude_desktop():
+    """Add EasyRGB to Claude Desktop's MCP servers (keeps everything else in the file)."""
+    cfg = claude_desktop_config()
+    data = {}
+    if cfg.exists():
+        data = json.loads(cfg.read_text(encoding="utf-8") or "{}")
+    data.setdefault("mcpServers", {})["easyrgb"] = server_command()
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return cfg
+
+
+if __name__ == "__main__":
+    if "--install-claude-desktop" in sys.argv:
+        print("OK:", install_claude_desktop(), "- restart Claude Desktop.")
+    else:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdin.reconfigure(encoding="utf-8")
+        serve()
