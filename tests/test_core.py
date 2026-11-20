@@ -457,6 +457,26 @@ class TestMcpServer(unittest.TestCase):
         self.assertTrue(r["isError"])
         self.assertIn("Preset not found", r["content"][0]["text"])
 
+    def test_install_into_claude_desktop_keeps_other_servers(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            roaming, local = tmp / "Roaming", tmp / "Local"
+            store = local / "Packages" / "Claude_abc" / "LocalCache" / "Roaming" / "Claude"
+            store.mkdir(parents=True)
+            (roaming / "Claude").mkdir(parents=True)
+            (roaming / "Claude" / "claude_desktop_config.json").write_text(
+                json.dumps({"mcpServers": {"outro": {"command": "x"}}, "theme": "dark"}), encoding="utf-8")
+            with mock.patch.dict(os.environ, {"APPDATA": str(roaming), "LOCALAPPDATA": str(local)}):
+                files = self.m.install_claude_desktop()
+            self.assertEqual(len(files), 2)   # instalador normal + versão da Microsoft Store
+            a = json.loads((roaming / "Claude" / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            self.assertEqual(set(a["mcpServers"]), {"outro", "easyrgb"})
+            self.assertEqual(a["theme"], "dark")
+            b = json.loads((store / "claude_desktop_config.json").read_text(encoding="utf-8"))
+            self.assertIn("--mcp" if self.m.FROZEN else "mcp_server.py", json.dumps(b["mcpServers"]["easyrgb"]))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_stdio_loop(self):
         import io
         inp = io.StringIO('{"jsonrpc":"2.0","id":7,"method":"ping"}' + "\n" + "not json" + "\n")
@@ -823,6 +843,18 @@ class TestVendors(TempFiles):
         self.assertEqual(len(devs[4].zones), 2)
         rc.save_pc({"vendors": {"logitech": {"enabled": False}}})
         self.assertEqual(len(rc.all_devices(c)), 4)
+
+    @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
+    def test_lights_off_goes_through_ghub(self):
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 2)], [FakeMode("Direct", 32, 1)])
+        kb.leds = [Led("Key: A"), Led("Key: S")]
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        c = FakeClient([kb])
+        with mock.patch.object(rc, "client", return_value=c):
+            rc.all_devices(c)
+            rc.turn_off()
+        self.assertEqual(self.br.keys[-1][1], [(0, 0, 0), (0, 0, 0)])
+        self.assertNotIn(("off",), kb.calls)   # o OpenRGB não mexeu no teclado
 
     def test_repaints_when_ghub_opens_after_easyrgb(self):
         """Ao ligar o PC o G HUB abre depois: o EasyRGB conecta de novo e repinta o visual salvo."""

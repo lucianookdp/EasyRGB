@@ -1478,6 +1478,7 @@ $("#importCode").onkeydown=e=>{ if(e.key==="Enter") run(null,importCode); };
 /* ===================== estado do servidor ===================== */
 async function loadState(useLast){
   const s=await api("/api/state");
+  if(s.version) document.querySelector(".ver").textContent="v"+s.version.split(".").slice(0,2).join(".");
   S.connected=s.connected; S.devices=s.devices||[]; S.palettes=s.palettes||{}; S.userPresets=s.user_presets||[]; S.conflicts=s.conflicts||[];
   $("#status").classList.toggle("on",s.connected);
   $("#stxt").textContent=s.connected?`OpenRGB · ${plural(S.devices.length,"dispositivo","dispositivos")}`:"Desconectado";

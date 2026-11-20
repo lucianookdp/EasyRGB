@@ -35,8 +35,24 @@ def main():
         run(sys.executable, "-m", "venv", VENV)
     run(PY, "-m", "pip", "install", "--disable-pip-version-check", "-q", "--upgrade", *REQS)
     sep = ";"
+    # versão e descrição que aparecem em Propriedades > Detalhes do EasyRGB.exe
+    ver = next(l.split('"')[1] for l in (APP / "rgb_controller.py").read_text(encoding="utf-8").splitlines()
+               if l.startswith("VERSION = "))
+    nums = tuple(int(x) for x in (ver.split(".") + ["0", "0", "0"])[:4])
+    BUILD.mkdir(exist_ok=True)
+    vfile = BUILD / "version.txt"
+    vfile.write_text(f"""VSVersionInfo(
+  ffi=FixedFileInfo(filevers={nums}, prodvers={nums}, mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[StringFileInfo([StringTable('040904B0', [
+    StringStruct('CompanyName', 'EasyRGB (open source)'),
+    StringStruct('FileDescription', 'EasyRGB - RGB controller set up by AI'),
+    StringStruct('FileVersion', '{ver}'), StringStruct('InternalName', 'EasyRGB'),
+    StringStruct('LegalCopyright', 'MIT license'), StringStruct('OriginalFilename', 'EasyRGB.exe'),
+    StringStruct('ProductName', 'EasyRGB'), StringStruct('ProductVersion', '{ver}')])]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])])
+""", encoding="utf-8")
     args = [PY, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowed", "--name", "EasyRGB",
-            "--icon", APP / "icon.ico", "--distpath", DIST, "--workpath", BUILD / "pyi", "--specpath", BUILD,
+            "--icon", APP / "icon.ico", "--version-file", vfile, "--distpath", DIST, "--workpath", BUILD / "pyi", "--specpath", BUILD,
             "--paths", APP, "--hidden-import", "pystray._win32", "--hidden-import", "mcp_server",
             "--hidden-import", "vendors", "--collect-submodules", "comtypes", "--collect-submodules", "pycaw"]
     for r in RESOURCES:

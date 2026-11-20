@@ -486,6 +486,10 @@ def turn_off():
     with _lock:
         for dev in all_devices(c):
             try:
+                vb = vendor_route(dev)
+                if vb:   # teclado pintado pelo G HUB: apaga por ele, sem brigar
+                    vb.paint_keys([getattr(l, "name", "") for l in dev.leds], [(0, 0, 0)] * len(dev.leds))
+                    continue
                 dev.off()
             except Exception:
                 pass
@@ -1724,7 +1728,7 @@ class Handler(BaseHTTPRequestHandler):
                                         "effect_kind": _effect.get("kind") if _effect["on"] else "static"})
             if self.path == "/api/mcp":   # botão "Usar no Claude Desktop"
                 import mcp_server
-                return self._send(200, {"ok": True, "file": str(mcp_server.install_claude_desktop())})
+                return self._send(200, {"ok": True, "files": [str(f) for f in mcp_server.install_claude_desktop()]})
             if self.path == "/api/preset":
                 name = (body.get("name") or "").strip()
                 if body.get("delete"):
@@ -1799,7 +1803,7 @@ def cli(argv):
     cmd = argv[0]
     if cmd == "mcp-claude-desktop":   # liga o EasyRGB ao Claude Desktop (controle das luzes pelo chat)
         import mcp_server
-        print("OK:", mcp_server.install_claude_desktop(), "- reinicie o Claude Desktop.")
+        print("OK:", ", ".join(map(str, mcp_server.install_claude_desktop())), "- reinicie o Claude Desktop.")
         return
     if cmd == "autoteste":   # confere se tudo que o app precisa carrega (usado no build do .exe)
         res = {"frozen": FROZEN, "python": sys.version.split()[0]}

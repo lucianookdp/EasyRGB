@@ -34,6 +34,10 @@
    (it installs official OpenRGB and the signed PawnIO driver).
 3. Pick your colors in the app. Done.
 
+> [!TIP]
+> EasyRGB.exe isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"*.
+> Click **More info → Run anyway**. The exe is built in the open by [GitHub Actions](../../actions) from this source.
+
 Want AI to set it up for you, or to change the lights by chatting? See below.
 
 ## Control your lights from an AI chat (MCP)

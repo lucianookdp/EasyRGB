@@ -226,9 +226,16 @@ def serve(inp=None, out=None):
 
 
 # ---------------------------------------------------------------- install into AI apps
-def claude_desktop_config():
+def claude_desktop_configs():
+    """Onde o Claude Desktop lê a configuração: %APPDATA%\Claude (instalador normal) e, na versão da
+    Microsoft Store, a pasta virtual do pacote em %LOCALAPPDATA%\Packages\Claude_*."""
     import os
-    return Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json"
+    paths = [Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json"]
+    pkgs = Path(os.environ.get("LOCALAPPDATA", "")) / "Packages"
+    if pkgs.exists():
+        for d in pkgs.glob("Claude_*"):
+            paths.append(d / "LocalCache" / "Roaming" / "Claude" / "claude_desktop_config.json")
+    return paths
 
 
 def server_command():
@@ -241,20 +248,25 @@ def server_command():
 
 
 def install_claude_desktop():
-    """Add EasyRGB to Claude Desktop's MCP servers (keeps everything else in the file)."""
-    cfg = claude_desktop_config()
-    data = {}
-    if cfg.exists():
-        data = json.loads(cfg.read_text(encoding="utf-8") or "{}")
-    data.setdefault("mcpServers", {})["easyrgb"] = server_command()
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    return cfg
+    """Add EasyRGB to Claude Desktop's MCP servers (keeps everything else in the file). Returns the files written."""
+    done = []
+    for cfg in claude_desktop_configs():
+        data = {}
+        if cfg.exists():
+            try:
+                data = json.loads(cfg.read_text(encoding="utf-8") or "{}")
+            except ValueError:
+                continue   # arquivo com erro de digitação: não sobrescreve o que a pessoa escreveu
+        data.setdefault("mcpServers", {})["easyrgb"] = server_command()
+        cfg.parent.mkdir(parents=True, exist_ok=True)
+        cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        done.append(cfg)
+    return done
 
 
 if __name__ == "__main__":
     if "--install-claude-desktop" in sys.argv:
-        print("OK:", install_claude_desktop(), "- restart Claude Desktop.")
+        print("OK:", ", ".join(map(str, install_claude_desktop())), "- restart Claude Desktop.")
     else:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stdin.reconfigure(encoding="utf-8")
