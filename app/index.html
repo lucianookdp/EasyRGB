@@ -1225,7 +1225,7 @@ const MODE={gradiente:"Gradiente",alternado:"Alternado",zona:"Por zona"};
 const FXNAME={fluir:"Fluir",respirar:"Respirar",ciclo:"Ciclo de cores",arcoiris:"Arco-íris",musica:"Música",onda:"Onda de cores",estrelas:"Estrelas",tela:"Cor da tela",teclas:"Reação às teclas"};
 /* o mesmo prompt fica no COMECE-AQUI.txt e no README */
 const SETUP_PROMPT = LANG==="pt" ? `Configure o EasyRGB no meu PC seguindo o AGENTS.md desta pasta. Faça tudo sozinho e rápido (eu aceito o pedido de administrador do Windows). Só me pergunte o estilo de cores que eu curto. No fim, abra o app e me diga em poucas linhas o que ficou. O efeito eu escolho depois, no app.`
-: `Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Talk to me in English.`;
+: `Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Answer in my language (if unsure, use my Windows language).`;
 async function copyPromptQuick(){
   try{ await navigator.clipboard.writeText(SETUP_PROMPT); }
   catch{ const ta=document.createElement("textarea"); ta.value=SETUP_PROMPT; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }

@@ -1,5 +1,5 @@
 @AGENTS.md
 
-## Só no Claude Code
+## Claude Code only
 
-- Com sandbox ativo, rode o comando `ia` com `dangerouslyDisableSandbox: true`: o sandbox não enxerga a porta do app nem os arquivos reais.
+- With the sandbox on, run the `ia` command with `dangerouslyDisableSandbox: true`: the sandbox cannot reach the app port or the real files.

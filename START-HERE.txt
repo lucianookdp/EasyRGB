@@ -14,8 +14,8 @@ O EasyRGB e um template: um agente de IA instala e adapta tudo ao SEU PC antes d
 Windows will ask for administrator permission once: click "Yes".
 O Windows vai pedir permissao de administrador uma vez: clique em "Sim".
 
--------------------- ENGLISH PROMPT (copy everything below) --------------------
-Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Talk to me in English.
+------------- ENGLISH PROMPT / any language (copy everything below) -------------
+Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Answer in my language (if unsure, use my Windows language).
 ------------------------------------ end ----------------------------------------
 
 ------------------- PROMPT EM PORTUGUES (copie tudo abaixo) -------------------

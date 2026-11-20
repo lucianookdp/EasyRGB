@@ -36,7 +36,7 @@ EasyRGB is a **template**: an AI agent installs it and adapts it to *your* PC (d
 3. Paste this prompt. The agent installs and sets up everything by itself and asks only which colors you like (Windows asks for administrator permission once: click **Yes**):
 
 ```text
-Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Talk to me in English.
+Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Answer in my language (if unsure, use my Windows language).
 ```
 
 4. Done: the app opens with your look applied. Pick effects there (computer and each peripheral), or just ask the agent for a new look.

@@ -1,98 +1,108 @@
-# EasyRGB: instruções para agentes de IA
+# EasyRGB: instructions for AI agents
 
-Vale para qualquer agente que rode comandos no PC do usuário (Claude Code, Codex, Gemini CLI, Cursor, Copilot...).
-A ideia do EasyRGB é que **tudo que der para automatizar, o agente faz**: identificar o hardware, configurar e criar os visuais.
+For any agent that runs commands on the user's PC (Claude Code, Codex, Gemini CLI, Cursor, Copilot...).
+The idea behind EasyRGB: **anything that can be automated, the agent does**: identify the hardware, configure it and
+create the looks.
 
-EasyRGB é um controlador RGB por paletas em cima do OpenRGB 1.1 (servidor SDK na porta 6742, roda como admin, driver PawnIO).
-App em `app/rgb_controller.py` (servidor local + CLI), interface em `app/index.html` (http://127.0.0.1:6750), aberto pelo `EasyRGB.bat`.
-Todos os comandos abaixo rodam dentro da pasta `app/`.
+**Language:** always talk to the person in **their** language: the language of their message, or the Windows display
+language if unclear. This file is in English so it works for everyone; never answer in English just because of it.
+Translate preset and device names when it helps (e.g. "Placa-mãe" / "Motherboard").
 
-## 0. Configuração rápida (o prompt do `START-HERE.txt`, do README e do botão no app)
+EasyRGB is a palette-based RGB controller on top of OpenRGB 1.1 (SDK server on port 6742, runs as admin, PawnIO driver).
+App in `app/rgb_controller.py` (local server + CLI), UI in `app/index.html` (http://127.0.0.1:6750), opened by
+`EasyRGB.bat`. The UI follows the system language (English or Portuguese; `?lang=en|pt` forces one).
+All commands below run inside the `app/` folder. CLI command names are Portuguese (`detectar`, `configurar`, `ia`...).
 
-O EasyRGB é um **template quase pronto**: a pessoa baixa a pasta, abre você nela e cola o prompt, muitas vezes antes
-de abrir o app. Ela pode ser leiga. **Configure tudo sozinho, rápido e falando pouco**, no idioma dela.
-Só pare para o que está marcado como *pergunte*. O efeito ela escolhe depois, no app.
+## 0. Quick setup (the prompt from `START-HERE.txt`, the README and the app's AI button)
 
-1. **Instale o que faltar** (só avise que o Windows vai pedir administrador uma vez):
-   - Sem Python 3: *pergunte* e instale (`winget install -e --id Python.Python.3.13`).
-   - Sem `configurado.ok` na raiz, ou `detectar` dizendo que falta OpenRGB/driver: rode
-     `powershell -NoProfile -ExecutionPolicy Bypass -File "1-Configurar (admin).ps1"` na raiz. Ele espera terminar e
-     instala o OpenRGB oficial, as bibliotecas (`app/lib/pyXY`, reinstaladas sozinhas se o Python mudar) e o driver
-     PawnIO, e desliga o ASRock Polychrome (reversível).
-   - Abra o OpenRGB: `python rgb_controller.py conectar` (dentro de `app/`).
-2. **Detecte e salve o perfil do PC sem perguntar**: rode `detectar` e depois `configurar` (seção 1) com:
-   - `nicknames` amigáveis com a marca quando ajudar (ex.: "Placa-mãe", "Memória RAM", "Teclado Logitech G PRO");
-   - `links`: `{"DRAM": "mirror"}` quando houver 2 ou mais RAMs;
-   - `vendors` só se precisar mudar o padrão (a ponte com o G HUB já liga sozinha; periférico sem RGB não precisa de nada);
-   - `notes`: 1 a 3 frases do que achou.
-   - Programa de fabricante brigando pelo mesmo hardware (ex.: Armoury Crate numa placa ASUS): *pergunte* antes de
-     desligar a inicialização dele (de forma reversível; nunca desinstale). O Logitech G HUB não é conflito.
-3. **Pergunte só uma coisa: o estilo.** Dê 4 a 6 opções curtas de `app/palettes.json` (ex.: GTA VI, Cyberpunk 2077,
-   Synthwave, Aurora), mais "um jogo que eu curto" e "minhas cores".
-4. **Aplique com `ia`**: a paleta escolhida em todos os dispositivos, `"effect": "static"` e RAMs iguais.
-   Não pergunte sobre efeitos, modo jogo nem modo noite: isso fica no app.
-5. Se algum dispositivo tiver `persist: "none"` (perde a cor ao desligar), ligue `iniciar-com-windows sim`:
-   faz parte da configuração que a pessoa pediu.
-6. **Abra o app** (`Start-Process EasyRGB.bat` na raiz) e responda em 3 ou 4 linhas: o que encontrou, o visual
-   aplicado, que os efeitos (Computador e cada periférico), o modo jogo e o modo noite ficam no app, e que é só pedir
-   novos visuais aqui.
+EasyRGB is an **almost-ready template**: the person downloads the folder, opens you in it and pastes the prompt, often
+before opening the app. They may not be technical. **Set up everything yourself, quickly, saying little.**
+Only stop for steps marked *ask*. They pick the effect later, in the app.
 
-### O que cada dispositivo guarda sozinho (`persist` em `detectar`)
+1. **Install what is missing** (just warn that Windows will ask for administrator permission once):
+   - No Python 3: *ask*, then install it (`winget install -e --id Python.Python.3.13`).
+   - No `configurado.ok` in the root, or `detectar` says OpenRGB/driver are missing: run
+     `powershell -NoProfile -ExecutionPolicy Bypass -File "1-Configurar (admin).ps1"` in the root. It waits until done
+     and installs official OpenRGB, the libraries (`app/lib/pyXY`, reinstalled automatically if the Python version
+     changes) and the PawnIO driver, and disables ASRock Polychrome at startup (reversible).
+   - Start OpenRGB: `python rgb_controller.py conectar` (inside `app/`).
+2. **Detect and save the PC profile without asking**: run `detectar`, then `configurar` (section 1) with:
+   - friendly `nicknames` in the person's language, with the brand when it helps (e.g. "Motherboard",
+     "Memory", "Logitech G PRO keyboard");
+   - `links`: `{"DRAM": "mirror"}` when there are 2 or more RAM sticks;
+   - `vendors` only to change the default (the Logitech G HUB bridge turns on by itself; peripherals without RGB need nothing);
+   - `notes`: 1 to 3 sentences about what you found.
+   - A vendor app fighting over the same hardware (e.g. Armoury Crate on an ASUS board): *ask* before disabling its
+     startup (reversibly; never uninstall anything). Logitech G HUB is not a conflict.
+3. **Ask only one thing: the style.** Offer 4 to 6 short options from `app/palettes.json` (e.g. GTA VI, Cyberpunk 2077,
+   Synthwave, Aurora), plus "a game I like" and "my own colors".
+4. **Apply with `ia`**: the chosen palette on every device, `"effect": "static"`, RAM sticks mirrored.
+   Don't ask about effects, game mode or night mode: those live in the app.
+5. If any device has `persist: "none"` (loses its color when the PC turns off), run `iniciar-com-windows sim`:
+   it is part of the setup the person asked for.
+6. **Open the app** (`Start-Process EasyRGB.bat` in the root) and reply in 3 or 4 lines: what you found, the look you
+   applied, that effects (Computer and each peripheral), game mode and night mode are in the app, and that they can ask
+   you for new looks anytime.
 
-- `auto`: o chip guarda a cor ao desligar o PC (ex.: placas ASRock).
-- `manual`: guarda só uma cor fixa, com `save: true` / botão "Gravar na placa" (ex.: alguns teclados).
-- `none`: perde a cor ao desligar (ex.: RAMs ENE). Para esses, recomende "restaurar cores ao ligar o PC".
+### What each device keeps by itself (`persist` in `detectar`)
 
-"Restaurar ao ligar o PC" é leve: ao ligar, devolve as cores e **fecha tudo sozinho** (OpenRGB incluído). Só fica aberto
-em segundo plano (~30 MB do EasyRGB + ~60 MB do OpenRGB) se houver modo jogo, horários ou efeito animado do app.
+- `auto`: the chip keeps its color when the PC turns off (e.g. ASRock boards).
+- `manual`: keeps only one fixed color, with `save: true` / the "Save to board" button (e.g. some keyboards).
+- `none`: loses its color when the PC turns off (e.g. ENE RAM). For these, turn on "restore colors on PC start".
+- `vendor`: painted on top of the maker's app (e.g. G HUB); that app goes back to its own profile if EasyRGB closes.
 
-## 1. Configurar o PC (faça na primeira conversa, ou quando o usuário pedir)
+"Restore on PC start" is light: at startup it brings the colors back and **closes everything by itself** (OpenRGB
+included). It only stays in the background (~30 MB EasyRGB + ~60 MB OpenRGB) when there is game mode, schedules, an
+animated effect or a vendor bridge. It runs through Windows' `pyw.exe`, so Python updates don't break it.
 
-1. **Detecte o hardware**: `python rgb_controller.py detectar`. Sai um JSON com placa-mãe, BIOS, CPU, RAM, GPU,
-   periféricos USB, dispositivos que o OpenRGB enxerga (zonas, LEDs e efeitos nativos de cada um),
-   softwares RGB de fabricante instalados ou rodando e `next_steps` com o que falta.
-2. **Resolva o que faltar**, explicando ao usuário em linguagem simples:
-   - `openrgb_installed` / `pawnio_driver` falsos: peça para ele abrir o `EasyRGB.bat` (instala tudo, pede admin uma vez).
-   - `openrgb_running` falso: rode `python rgb_controller.py conectar`.
-   - `rgb_software_conflicts` com `running: true`: só é problema se esse programa controla os mesmos dispositivos que o
-     OpenRGB (ex.: Armoury Crate numa placa ASUS). Explique e **pergunte antes** de desativar a inicialização dele.
-     Desative de forma reversível (tarefa agendada ou serviço em modo manual). Nunca desinstale nada.
-   - Placa ou RAM com RGB que não aparece em `openrgb_devices`: confira https://openrgb.org/devices.html, se o OpenRGB
-     está como admin e se o RGB não está desligado na BIOS. Conte ao usuário o que encontrou.
-3. **Salve o perfil do PC** com o que você descobriu. O app mostra "Configurado por IA" e usa os apelidos:
+## 1. Configure the PC (first conversation, or when the user asks)
+
+1. **Detect the hardware**: `python rgb_controller.py detectar`. Outputs JSON with motherboard, BIOS, CPU, RAM, GPU,
+   USB peripherals, the devices OpenRGB sees (zones, LEDs and native effects of each), vendor RGB apps installed or
+   running, `vendor_bridges` and `next_steps` with what is missing.
+2. **Fix what is missing**, explaining in plain words:
+   - `openrgb_installed` / `pawnio_driver` false: run the installer (section 0) or ask them to open `EasyRGB.bat`.
+   - `openrgb_running` false: run `python rgb_controller.py conectar`.
+   - `rgb_software_conflicts` with `running: true`: only a problem if that app controls the same devices as OpenRGB
+     (e.g. Armoury Crate on an ASUS board). Explain and **ask before** disabling its startup. Disable it reversibly
+     (scheduled task or service set to manual). Never uninstall anything.
+   - A board or RAM with RGB that doesn't show in `openrgb_devices`: check https://openrgb.org/devices.html, whether
+     OpenRGB runs as admin and whether RGB is disabled in the BIOS. Tell the user what you found.
+3. **Save the PC profile** with what you found. The app shows "Set up by AI" and uses the nicknames:
    ```bash
    python rgb_controller.py configurar - <<'EOF'
-   {"agent": "Nome do agente",
-    "summary": "ASRock X570 Phantom Gaming 4, 2 RAMs ENE com RGB, teclado RGB",
+   {"agent": "Agent name",
+    "summary": "ASRock X570 Phantom Gaming 4, 2 ENE RGB RAM sticks, RGB keyboard",
     "motherboard": "ASRock X570 Phantom Gaming 4",
-    "nicknames": {"0": "Placa-mãe", "3": "Teclado"},
-    "links": {"DRAM": "span"},
-    "notes": ["Logitech G HUB controla só o mouse; não conflita."]}
+    "nicknames": {"0": "Motherboard", "3": "Keyboard"},
+    "links": {"DRAM": "mirror"},
+    "notes": ["The Logitech keyboard is painted through G HUB, no conflict."]}
    EOF
    ```
-   - `nicknames`: id do dispositivo (de `detectar`) -> nome amigável.
-   - `links`: padrão de agrupamento por tipo (`DRAM`, `GPU`...): `separate`, `mirror` (iguais) ou `span` (contínuas).
-   - `vendors` (opcional): periféricos pintados **por cima do programa do fabricante**, sem desativá-lo. Veja
-     `vendor_bridges` em `detectar`: cada PC é diferente, então só configure o que existe nele.
-     Ex.: `"vendors": {"logitech": {"devices": [{"type": "mouse", "zones": 2, "name": "G502"}]}}`.
-     `type`: `mouse`, `keyboard`, `headset`, `mousemat`, `speaker` ou `all` (todas as luzes da marca numa cor só,
-     o padrão). `zones` = quantas áreas de luz o aparelho tem. `{"enabled": false}` desliga a ponte.
-     Para a Logitech, peça para ligar no G HUB a opção que permite jogos e aplicativos controlarem a iluminação.
-     Teclados Logitech que o OpenRGB enxerga são pintados tecla por tecla pelo G HUB automaticamente.
-     Hoje existe ponte para **Logitech G HUB**; para outras marcas, use o OpenRGB e avise sobre o conflito.
-4. **Aplique um primeiro visual** (na configuração rápida, com a paleta que a pessoa escolheu).
+   - `nicknames`: device id (from `detectar`) -> friendly name.
+   - `links`: default grouping per type (`DRAM`, `GPU`...): `separate`, `mirror` (same colors) or `span` (one continuous gradient).
+   - `vendors` (optional): peripherals painted **on top of the maker's app**, without disabling it. See
+     `vendor_bridges` in `detectar`: every PC is different, so only configure what exists on it.
+     E.g. `"vendors": {"logitech": {"devices": [{"type": "mouse", "zones": 2, "name": "G502"}]}}`.
+     `type`: `mouse`, `keyboard`, `headset`, `mousemat`, `speaker` or `all` (all of the brand's lights in one color,
+     the default). `zones` = how many light areas the device has. `{"enabled": false}` turns the bridge off.
+     For Logitech, ask them to turn on the G HUB option that lets games and apps control the lighting.
+     Logitech keyboards that OpenRGB sees are painted key by key through G HUB automatically.
+     Today there is a bridge for **Logitech G HUB**; for other brands use OpenRGB and mention the conflict.
+4. **Apply a first look** (in quick setup, the palette the person picked).
 
-## 2. Criar visuais: o usuário descreve um clima e você aplica
+## 2. Create looks: the user describes a mood and you apply it
 
-Monte um perfil e aplique direto, sem perguntar:
+Build a profile and apply it right away, without asking:
 
 ```bash
 python rgb_controller.py ia - <<'EOF'
-{"name": "Nome curto", "description": "Uma frase sobre o visual",
+{"name": "Short name", "description": "One sentence about the look",
  "colors": ["#FF2E88", "#9B3DFF", "#00D9C8"],
  "mode": "gradiente",
  "brightness": 100,
  "effect": "static", "speed": 3,
+ "peripheral_effects": {"teclado": "onda"},
  "zones": [{"device": "teclado", "color": "#FFFFFF"},
            {"device": "placa", "zone": "IO Cover", "color": "#FF0000"}],
  "hw": [{"device": "ram", "mode": "Chase", "speed": 60}],
@@ -102,35 +112,36 @@ python rgb_controller.py ia - <<'EOF'
 EOF
 ```
 
-No PowerShell, salve o JSON num arquivo e rode `python rgb_controller.py ia perfil.json`.
+In PowerShell, save the JSON to a file and run `python rgb_controller.py ia look.json`.
 
-- `mode`: `gradiente`, `alternado` ou `zona` (uma cor da paleta por zona).
-- `effect`: efeito animado pelo app, em todos os dispositivos: `static`, `fluir`, `respirar`, `ciclo`, `arcoiris`,
-  `musica` (reage ao som do PC), `onda` (onda de cores com a paleta; `"direction"`: `direita`, `esquerda`,
-  `baixo`, `cima`, `centro` ou `dentro`), `estrelas` (LEDs piscam como estrelas), `tela` (copia as cores da tela)
-  ou `teclas` (cada tecla apertada solta um anel de cor). No teclado esses efeitos seguem a posição real das teclas.
-- `peripheral_effects` (opcional): efeito próprio de um periférico, separado do computador. Ex.:
-  `"effect": "static", "peripheral_effects": {"teclado": "onda"}` deixa placa e RAMs paradas e só o teclado em onda.
-  `estrelas`, `tela` e `teclas` são feitos para teclado; use-os aqui em vez de no `effect` do PC inteiro.
-  `speed` vai de 1 a 10. Só roda enquanto o EasyRGB está aberto.
-- `hw`: efeito **nativo do chip** de um dispositivo (nomes exatos vêm de `detectar` ou `listar`, ex.: `Breathing`,
-  `Chase`, `Rainbow`). `speed` de 0 a 100. Roda sozinho, mesmo com o app fechado. Efeitos com `colors: "led"` ou
-  `"mode"` usam as cores da paleta; `"none"` usam as cores próprias do chip.
-- `device` aceita `placa`, `ram`, `teclado`, `mouse`, `gpu`, o id (`0`..) ou parte do nome. `zone` é opcional.
-- `links`: agrupa dispositivos do mesmo tipo. `separate`, `mirror` (iguais) ou `span` (gradiente contínuo).
-- `exclude`: dispositivos que ficam de fora.
-- `save: true` grava na memória da placa e das RAMs (continua depois de reiniciar). Use só quando o usuário quiser fixar.
-- O perfil aparece no card "Cores com IA" da interface, com histórico, e a tela atualiza sozinha.
-- Prefira cores vivas e saturadas: cinza e tons escuros ficam feios em LED.
-- Presets prontos (jogos e clássicos) ficam em `app/palettes.json`; dá para usar como ponto de partida.
+- `mode`: `gradiente` (gradient), `alternado` (alternating) or `zona` (one palette color per zone).
+- `effect`: app-driven animated effect for the computer: `static`, `fluir` (flow), `respirar` (breathe),
+  `ciclo` (color cycle), `arcoiris` (rainbow), `musica` (reacts to PC audio), `onda` (color wave with the palette;
+  `"direction"`: `direita`, `esquerda`, `baixo`, `cima`, `centro` or `dentro`), `estrelas` (starlight),
+  `tela` (copies screen colors) or `teclas` (each key press sends out a ring of color).
+  On keyboards these follow the real key positions. `speed` goes from 1 to 10. Runs only while EasyRGB is open.
+- `peripheral_effects` (optional): a peripheral's own effect, separate from the computer. E.g.
+  `"effect": "static", "peripheral_effects": {"teclado": "onda"}` keeps board and RAM still and only the keyboard waves.
+  `estrelas`, `tela` and `teclas` are made for keyboards; use them here rather than in the computer's `effect`.
+- `hw`: the **chip's native effect** on a device (exact names come from `detectar` or `listar`, e.g. `Breathing`,
+  `Chase`, `Rainbow`). `speed` from 0 to 100. Runs by itself, even with the app closed. Effects with `colors: "led"`
+  or `"mode"` use the palette; `"none"` use the chip's own colors. Not offered for devices painted through G HUB.
+- `device` accepts `placa` (motherboard), `ram`, `teclado` (keyboard), `mouse`, `gpu`, the id (`0`..) or part of the name.
+  `zone` is optional.
+- `links`: groups devices of the same type: `separate`, `mirror` or `span`.
+- `exclude`: devices left out.
+- `save: true` writes to the board/RAM memory (survives reboots). Only when the user wants to lock it in.
+- The look shows in the app's AI area with history, and the page updates by itself.
+- Prefer vivid, saturated colors: grays and dark tones look bad on LEDs.
+- Ready-made presets (games and classics) are in `app/palettes.json`; use them as a starting point.
 
-## 3. Automação: jogos, horários e iniciar com o Windows
+## 3. Automation: games, schedules and start with Windows
 
-Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" ou "à noite diminui o brilho":
+When the user asks for something like "when I open Valorant, make it red" or "dim the lights at night":
 
-1. `python rgb_controller.py jogos` lista os jogos conhecidos instalados (Steam, Epic, Riot, Xbox) e o preset sugerido.
-2. `python rgb_controller.py automacao` mostra as regras atuais. Para salvar, **leia as atuais e mande a lista completa**
-   (o comando substitui tudo):
+1. `python rgb_controller.py jogos` lists known installed games (Steam, Epic, Riot, Xbox) and the suggested preset.
+2. `python rgb_controller.py automacao` shows the current rules. To save, **read the current ones and send the full list**
+   (the command replaces everything):
    ```bash
    python rgb_controller.py automacao - <<'EOF'
    {"enabled": true,
@@ -141,41 +152,45 @@ Quando o usuário pedir algo como "quando eu abrir o Valorant, deixa vermelho" o
                  {"time": "19:00", "action": "preset", "value": "Synthwave"}]}
    EOF
    ```
-   - `games`: enquanto o executável estiver aberto, usa o preset; ao fechar, volta ao visual do usuário.
-     O preset precisa existir em `app/palettes.json` (crie um antes, se for novo).
-   - `schedule[].action`: `preset` (value = nome), `brightness` (value = %), `off` (apaga) ou `restore` (visual salvo).
-   - Funciona enquanto o EasyRGB está aberto (ou iniciado com o Windows).
-3. `python rgb_controller.py iniciar-com-windows sim` cria uma tarefa no logon que devolve as cores depois de reiniciar e
-   fecha sozinho quando nada precisa ficar rodando (pede admin uma vez). **Pergunte antes**: é uma mudança no sistema.
-   `nao` remove.
+   - `games`: while the executable is open, its preset is used; when it closes, the user's look comes back.
+     The preset must exist in `app/palettes.json` or the user's presets (create it first if new).
+   - `schedule[].action`: `preset` (value = name), `brightness` (value = %), `off` or `restore` (saved look).
+   - Works while EasyRGB is open (or started with Windows).
+3. `python rgb_controller.py iniciar-com-windows sim` creates a logon task that restores colors after a reboot and
+   closes by itself when nothing needs to keep running (asks for admin once). Outside quick setup, **ask first**: it is
+   a system change. `nao` removes it.
 
-## Presets, teclado, atalhos e bandeja
+## Presets, keyboard, shortcuts and tray
 
-- Presets padrão ficam em `app/palettes.json` (não edite). Os do usuário ficam em `app/my_presets.json`
-  (crie pelo app ou escrevendo nesse arquivo: `{"Nome": ["#RRGGBB", ...]}`).
-- Teclado: cor por tecla com chaves `"L<índice>"` em `overrides` (índices e nomes em `led_names` do `detectar`).
-- `automacao` aceita `"hotkeys": true` (atalhos Ctrl+Alt + setas/E/L). O EasyRGB roda sem janela, com ícone na bandeja; erros em `app/easyrgb.log`.
+- Built-in presets live in `app/palettes.json` (don't edit). The user's own live in `app/my_presets.json`
+  (create them in the app or by writing `{"Name": ["#RRGGBB", ...]}` to that file).
+- Keyboard: per-key colors with `"L<index>"` keys in `overrides` (indexes and names in `led_names` from `detectar`).
+- `automacao` accepts `"hotkeys": true` (Ctrl+Alt + arrows/E/L shortcuts). EasyRGB runs without a window, with a tray
+  icon; errors go to `app/easyrgb.log`.
 
-## Outros comandos
+## Other commands
 
-- `python rgb_controller.py listar`: dispositivos, zonas e efeitos do chip.
-- `python rgb_controller.py aplicar <preset ou cores> [--brilho 80] [--modo zona] [--gravar]`
-- `python rgb_controller.py compartilhar` / `importar EASYRGB1-...`: código para trocar visuais entre pessoas.
-- `python rgb_controller.py desligar`
+- `python rgb_controller.py listar`: devices, zones and chip effects.
+- `python rgb_controller.py aplicar <preset or colors> [--brilho 80] [--modo zona] [--gravar]`
+- `python rgb_controller.py compartilhar` / `importar EASYRGB1-...`: share codes to swap looks between people.
+- `python rgb_controller.py bibliotecas`: installs the libraries for the current Python.
+- `python rgb_controller.py desligar`: lights off.
 
-## Testes
+## Tests
 
-- `python -m unittest discover -s tests -v`: lógica de cores, hardware simulado, automação, API, interface e
-  paridade Python x JavaScript (precisa do Node.js para esta última). Rode depois de qualquer mudança.
-- `EASYRGB_HW=1 python -m unittest tests.test_hardware -v`: teste no hardware real (as luzes piscam e voltam no final).
+- `python -m unittest discover -s tests -v`: color logic, simulated hardware, automation, API, UI and Python x
+  JavaScript parity (that one needs Node.js). Run after any change.
+- `EASYRGB_HW=1 python -m unittest tests.test_hardware -v`: test on the real hardware (lights blink and come back).
 
-## Notas para agentes
+## Notes for agents
 
-- Se o agente roda em sandbox, os comandos precisam de acesso à rede local (portas 6742 e 6750) e aos arquivos reais.
-- `detectar` leva alguns segundos (consulta o Windows via PowerShell).
+- If the agent runs in a sandbox, commands need access to the local network (ports 6742 and 6750) and the real files.
+- `detectar` takes a few seconds (it queries Windows through PowerShell).
 
-## Convenções do código
+## Code conventions
 
-- Interface com ícones SVG (estilo Lucide), nunca emojis. Visual sóbrio: fundo zinc escuro, botão primário branco.
-- A lógica de cores existe em dois lugares e precisa ficar igual: `plan_colors` no Python e `plan()` no `index.html`.
-- `.gitignore` deixa de fora o estado de cada PC (`last_state.json`, `claude_color.json`, `pc.json`, `automations.json`).
+- UI uses SVG icons (Lucide style), never emojis. Sober look: dark zinc background, white primary button.
+- Every UI string has an English translation in the `EN` table of `index.html` (tests check it).
+- The color logic exists in two places and must match: `plan_colors` in Python and `plan()` in `index.html`.
+- `.gitignore` leaves out each PC's state (`last_state.json`, `claude_color.json`, `pc.json`, `automations.json`,
+  `my_presets.json`, logs and `app/lib/`).
