@@ -2,8 +2,14 @@
 title EasyRGB
 cd /d "%~dp0"
 
-where python >nul 2>&1
-if errorlevel 1 goto sempython
+rem Python: "pythonw" (no PATH) ou o lancador "pyw" do python.org
+set "PYW=pythonw"
+where pythonw >nul 2>&1
+if errorlevel 1 (
+  where pyw >nul 2>&1
+  if errorlevel 1 goto sempython
+  set "PYW=pyw"
+)
 
 rem Ainda nao configurado pela IA? Mostra o caminho certo antes de seguir.
 if exist "%~dp0app\pc.json" goto instalar
@@ -36,9 +42,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell
 :abrir
 rem Abre escondido (fica no icone ao lado do relogio) e abre a pagina no navegador.
 cd /d "%~dp0app"
-start "" pythonw rgb_controller.py
-timeout /t 4 /nobreak >nul
-powershell -NoProfile -Command "if (-not (Get-NetTCPConnection -State Listen -LocalPort 6750 -ErrorAction SilentlyContinue)) { exit 1 }"
+start "" %PYW% rgb_controller.py
+rem Na primeira vez com um Python novo ele instala as bibliotecas: pode levar ate 1-2 minutos.
+powershell -NoProfile -Command "for($i=0;$i -lt 120;$i++){ if(Get-NetTCPConnection -State Listen -LocalPort 6750 -ErrorAction SilentlyContinue){ exit 0 }; Start-Sleep 1 }; exit 1"
 if not errorlevel 1 exit /b
 echo EasyRGB didn't start. Last log lines: / O EasyRGB nao abriu. Ultimas linhas do log:
 powershell -NoProfile -Command "Get-Content '%~dp0app\easyrgb.log' -Tail 15 -ErrorAction SilentlyContinue"

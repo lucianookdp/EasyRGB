@@ -70,7 +70,7 @@ The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), a
 <summary><b>Manual install, commands and tests</b></summary>
 
 **Requirements:** Windows 10/11, [Python 3](https://www.python.org/downloads/), [OpenRGB-supported](https://openrgb.org/devices.html) hardware.
-Without an agent: run `EasyRGB.bat` and choose *Open anyway*. It installs official OpenRGB 1.1, `openrgb-python` and the signed PawnIO driver, and disables (without deleting) the ASRock Polychrome startup task. Undo with `Voltar para ASRock (admin).ps1`.
+Without an agent: run `EasyRGB.bat` and choose *Open anyway*. It installs official OpenRGB 1.1, the Python libraries (`openrgb-python`, Pillow, pystray, pycaw; reinstalled automatically if your Python version changes) and the signed PawnIO driver, and disables (without deleting) the ASRock Polychrome startup task. Undo with `Voltar para ASRock (admin).ps1`.
 
 ```bash
 cd app
@@ -80,7 +80,7 @@ python rgb_controller.py ia look.json        # apply an AI-made look
 python rgb_controller.py listar              # devices, zones and chip effects
 python rgb_controller.py automacao rules.json
 python rgb_controller.py iniciar-com-windows sim
-python -m unittest discover -s tests -v      # 74 tests, no hardware needed
+python -m unittest discover -s tests -v      # 77 tests, no hardware needed
 ```
 </details>
 

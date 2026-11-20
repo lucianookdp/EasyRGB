@@ -14,6 +14,9 @@ pela primeira vez**. Ela pode ser leiga: fale simples, no idioma dela, e faça v
 
 1. **Instale, se faltar** (do zero, sem a pessoa abrir nada):
    - Sem Python 3: ofereça instalar (`winget install -e --id Python.Python.3.12`) e confirme antes.
+   - Bibliotecas: `python app/rgb_controller.py bibliotecas` instala tudo em `app/lib/pyXY` (uma pasta por versão do
+     Python; o instalador já faz isso). Se o Python do PC mudar, o app reinstala sozinho ao abrir.
+   - "Restaurar ao ligar o PC" usa o `pyw.exe` do Windows, então atualizar o Python não quebra a inicialização.
    - Sem `configurado.ok` na raiz, ou `detectar` dizendo que falta OpenRGB/driver: avise que o Windows vai pedir
      administrador e rode `powershell -NoProfile -ExecutionPolicy Bypass -File "1-Configurar (admin).ps1"` na raiz.
      O script espera terminar; ele baixa o OpenRGB oficial, a biblioteca, o driver PawnIO e desliga o Polychrome.

@@ -1769,6 +1769,10 @@ def cli(argv):
         return default
 
     cmd = argv[0]
+    if cmd == "bibliotecas":   # usado pelo instalador: instala as bibliotecas para este Python
+        ok = ensure_libs()
+        print(("OK: bibliotecas em " if ok else "ERRO ao instalar as bibliotecas em ") + str(LIB))
+        sys.exit(0 if ok else 1)
     if cmd == "listar":
         client()
         for d in device_info():

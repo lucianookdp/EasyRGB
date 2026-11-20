@@ -1,6 +1,6 @@
 ﻿# EasyRGB - configuração inicial (roda uma vez, como administrador; o EasyRGB.bat chama sozinho)
 # 1) Baixa o OpenRGB 1.1 oficial (codeberg.org/OpenRGB) para a pasta OpenRGB\, se ainda não existir
-# 2) Instala a biblioteca openrgb-python dentro de app\lib
+# 2) Instala as bibliotecas dentro de app\lib\pyXY (uma pasta por versão do Python)
 # 3) Fecha e desativa (NÃO apaga) a inicialização do ASRock Polychrome, para não brigar com o OpenRGB
 # 4) Instala o driver PawnIO (assinado; usado pelo OpenRGB para falar com o chip RGB da placa e das RAMs)
 # Para desfazer: "Voltar para ASRock (admin).ps1"
@@ -28,14 +28,13 @@ try {
         Write-Host "      OK" -ForegroundColor Green
     }
 
-    Write-Host "[2/4] Biblioteca openrgb-python..." -ForegroundColor Cyan
-    $lib = Join-Path $base 'app\lib'
-    if (Test-Path (Join-Path $lib 'openrgb')) { Write-Host "      ja instalada." }
-    else {
-        python -m pip install --disable-pip-version-check -q --target $lib openrgb-python
-        if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar openrgb-python (o Python 3 esta instalado?)" }
-        Write-Host "      OK" -ForegroundColor Green
-    }
+    Write-Host "[2/4] Bibliotecas (openrgb-python, Pillow, bandeja, audio)..." -ForegroundColor Cyan
+    # usa o Python que existir: "python" ou o lançador "py" do python.org
+    $py = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } elseif (Get-Command py -ErrorAction SilentlyContinue) { 'py' } else { $null }
+    if (-not $py) { throw "Python 3 nao encontrado. Instale em https://www.python.org/downloads/ e rode de novo." }
+    & $py (Join-Path $base 'app\rgb_controller.py') bibliotecas
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar as bibliotecas (precisa de internet nesta etapa)." }
+    Write-Host "      OK" -ForegroundColor Green
 
     Write-Host "[3/4] Desligando o ASRock Polychrome da inicializacao (reversivel)..." -ForegroundColor Cyan
     Get-Process AsrPolychromeRGB -ErrorAction SilentlyContinue | Stop-Process -Force

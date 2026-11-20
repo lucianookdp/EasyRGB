@@ -735,6 +735,7 @@ class TestVendors(TempFiles):
         self.assertEqual(self.vendors.key_of("Key: \ (ANSI)")["sc"], 0x2B)
         self.assertLess(km["q"]["x"], km["p"]["x"])
 
+    @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
     def test_virtual_device_joins_list_and_gets_colors(self):
         c = FakeClient(fake_pc())
         with mock.patch.object(rc, "client", return_value=c):
@@ -769,6 +770,7 @@ class TestVendors(TempFiles):
             rc.vendor_tick()
             again.assert_not_called()   # conectado e sem reinício: não repinta à toa
 
+    @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
     def test_logitech_keyboard_seen_by_openrgb_goes_through_ghub(self):
         kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 3)], [FakeMode("Direct", 32, 1)])
         kb.leds = [Led("Key: A"), Led("Key: S"), Led("Logo")]
