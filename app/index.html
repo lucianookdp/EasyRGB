@@ -1496,9 +1496,10 @@ async function loadState(useLast){
     const ui=L.ui||{}; S.links={DRAM:"mirror",...(S.pc?.links||{}),...(ui.links||{})};
     if(!ui.links && Array.isArray(L.groups)) L.groups.forEach(g=>{ const d=S.devices.find(x=>x.id===g.ids[0]); if(d) S.links[d.type]=g.mode; });
     S.hw={}; Object.entries(L.hw||{}).forEach(([k,v])=>S.hw[+k]=v);
-    S.speed=ui.speed||3; S.dir=ui.dir||"direita"; S.fx=liveFx; S.pfx={};
+    S.speed=ui.speed||3; S.dir=ui.dir||"direita"; S.fx=liveFx;
+    // efeito de cada periférico: os parados valem sempre; os animados só se o efeito estiver rodando
+    S.pfx=Object.fromEntries(Object.entries(ui.pfx||{}).filter(([,v])=>s.effect||v==="static"));
     if(s.effect){
-      S.pfx={...(ui.pfx||{})};
       if(Array.isArray(ui.fxdevs)){   // formato antigo: "só estes animam"
         S.devices.forEach(d=>{ if(isPeriph(d)) S.pfx[d.id]=ui.fxdevs.includes(d.id)?ui.effect:"static"; });
         if(!S.devices.some(d=>!isPeriph(d)&&ui.fxdevs.includes(d.id))) S.fx="static";
@@ -1506,7 +1507,7 @@ async function loadState(useLast){
     }
     S.preset=null;
     S.applied=snap();
-  }else{ S.fx=liveFx; if(!s.effect) S.pfx={}; }
+  }else{ S.fx=liveFx; if(!s.effect) S.pfx=Object.fromEntries(Object.entries(S.pfx).filter(([,v])=>v==="static")); }
   renderPresets(); renderAI(); render();
 }
 

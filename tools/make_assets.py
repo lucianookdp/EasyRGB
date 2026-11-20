@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app" / "lib"))
+sys.path.insert(0, str(ROOT / "app" / "lib" / f"py{sys.version_info[0]}{sys.version_info[1]}"))
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont  # noqa: E402
 
 BG = (17, 17, 20, 255)

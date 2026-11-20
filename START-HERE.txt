@@ -1,6 +1,9 @@
 EasyRGB - START HERE / COMECE AQUI
 ==================================
 
+No AI needed? Just open EasyRGB.exe (download it from the Releases page on GitHub).
+Nao quer usar IA? E so abrir o EasyRGB.exe (baixe na pagina Releases do GitHub).
+
 EasyRGB is a template: an AI agent installs it and adapts it to YOUR PC before you use it.
 O EasyRGB e um template: um agente de IA instala e adapta tudo ao SEU PC antes de voce usar.
 
