@@ -7,31 +7,35 @@ EasyRGB é um controlador RGB por paletas em cima do OpenRGB 1.1 (servidor SDK n
 App em `app/rgb_controller.py` (servidor local + CLI), interface em `app/index.html` (http://127.0.0.1:6750), aberto pelo `EasyRGB.bat`.
 Todos os comandos abaixo rodam dentro da pasta `app/`.
 
-## 0. Configuração guiada (o prompt do `START-HERE.txt`, do README e do botão no app)
+## 0. Configuração rápida (o prompt do `START-HERE.txt`, do README e do botão no app)
 
-O EasyRGB é um **template**: a pessoa baixa a pasta, abre você nela e cola o prompt, muitas vezes **antes de abrir o app
-pela primeira vez**. Ela pode ser leiga: fale simples, no idioma dela, e faça você o trabalho. Quando receber esse pedido:
+O EasyRGB é um **template quase pronto**: a pessoa baixa a pasta, abre você nela e cola o prompt, muitas vezes antes
+de abrir o app. Ela pode ser leiga. **Configure tudo sozinho, rápido e falando pouco**, no idioma dela.
+Só pare para o que está marcado como *pergunte*. O efeito ela escolhe depois, no app.
 
-1. **Instale, se faltar** (do zero, sem a pessoa abrir nada):
-   - Sem Python 3: ofereça instalar (`winget install -e --id Python.Python.3.12`) e confirme antes.
-   - Bibliotecas: `python app/rgb_controller.py bibliotecas` instala tudo em `app/lib/pyXY` (uma pasta por versão do
-     Python; o instalador já faz isso). Se o Python do PC mudar, o app reinstala sozinho ao abrir.
-   - "Restaurar ao ligar o PC" usa o `pyw.exe` do Windows, então atualizar o Python não quebra a inicialização.
-   - Sem `configurado.ok` na raiz, ou `detectar` dizendo que falta OpenRGB/driver: avise que o Windows vai pedir
-     administrador e rode `powershell -NoProfile -ExecutionPolicy Bypass -File "1-Configurar (admin).ps1"` na raiz.
-     O script espera terminar; ele baixa o OpenRGB oficial, a biblioteca, o driver PawnIO e desliga o Polychrome.
-   - Abra o OpenRGB com `python rgb_controller.py conectar` (dentro de `app/`).
-2. Rode `detectar` e conte, em 2 ou 3 frases simples, o que encontrou (placa, RAMs, periféricos, conflitos).
-3. Pergunte **uma coisa de cada vez**, sempre com opções curtas para escolher (o usuário pode responder com outra coisa):
-   1. Estilo: um jogo, um clima (neon, pôr do sol, gelo...), cores favoritas ou um preset de `app/palettes.json`.
-   2. Em quais dispositivos aplicar (liste os que `detectar` achou; os que ficarem de fora mantêm as cores atuais).
-   3. Se houver 2+ RAMs: separadas, iguais ou contínuas.
-   4. Efeito: estático, um animado do app (precisa do app aberto) ou um efeito do chip (roda sozinho).
-   5. Modo jogo (ofereça os jogos de `jogos`) e horários (ex.: modo noite).
-   6. Restaurar as cores ao ligar o PC, explicando o motivo com base no campo `persist` de cada dispositivo.
-4. Aplique com `ia`, salve o perfil com `configurar` (é ele que marca o PC como configurado e tira o aviso do
-   `EasyRGB.bat`), use `automacao` e (se aceito) `iniciar-com-windows sim`.
-5. Mostre um resumo curto e diga que, para mexer sozinho depois, é só abrir o `EasyRGB.bat`.
+1. **Instale o que faltar** (só avise que o Windows vai pedir administrador uma vez):
+   - Sem Python 3: *pergunte* e instale (`winget install -e --id Python.Python.3.13`).
+   - Sem `configurado.ok` na raiz, ou `detectar` dizendo que falta OpenRGB/driver: rode
+     `powershell -NoProfile -ExecutionPolicy Bypass -File "1-Configurar (admin).ps1"` na raiz. Ele espera terminar e
+     instala o OpenRGB oficial, as bibliotecas (`app/lib/pyXY`, reinstaladas sozinhas se o Python mudar) e o driver
+     PawnIO, e desliga o ASRock Polychrome (reversível).
+   - Abra o OpenRGB: `python rgb_controller.py conectar` (dentro de `app/`).
+2. **Detecte e salve o perfil do PC sem perguntar**: rode `detectar` e depois `configurar` (seção 1) com:
+   - `nicknames` amigáveis com a marca quando ajudar (ex.: "Placa-mãe", "Memória RAM", "Teclado Logitech G PRO");
+   - `links`: `{"DRAM": "mirror"}` quando houver 2 ou mais RAMs;
+   - `vendors` só se precisar mudar o padrão (a ponte com o G HUB já liga sozinha; periférico sem RGB não precisa de nada);
+   - `notes`: 1 a 3 frases do que achou.
+   - Programa de fabricante brigando pelo mesmo hardware (ex.: Armoury Crate numa placa ASUS): *pergunte* antes de
+     desligar a inicialização dele (de forma reversível; nunca desinstale). O Logitech G HUB não é conflito.
+3. **Pergunte só uma coisa: o estilo.** Dê 4 a 6 opções curtas de `app/palettes.json` (ex.: GTA VI, Cyberpunk 2077,
+   Synthwave, Aurora), mais "um jogo que eu curto" e "minhas cores".
+4. **Aplique com `ia`**: a paleta escolhida em todos os dispositivos, `"effect": "static"` e RAMs iguais.
+   Não pergunte sobre efeitos, modo jogo nem modo noite: isso fica no app.
+5. Se algum dispositivo tiver `persist: "none"` (perde a cor ao desligar), ligue `iniciar-com-windows sim`:
+   faz parte da configuração que a pessoa pediu.
+6. **Abra o app** (`Start-Process EasyRGB.bat` na raiz) e responda em 3 ou 4 linhas: o que encontrou, o visual
+   aplicado, que os efeitos (Computador e cada periférico), o modo jogo e o modo noite ficam no app, e que é só pedir
+   novos visuais aqui.
 
 ### O que cada dispositivo guarda sozinho (`persist` em `detectar`)
 
@@ -76,7 +80,7 @@ em segundo plano (~30 MB do EasyRGB + ~60 MB do OpenRGB) se houver modo jogo, ho
      Para a Logitech, peça para ligar no G HUB a opção que permite jogos e aplicativos controlarem a iluminação.
      Teclados Logitech que o OpenRGB enxerga são pintados tecla por tecla pelo G HUB automaticamente.
      Hoje existe ponte para **Logitech G HUB**; para outras marcas, use o OpenRGB e avise sobre o conflito.
-4. **Aplique um primeiro visual** que combine com o PC (pergunte o gosto do usuário, ou use um preset).
+4. **Aplique um primeiro visual** (na configuração rápida, com a paleta que a pessoa escolheu).
 
 ## 2. Criar visuais: o usuário descreve um clima e você aplica
 

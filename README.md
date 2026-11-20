@@ -33,19 +33,15 @@ EasyRGB is a **template**: an AI agent installs it and adapts it to *your* PC (d
 
 1. Download this repo (**Code → Download ZIP**) and extract it, e.g. to `C:\EasyRGB`.
 2. Open an AI agent that can run commands on your PC (Claude Code, Codex, Gemini CLI, Cursor...) **in that folder**.
-3. Paste this prompt and answer its questions (Windows asks for administrator permission once: click **Yes**):
+3. Paste this prompt. The agent installs and sets up everything by itself and asks only which colors you like (Windows asks for administrator permission once: click **Yes**):
 
 ```text
-Set up EasyRGB, my PC's RGB controller. Read the AGENTS.md file in this folder and follow it. Talk to me in English.
-If it isn't installed yet, install it first (I'll accept the Windows administrator prompt).
-Detect my hardware and tell me in a few words what you found.
-Then ask me what you need, one question at a time with options to pick from: style or game I like, which devices to apply it to, how to set the RAM sticks, any effect, game mode, night mode and whether to restore colors when the PC starts.
-Finally, set up and apply everything and show me a short summary.
+Set up EasyRGB on my PC following the AGENTS.md file in this folder. Do everything yourself, quickly (I'll accept the Windows administrator prompt). Only ask me which color style I like. When done, open the app and tell me in a few lines what you set up. I'll pick the effect later in the app. Talk to me in English.
 ```
 
-4. Done. Open **`EasyRGB.bat`** whenever you want to change things yourself, or just ask the agent for a new look.
+4. Done: the app opens with your look applied. Pick effects there (computer and each peripheral), or just ask the agent for a new look.
 
-The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), and the app has a **Copy setup prompt** button. `EasyRGB.bat` reminds you if the PC hasn't been set up by AI yet.
+The same prompt (also in Portuguese) is in [`START-HERE.txt`](START-HERE.txt), and the app has a **Copy setup prompt** button. `EasyRGB.bat` reminds you if the PC hasn't been set up by AI yet. Setup takes a few minutes.
 
 ## Features
 
@@ -86,7 +82,7 @@ python -m unittest discover -s tests -v      # 77 tests, no hardware needed
 
 ## Resumo em português
 
-O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos, faz as perguntas e deixa tudo pronto. Depois é só abrir o `EasyRGB.bat`.
+O **EasyRGB** controla o RGB do PC por paletas e é feito para ser **configurado por IA**. Baixe a pasta, abra um agente de IA nela (Claude Code, Codex, Gemini CLI...) e cole o prompt em português do [`START-HERE.txt`](START-HERE.txt). Ele instala, detecta a sua placa, RAMs e periféricos e configura tudo sozinho, só perguntando as cores que você curte. Os efeitos você escolhe depois no app. Depois é só abrir o `EasyRGB.bat`.
 A tela separa **Computador** e **Periféricos** (ex.: *Teclado – Logitech G PRO*), cada um com o próprio efeito, como a **onda de cores** com as suas cores. O EasyRGB pinta o teclado Logitech **por cima do G HUB**, sem conflito. O app fica em português ou inglês conforme o idioma do seu sistema.
 
 ---
