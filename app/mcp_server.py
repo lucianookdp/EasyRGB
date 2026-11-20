@@ -185,7 +185,7 @@ def handle(msg):
         ver = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL
         return {"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": ver, "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.0"},
+            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.1"},
             "instructions": INSTRUCTIONS}}
     if method == "ping":
         return {"jsonrpc": "2.0", "id": mid, "result": {}}
@@ -251,21 +251,147 @@ def server_command():
     return {"command": str(py), "args": [str(SRC / "mcp_server.py")]}
 
 
-def install_claude_desktop():
-    """Add EasyRGB to Claude Desktop's MCP servers (keeps everything else in the file). Returns the files written."""
-    done = []
-    for cfg in claude_desktop_configs():
-        data = {}
-        if cfg.exists():
+# ---------------------------------------------------------------- the most used AI apps, one click each
+def _home():
+    import os
+    return Path(os.environ.get("USERPROFILE") or Path.home())
+
+
+def _env(name):
+    import os
+    return Path(os.environ.get(name, ""))
+
+
+def _json_files(paths, key="mcpServers", extra=None):
+    """Config files in the common JSON shape {key: {name: {command, args}}}."""
+    return {"kind": "json", "files": paths, "section": key, "extra": extra or {}}
+
+
+def ai_clients():
+    """Popular AI apps that run local MCP servers, with where each one keeps its config (Windows)."""
+    home, appdata, local = _home(), _env("APPDATA"), _env("LOCALAPPDATA")
+    pkgs = local / "Packages"
+    claude_pkgs = list(pkgs.glob("Claude_*")) if pkgs.exists() else []
+    return [
+        {"key": "claude-desktop", "name": "Claude Desktop", "hint": "Restart Claude Desktop.",
+         "detect": [appdata / "Claude", *claude_pkgs], **_json_files(claude_desktop_configs())},
+        {"key": "claude-code", "name": "Claude Code", "hint": "Start a new Claude Code session.",
+         "detect": [home / ".claude.json"], **_json_files([home / ".claude.json"], extra={"type": "stdio"})},
+        {"key": "cursor", "name": "Cursor", "hint": "In Cursor: Settings, MCP, turn EasyRGB on.",
+         "detect": [home / ".cursor", local / "Programs" / "cursor"], **_json_files([home / ".cursor" / "mcp.json"])},
+        {"key": "copilot", "name": "GitHub Copilot (VS Code)",
+         "hint": "In VS Code: open Copilot Chat in Agent mode; EasyRGB shows in the tools list.",
+         "detect": [appdata / "Code" / "User"],
+         **_json_files([appdata / "Code" / "User" / "mcp.json"], key="servers", extra={"type": "stdio"})},
+        {"key": "windsurf", "name": "Windsurf", "hint": "In Windsurf: Cascade, MCP servers, Refresh.",
+         "detect": [home / ".codeium" / "windsurf", local / "Programs" / "Windsurf"],
+         **_json_files([home / ".codeium" / "windsurf" / "mcp_config.json"])},
+        {"key": "gemini", "name": "Gemini CLI", "hint": "Start a new Gemini CLI session.",
+         "detect": [home / ".gemini"], **_json_files([home / ".gemini" / "settings.json"])},
+        {"key": "codex", "name": "Codex (OpenAI)", "hint": "Start a new Codex session.",
+         "detect": [home / ".codex"], "kind": "toml", "files": [home / ".codex" / "config.toml"]},
+        {"key": "lmstudio", "name": "LM Studio", "hint": "In LM Studio: Program, Install, reload MCP.",
+         "detect": [home / ".lmstudio"], **_json_files([home / ".lmstudio" / "mcp.json"])},
+    ]
+
+
+def _toml_str(s):
+    return "'" + s + "'" if "'" not in s else json.dumps(s)   # literal string: backslashes stay as they are
+
+
+def _toml_block(cmd):
+    return (f"[mcp_servers.easyrgb]\ncommand = {_toml_str(cmd['command'])}\n"
+            f"args = [{', '.join(_toml_str(a) for a in cmd['args'])}]\n")
+
+
+def _toml_has(text):
+    return "[mcp_servers.easyrgb]" in text
+
+
+def _toml_without(text):
+    """Removes the [mcp_servers.easyrgb] table (up to the next table or the end)."""
+    import re
+    out = re.sub(r"(?ms)^\[mcp_servers\.easyrgb\]\r?\n.*?(?=^\[|\Z)", "", text).rstrip()
+    return out + "\n" if out else ""
+
+
+def client_connected(c):
+    for f in c["files"]:
+        if not f.exists():
+            continue
+        try:
+            text = f.read_text(encoding="utf-8")
+            if c["kind"] == "toml" and _toml_has(text):
+                return True
+            if c["kind"] == "json" and "easyrgb" in (json.loads(text or "{}").get(c["section"]) or {}):
+                return True
+        except (OSError, ValueError):
+            pass
+    return False
+
+
+def list_clients():
+    return [{"key": c["key"], "name": c["name"], "hint": c["hint"],
+             "found": any(p.exists() for p in c["detect"]), "connected": client_connected(c)} for c in ai_clients()]
+
+
+def connect_client(key):
+    """Adds EasyRGB to that AI app's MCP servers, keeping everything else in the file. Returns the files written."""
+    c = next((c for c in ai_clients() if c["key"] == key), None)
+    if not c:
+        raise ValueError(f"Unknown AI app: {key}")
+    cmd, done = server_command(), []
+    for f in c["files"]:
+        text = f.read_text(encoding="utf-8") if f.exists() else ""
+        if c["kind"] == "toml":
+            rest = _toml_without(text) if _toml_has(text) else text
+            new = (rest.rstrip() + "\n\n" + _toml_block(cmd)) if rest.strip() else _toml_block(cmd)
+        else:
             try:
-                data = json.loads(cfg.read_text(encoding="utf-8") or "{}")
+                data = json.loads(text or "{}")
             except ValueError:
                 continue   # arquivo com erro de digitação: não sobrescreve o que a pessoa escreveu
-        data.setdefault("mcpServers", {})["easyrgb"] = server_command()
-        cfg.parent.mkdir(parents=True, exist_ok=True)
-        cfg.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-        done.append(cfg)
+            data.setdefault(c["section"], {})["easyrgb"] = {**c["extra"], **cmd}
+            new = json.dumps(data, indent=2, ensure_ascii=False)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(new, encoding="utf-8")
+        done.append(f)
+    if not done:
+        raise ValueError("The AI app's config file has an error; fix it or use Other AI.")
     return done
+
+
+def disconnect_all():
+    """Takes EasyRGB out of every AI app (used by 'Undo everything')."""
+    out = []
+    for c in ai_clients():
+        for f in c["files"]:
+            if not f.exists():
+                continue
+            try:
+                text = f.read_text(encoding="utf-8")
+                if c["kind"] == "toml":
+                    if _toml_has(text):
+                        f.write_text(_toml_without(text), encoding="utf-8")
+                        out.append(c["key"])
+                    continue
+                data = json.loads(text or "{}")
+                if (data.get(c["section"]) or {}).pop("easyrgb", None) is not None:
+                    f.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+                    out.append(c["key"])
+            except (OSError, ValueError):
+                pass
+    return out
+
+
+def manual_config():
+    """For any other AI app: the same server, to copy."""
+    cmd = server_command()
+    return {"json": json.dumps({"mcpServers": {"easyrgb": cmd}}, indent=2), **cmd}
+
+
+def install_claude_desktop():
+    return connect_client("claude-desktop")
 
 
 if __name__ == "__main__":

@@ -65,13 +65,11 @@ Prefer no installer? Download **EasyRGB-windows.zip** from [Releases](../../rele
 
 You never need AI to use EasyRGB, but it makes some things faster.
 
-**Change your lights by chatting (MCP).** In EasyRGB open *How to use → Use in Claude Desktop*, restart Claude
-Desktop and ask: *"make everything purple"*, *"keyboard wave in GTA VI colors"*, *"dim to 30%"*, *"lights off"*.
-Other apps with MCP (Claude Code, Cursor, VS Code...) use the command `EasyRGB.exe --mcp`, for example:
-
-```powershell
-claude mcp add easyrgb -- "$env:LOCALAPPDATA\Programs\EasyRGB\EasyRGB.exe" --mcp
-```
+**Change your lights by chatting.** In EasyRGB open *How to use → Connect an AI* and click **Connect** next to
+your AI. One click works for **Claude Desktop, Claude Code, Cursor, GitHub Copilot (VS Code), Windsurf, Gemini CLI,
+Codex and LM Studio**. Then just ask: *"make everything purple"*, *"keyboard wave in GTA VI colors"*,
+*"dim to 30%"*, *"lights off"*. Using another app with MCP? *Other AI* shows the settings to copy
+(command `EasyRGB.exe`, argument `--mcp`).
 
 **Ask an AI for colors.** The **Ask AI for colors** button copies a ready-made request: paste it into any AI chat,
 describe a mood, and the AI creates the look for your exact hardware.
@@ -112,7 +110,7 @@ python rgb_controller.py backup / restaurar  # save or restore every setting
 python rgb_controller.py autoteste           # checks libraries, audio, screen capture and resources
 python mcp_server.py                         # MCP server over stdio
 cd ..
-python -m unittest discover -s tests -v      # 126 tests, no hardware needed
+python -m unittest discover -s tests -v      # 134 tests, no hardware needed
 python tools/build_exe.py                    # builds EasyRGB.exe, zip and EasyRGB-Setup.exe (CI does this on every push)
 ```
 
@@ -145,8 +143,8 @@ sozinho. Se o Windows mostrar *"O Windows protegeu o computador"*, clique em **M
 
 A tela separa **Computador** e **Periféricos** (ex.: *Teclado – Logitech G PRO*), cada um com o próprio efeito,
 brilho e velocidade. Tem modo jogo que acha seus jogos sozinho, modo noite, atalhos que você escolhe, backup das
-configurações e **Desfazer tudo**. A IA é opcional: dá para pedir cores pelo Claude Desktop ou deixar um agente
-configurar tudo a partir do código (prompt em português no [`START-HERE.txt`](START-HERE.txt)).
+configurações e **Desfazer tudo**. A IA é opcional: em *Como usar → Conectar a uma IA*, um clique liga o EasyRGB ao
+Claude, Cursor, GitHub Copilot, Windsurf, Gemini CLI ou Codex, e aí é só pedir as cores pelo chat.
 
 Tem um periférico de outra marca (Razer, Corsair, ASUS, MSI, HyperX...)? Teste e conte como foi num
 [relatório de teste](../../issues/new?template=hardware-test.yml).

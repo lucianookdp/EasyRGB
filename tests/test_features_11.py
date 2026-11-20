@@ -286,7 +286,7 @@ class TestInstaller(unittest.TestCase):
         bad = [ch for ch in self.iss if ord(ch) < 32 and ch not in "\r\n\t"]
         self.assertEqual(bad, [], "caractere de controle no .iss")
         for need in ("PrivilegesRequired=lowest", "ArchitecturesAllowed=x64compatible", "MinVersion=10.0",
-                     "{localappdata}\Programs\EasyRGB", "BrazilianPortuguese.isl", "configurado.ok"):
+                     "{localappdata}\Programs\EasyRGB", "BrazilianPortuguese.isl", "configurado.ok", "not WizardSilent"):
             self.assertIn(need, self.iss)
         # desinstalar nunca apaga os dados do PC (pasta app inteira)
         self.assertNotIn('Type: filesandordirs; Name: "{app}\app"', self.iss)

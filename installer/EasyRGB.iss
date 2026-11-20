@@ -95,8 +95,9 @@ Name: "{autodesktop}\EasyRGB"; Filename: "{app}\EasyRGB.exe"; WorkingDir: "{app}
 
 [Run]
 ; OpenRGB já vem no pacote; isto instala o driver e desliga o ASRock Polychrome (reversível). Pede admin uma vez.
+; Instalação silenciosa (winget, /VERYSILENT): pula; o EasyRGB.exe faz isso ao abrir pela primeira vez.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\1-Configurar (admin).ps1"""; \
-  WorkingDir: "{app}"; StatusMsg: "{cm:Driver}"; Flags: runhidden waituntilterminated; Check: NotConfigured
+  WorkingDir: "{app}"; StatusMsg: "{cm:Driver}"; Flags: runhidden waituntilterminated; Check: NotConfigured and not WizardSilent
 Filename: "{app}\EasyRGB.exe"; Description: "{cm:Open}"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]

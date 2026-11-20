@@ -74,7 +74,7 @@ CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
 REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -1584,14 +1584,9 @@ Get-Process OpenRGB | Stop-Process -Force
     done = {"autostart_removed": not autostart_installed(fresh=True)}
     try:
         import mcp_server
-        for cfg in mcp_server.claude_desktop_configs():
-            if cfg.exists():
-                d = json.loads(cfg.read_text(encoding="utf-8") or "{}")
-                if d.get("mcpServers", {}).pop("easyrgb", None) is not None:
-                    cfg.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-        done["claude_desktop"] = True
+        done["ai_apps"] = mcp_server.disconnect_all()   # tira o EasyRGB de todas as IAs (Claude, Cursor, Copilot...)
     except Exception:
-        done["claude_desktop"] = False
+        done["ai_apps"] = []
     if delete_data:
         (HERE / "antes-de-desfazer.json").write_text(json.dumps(make_backup(), ensure_ascii=False, indent=1),
                                                     encoding="utf-8")   # última cópia, por segurança
@@ -2048,6 +2043,9 @@ class Handler(BaseHTTPRequestHandler):
                                         state_rev=_rev["n"]))
         if self.path == "/api/update":
             return self._send(200, check_update())
+        if self.path == "/api/ai-apps":   # IAs conhecidas: achadas no PC? conectadas? + config para "Outra IA"
+            import mcp_server
+            return self._send(200, {"apps": mcp_server.list_clients(), "manual": mcp_server.manual_config()})
         if self.path == "/api/backup":
             return self._send(200, make_backup())
         m = re.fullmatch(r"/lang/([a-z]{2,3})\.json", self.path)
@@ -2137,9 +2135,10 @@ class Handler(BaseHTTPRequestHandler):
                 rep, prof = apply_claude(body)
                 return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
                                         "effect_kind": _effect.get("kind") if _effect["on"] else "static"})
-            if self.path == "/api/mcp":   # botão "Usar no Claude Desktop"
+            if self.path == "/api/mcp":   # "Conectar a uma IA": {"app": "cursor"} (sem app: Claude Desktop)
                 import mcp_server
-                return self._send(200, {"ok": True, "files": [str(f) for f in mcp_server.install_claude_desktop()]})
+                files = mcp_server.connect_client(body.get("app") or "claude-desktop")
+                return self._send(200, {"ok": True, "files": [str(f) for f in files], "apps": mcp_server.list_clients()})
             if self.path == "/api/preset":
                 name = (body.get("name") or "").strip()
                 if body.get("delete"):
@@ -2273,9 +2272,16 @@ def cli(argv):
         return default
 
     cmd = argv[0]
-    if cmd == "mcp-claude-desktop":   # liga o EasyRGB ao Claude Desktop (controle das luzes pelo chat)
+    if cmd in ("mcp-claude-desktop", "conectar-ia"):   # conectar-ia [app]: liga o EasyRGB a um app de IA (MCP)
         import mcp_server
-        print("OK:", ", ".join(map(str, mcp_server.install_claude_desktop())), "- reinicie o Claude Desktop.")
+        if cmd == "conectar-ia" and len(argv) < 2:
+            for c in mcp_server.list_clients():
+                print(f"{c['key']:16} {c['name']:26} found={c['found']} connected={c['connected']}")
+            print("\nOther AI apps (stdio MCP server):\n" + mcp_server.manual_config()["json"])
+            return
+        key = argv[1] if cmd == "conectar-ia" else "claude-desktop"
+        print("OK:", ", ".join(map(str, mcp_server.connect_client(key))))
+        print(next(c["hint"] for c in mcp_server.list_clients() if c["key"] == key))
         return
     if cmd == "autoteste":   # confere se tudo que o app precisa carrega (usado no build do .exe)
         res = {"frozen": FROZEN, "python": sys.version.split()[0]}

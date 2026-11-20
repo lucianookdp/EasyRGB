@@ -497,6 +497,22 @@
   .airow b{display:block;font-size:13px} .airow small{display:block;color:var(--dim);font-size:11.5px}
   .hfoot{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px}
   .habtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .aiapps{margin-top:12px;padding-top:12px;border-top:1px solid var(--ai-border)}
+  .aisub{margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  #aiList{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:8px}
+  .aiapp{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);min-width:0}
+  .aiapp span{flex:1;min-width:0}
+  .aiapp b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aiapp small{display:block;font-size:11.5px;color:var(--dim)}
+  .aiapp small.ok{color:#4ade80}
+  .aiapp .btn{flex:none}
+  .aiapp.dim{opacity:.7}
+  .aimore{margin-top:10px;font-size:12.5px}
+  .aimore summary{cursor:pointer;color:var(--text);font-weight:500;padding:4px 0}
+  .aimore pre{margin:6px 0 8px;padding:10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);font-size:11.5px;overflow:auto;max-height:180px}
+  #aiOthers{grid-column:1/-1;justify-self:start}
+  .noai{display:flex;gap:7px;align-items:center;margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+  .noai .i{width:14px;height:14px;color:#4ade80}
   #pcinfo .pcchip{white-space:normal;max-width:100%}
   .hlink{display:inline-flex;align-items:center;gap:6px;color:var(--text);text-decoration:none;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-weight:500}
   .hlink:hover{background:var(--surface3)}
@@ -787,8 +803,19 @@
       <div class="haih"><div class="aimark"><span data-i="sparkles"></span></div>
         <div><h3>Cores com IA</h3><p>Diga o visual em palavras, como "tema GTA VI" ou "roxo e azul calmo", e a IA aplica no PC inteiro.</p></div></div>
       <div class="habtn"><button class="btn ai sm" id="helpAi"><span data-i="sparkles"></span>Copiar pedido para a IA</button>
-        <button class="btn sm" id="helpMcp"><span data-i="message"></span>Usar no Claude Desktop</button></div>
+        <button class="btn sm" id="helpMcp" aria-expanded="false"><span data-i="plug"></span>Conectar a uma IA</button></div>
+      <div class="aiapps" id="aiApps" hidden>
+        <p class="aisub">Um clique e você muda as luzes conversando com a sua IA, por exemplo: "deixa tudo roxo com onda no teclado".</p>
+        <div id="aiList"></div>
+        <details class="aimore"><summary>Outra IA (configuração para copiar)</summary>
+          <p class="aisub">Qualquer app com MCP local (stdio) funciona. Cole isto na configuração de MCP dele:</p>
+          <pre id="aiManual"></pre>
+          <button class="btn sm" id="aiManualCopy"><span data-i="copy"></span>Copiar</button>
+          <p class="aisub">O ChatGPT ainda não aceita programas do próprio PC; nele, use "Copiar pedido para a IA".</p>
+        </details>
+      </div>
       <div id="ai"></div>
+      <p class="noai"><span data-i="check"></span>Não usa IA? Tudo funciona pela tela; a IA é só um atalho.</p>
     </section>
     <div class="hgrid">
       <section><h3><span data-i="gradient"></span>Cores</h3>
@@ -1053,7 +1080,23 @@ const EN={
   "Ajuste fino por zona":"Fine-tune by zone","Zonas e teclas":"Zones and keys","Apagar":"Off",
   "Clique numa zona para dar uma cor só para ela, ou escolha um efeito do próprio chip.":"Click a zone to give it its own color, or pick an effect from the chip itself.",
   "Modo jogo, horários, modo noite e atalhos":"Game mode, schedules, night mode and shortcuts",
-  "Usar no Claude Desktop":"Use in Claude Desktop",
+  "Usar no Claude Desktop":"Use in Claude Desktop","Conectar a uma IA":"Connect an AI",
+  "Um clique e você muda as luzes conversando com a sua IA, por exemplo: \"deixa tudo roxo com onda no teclado\".":"One click and you change the lights by chatting with your AI, e.g. \"make everything purple with a wave on the keyboard\".",
+  "Outra IA (configuração para copiar)":"Other AI (settings to copy)",
+  "Qualquer app com MCP local (stdio) funciona. Cole isto na configuração de MCP dele:":"Any app with local (stdio) MCP works. Paste this into its MCP settings:",
+  "Copiar":"Copy","O ChatGPT ainda não aceita programas do próprio PC; nele, use \"Copiar pedido para a IA\".":"ChatGPT can't run programs on your PC yet; there, use \"Copy request for the AI\".",
+  "Não usa IA? Tudo funciona pela tela; a IA é só um atalho.":"Don't use AI? Everything works from the screen; AI is just a shortcut.",
+  "Conectado":"Connected","Encontrado neste PC":"Found on this PC","Não encontrado":"Not found","Conectar de novo":"Connect again","Conectar":"Connect",
+  "Nenhuma IA conhecida encontrada neste PC.":"No known AI app found on this PC.","Mostrar outras ({n})":"Show others ({n})",
+  "Conectado! ":"Connected! ","Copiado! Cole na configuração de MCP da sua IA.":"Copied! Paste it into your AI's MCP settings.",
+  "Reinicie o Claude Desktop e peça as cores pelo chat.":"Restart Claude Desktop and ask for colors in the chat.",
+  "Abra uma nova sessão do Claude Code e peça as cores.":"Start a new Claude Code session and ask for colors.",
+  "No Cursor: Settings → MCP e ligue o EasyRGB.":"In Cursor: Settings → MCP and turn EasyRGB on.",
+  "No VS Code: abra o Copilot Chat no modo Agent e peça as cores.":"In VS Code: open Copilot Chat in Agent mode and ask for colors.",
+  "No Windsurf: Cascade → MCP servers → Refresh.":"In Windsurf: Cascade → MCP servers → Refresh.",
+  "Abra uma nova sessão do Gemini CLI e peça as cores.":"Start a new Gemini CLI session and ask for colors.",
+  "Abra uma nova sessão do Codex e peça as cores.":"Start a new Codex session and ask for colors.",
+  "No LM Studio: Program → Install → recarregue o MCP.":"In LM Studio: Program → Install → reload MCP.",
   "Deixa o Claude Desktop mudar as luzes direto pelo chat":"Lets Claude Desktop change your lights right from the chat",
   "Pronto! Reinicie o Claude Desktop e peça as cores pelo chat.":"Done! Restart Claude Desktop and ask for colors in the chat.",
   // assistente da primeira vez
@@ -1578,7 +1621,40 @@ $("#langAi").onclick=async()=>{
   toast(tr("Copiado! Cole no seu agente de IA."),"ai",3500);
 };
 if(XT_NAME) $("#langInfo").textContent=`${XT_NAME}: ${Object.keys(XT).length} / ${Object.keys(EN).length}`;
-$("#helpMcp").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/mcp",{}); toast(tr("Pronto! Reinicie o Claude Desktop e peça as cores pelo chat."),"ai",6000); });
+/* ---- conectar a uma IA (MCP): as mais usadas com um clique, "Outra IA" para copiar ---- */
+const AI_HINTS={"claude-desktop":"Reinicie o Claude Desktop e peça as cores pelo chat.",
+  "claude-code":"Abra uma nova sessão do Claude Code e peça as cores.",
+  "cursor":"No Cursor: Settings → MCP e ligue o EasyRGB.",
+  "copilot":"No VS Code: abra o Copilot Chat no modo Agent e peça as cores.",
+  "windsurf":"No Windsurf: Cascade → MCP servers → Refresh.",
+  "gemini":"Abra uma nova sessão do Gemini CLI e peça as cores.",
+  "codex":"Abra uma nova sessão do Codex e peça as cores.",
+  "lmstudio":"No LM Studio: Program → Install → recarregue o MCP."};
+let AI_ALL=false;
+function renderAiApps(apps){
+  const sorted=[...apps].sort((a,b)=>(b.connected-a.connected)||(b.found-a.found));
+  const shown=AI_ALL?sorted:sorted.filter(a=>a.found||a.connected), hidden=sorted.length-shown.length;
+  const row=a=>`<div class="aiapp${a.found||a.connected?"":" dim"}"><span><b>${esc(a.name)}</b>
+      <small class="${a.connected?"ok":""}">${esc(tr(a.connected?"Conectado":a.found?"Encontrado neste PC":"Não encontrado"))}</small></span>
+      <button class="btn sm${a.connected?"":" ai"}" data-aiapp="${a.key}">${icon(a.connected?"check":"plug")}${esc(tr(a.connected?"Conectar de novo":"Conectar"))}</button></div>`;
+  $("#aiList").innerHTML=(shown.length?shown.map(row).join(""):`<p class="aisub">${esc(tr("Nenhuma IA conhecida encontrada neste PC."))}</p>`)
+    +(hidden?`<button class="btn ghost sm" id="aiOthers">${esc(tr("Mostrar outras ({n})",{n:hidden}))}</button>`:"");
+  $("#aiList").querySelectorAll("[data-aiapp]").forEach(b=>b.onclick=()=>run(b,async()=>{
+    const j=await api("/api/mcp",{app:b.dataset.aiapp}); renderAiApps(j.apps);
+    toast(tr("Conectado! ")+tr(AI_HINTS[b.dataset.aiapp]||""),"ai",7000); }));
+  const o=$("#aiOthers"); if(o) o.onclick=()=>{ AI_ALL=true; renderAiApps(apps); };
+}
+$("#helpMcp").onclick=e=>run(e.currentTarget,async()=>{
+  const box=$("#aiApps"), open=box.hidden; box.hidden=!open; e.currentTarget.setAttribute("aria-expanded",open);
+  if(!open) return;
+  const j=await api("/api/ai-apps"); renderAiApps(j.apps); $("#aiManual").textContent=j.manual.json;
+});
+$("#aiManualCopy").onclick=async()=>{
+  const txt=$("#aiManual").textContent;
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(tr("Copiado! Cole na configuração de MCP da sua IA."),"ai",3500);
+};
 function renderAI(){
   const box=$("#ai"), a=S.claude.active;
   if(!a){ box.innerHTML=""; return; }
