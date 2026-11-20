@@ -94,7 +94,8 @@ animated effect or a vendor bridge. It runs through Windows' `pyw.exe`, so Pytho
      the default). `zones` = how many light areas the device has. `{"enabled": false}` turns the bridge off.
      For Logitech, ask them to turn on the G HUB option that lets games and apps control the lighting.
      Logitech keyboards that OpenRGB sees are painted key by key through G HUB automatically.
-     Today there is a bridge for **Logitech G HUB**; for other brands use OpenRGB and mention the conflict.
+     Bridges: **Logitech G HUB** (tested), **Razer Synapse**, **Corsair iCUE** and **SteelSeries GG** (beta:
+     built from the official SDK docs, not yet tested on real hardware). Keys: `logitech`, `razer`, `corsair`, `steelseries`.
 4. **Apply a first look** (in quick setup, the palette the person picked).
 
 ## 2. Create looks: the user describes a mood and you apply it
@@ -145,7 +146,9 @@ In PowerShell, save the JSON to a file and run `python rgb_controller.py ia look
 
 When the user asks for something like "when I open Valorant, make it red" or "dim the lights at night":
 
-1. `python rgb_controller.py jogos` lists known installed games (Steam, Epic, Riot, Xbox) and the suggested preset.
+1. `python rgb_controller.py jogos` lists the installed games read from each store (Steam, Epic, GOG, Ubisoft, EA,
+   Xbox, Riot, Battle.net) with `name`, the main `process` (.exe), `source` and a suggested `preset` (empty when
+   unknown: pick or create one that matches the game). Use `name` in the rule so the app shows it nicely.
 2. `python rgb_controller.py automacao` shows the current rules. To save, **read the current ones and send the full list**
    (the command replaces everything):
    ```bash
@@ -171,7 +174,9 @@ When the user asks for something like "when I open Valorant, make it red" or "di
 - Built-in presets live in `app/palettes.json` (don't edit). The user's own live in `app/my_presets.json`
   (create them in the app or by writing `{"Name": ["#RRGGBB", ...]}` to that file).
 - Keyboard: per-key colors with `"L<index>"` keys in `overrides` (indexes and names in `led_names` from `detectar`).
-- `automacao` accepts `"hotkeys": true` (Ctrl+Alt + arrows/E/L shortcuts). EasyRGB runs without a window, with a tray
+- `automacao` accepts `"hotkeys": true` and `"hotkey_map"`: action -> combo, e.g.
+  `{"next": "Ctrl+Alt+Right", "prev": "Ctrl+Alt+Left", "brighter": "Ctrl+Alt+Up", "dimmer": "Ctrl+Alt+Down",
+  "next_effect": "Ctrl+Alt+E", "toggle": "Ctrl+Alt+L"}` (`""` turns one off; a modifier is required except F13-F24). EasyRGB runs without a window, with a tray
   icon; errors go to `app/easyrgb.log`.
 
 ## Other commands
@@ -183,6 +188,57 @@ When the user asks for something like "when I open Valorant, make it red" or "di
 - `python rgb_controller.py autoteste`: checks every library, audio, screen capture and resource loads.
 - `python rgb_controller.py mcp-claude-desktop`: connects EasyRGB to Claude Desktop (MCP).
 - `python rgb_controller.py desligar`: lights off.
+- `python rgb_controller.py diagnostico` / `backup` / `restaurar`: see Troubleshooting below.
+
+## Add a language (any language, done by you)
+
+EasyRGB ships in English and Portuguese and follows the Windows language. Any other language falls back to English
+until someone adds a translation file. When the person asks for their language (the app's **How to use → Translate
+with AI** button copies this request for them):
+
+1. `python rgb_controller.py idioma <code>` (or `EasyRGB.exe idioma <code>`), with the 2-3 letter code
+   (`es`, `ru`, `de`, `fr`, `ja`...). It creates `app/lang/<code>.json`:
+   - `strings`: every UI text. The **keys** are the original texts (Portuguese); **don't change keys**.
+   - `english`: the same keys with the English meaning: translate from these.
+2. Fill `name` (the language's own name, e.g. "Español") and every value in `strings`. Keep `{placeholders}`
+   like `{n}` and `{x}` exactly, keep texts as short as the English, and keep product names (EasyRGB, OpenRGB,
+   G HUB) as they are.
+3. `python rgb_controller.py idioma <code> --verificar` must show `"missing": 0` and no `broken_placeholders`.
+4. Tell the person to reopen EasyRGB (or press Ctrl+F5). The app picks the file up automatically;
+   `?lang=<code>` forces it for a quick check. Running `idioma <code>` again later adds any new texts and keeps
+   the translated ones.
+
+The installer itself already comes in 30 languages (Inno Setup's official translations).
+
+## Troubleshooting (for agents only: not shown in the app)
+
+When the person says something is wrong ("the keyboard doesn't change", "it didn't start with Windows",
+"a light is missing"), start here instead of guessing:
+
+1. `python rgb_controller.py diagnostico` (or `EasyRGB.exe diagnostico`) prints a summary and writes the full
+   report to `app/diagnostico.json` (with the last 60 log lines). No passwords or tokens are in it.
+2. Read it in this order:
+   - `openrgb_running` / `openrgb_installed` / `pawnio_service`: false means OpenRGB or the PawnIO driver is
+     missing; run `1-Configurar (admin).ps1` again (or reinstall the app).
+   - `autostart_ok`: false means the "Restore on PC start" task is broken; `iniciar-com-windows sim` recreates it.
+   - `devices`: a device that should be there and isn't usually means another RGB program holds it; check `conflicts`.
+   - `bridges` / `bridge_state`: brand apps found (G HUB, Synapse, SteelSeries GG, iCUE). `fails` > 0 means the
+     brand app refused; ask the person to open it and enable its SDK / third-party control option.
+   - `hotkeys.errors`: shortcuts another program already uses; pick others in `hotkey_map`.
+   - `selftest_libs`: an `ERRO` here means the Python libraries are missing; run `bibliotecas`.
+   - `log_tail`: the real errors, newest last.
+3. Fix, then run `diagnostico` again to confirm. Delete `app/diagnostico.json` when done.
+
+Before any risky change, save the person's settings and give them back if needed:
+
+- `python rgb_controller.py backup [file.json]`: everything the person configured (PC profile, look, presets,
+  automations, last AI look) in one file. Without a name it goes to `app/backup-<date>.json`.
+- `python rgb_controller.py restaurar file.json`: puts a backup back (the current state is saved first to
+  `app/antes-de-restaurar.json`). The person can do the same from the app (⋯ → Export / Import settings).
+
+**Undo everything** (⋯ → Undo everything, two confirmations in the app) re-enables ASRock Polychrome, removes the
+startup task, gives the keyboard back to the brand app and removes EasyRGB from Claude Desktop. Never trigger
+`/api/undo` yourself unless the person clearly asked to remove EasyRGB.
 
 ## Tests
 

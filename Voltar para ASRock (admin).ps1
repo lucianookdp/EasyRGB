@@ -7,6 +7,6 @@ if (-not ([Security.Principal.WindowsPrincipal]$id).IsInRole([Security.Principal
 Get-Process OpenRGB -ErrorAction SilentlyContinue | Stop-Process -Force
 Enable-ScheduledTask -TaskName AsrPolychromeRGB | Out-Null
 Start-Process 'C:\Program Files (x86)\ASRock Utility\ASRRGBLED\Bin\AsrPolychromeRGB.exe'
-Write-Host "ASRock Polychrome reativado." -ForegroundColor Green
-Write-Host "(O driver PawnIO pode ficar instalado sem problema; para remover: Configuracoes > Apps > PawnIO)"
-Read-Host "Enter para fechar"
+Write-Host "ASRock Polychrome turned back on." -ForegroundColor Green
+Write-Host "(The PawnIO driver can stay installed; to remove it: Settings > Apps > PawnIO)"
+Read-Host "Press Enter to close"

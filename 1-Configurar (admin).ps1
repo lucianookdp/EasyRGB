@@ -18,9 +18,10 @@ $dl = Join-Path $base 'download'
 New-Item -ItemType Directory -Force $dl | Out-Null
 
 try {
-    Write-Host "`n[1/4] OpenRGB..." -ForegroundColor Cyan
+    Write-Host "`nEasyRGB setup`n" -ForegroundColor White
+    Write-Host "[1/4] OpenRGB..." -ForegroundColor Cyan
     $exe = Join-Path $base 'OpenRGB\OpenRGB Windows 64-bit\OpenRGB.exe'
-    if (Test-Path $exe) { Write-Host "      ja instalado." }
+    if (Test-Path $exe) { Write-Host "      already here." }
     else {
         $zip = Join-Path $dl 'OpenRGB_1.1.zip'
         Invoke-WebRequest -UseBasicParsing 'https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_Windows_64_8e16de2.zip' -OutFile $zip
@@ -28,25 +29,25 @@ try {
         Write-Host "      OK" -ForegroundColor Green
     }
 
-    Write-Host "[2/4] Bibliotecas (openrgb-python, Pillow, bandeja, audio)..." -ForegroundColor Cyan
-    if (Test-Path (Join-Path $base 'EasyRGB.exe')) { Write-Host "      ja vem dentro do EasyRGB.exe." } else {
+    Write-Host "[2/4] Libraries..." -ForegroundColor Cyan
+    if (Test-Path (Join-Path $base 'EasyRGB.exe')) { Write-Host "      included in EasyRGB.exe." } else {
     # usa o Python que existir: "python" ou o lançador "py" do python.org
     $py = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } elseif (Get-Command py -ErrorAction SilentlyContinue) { 'py' } else { $null }
-    if (-not $py) { throw "Python 3 nao encontrado. Instale em https://www.python.org/downloads/ e rode de novo." }
+    if (-not $py) { throw "Python 3 not found. Install it from https://www.python.org/downloads/ and run this again." }
     & $py (Join-Path $base 'app\rgb_controller.py') bibliotecas
-    if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar as bibliotecas (precisa de internet nesta etapa)." }
+    if ($LASTEXITCODE -ne 0) { throw "Could not install the libraries (this step needs internet)." }
     Write-Host "      OK" -ForegroundColor Green
     }
 
-    Write-Host "[3/4] Desligando o ASRock Polychrome da inicializacao (reversivel)..." -ForegroundColor Cyan
+    Write-Host "[3/4] Turning off ASRock Polychrome at startup (reversible)..." -ForegroundColor Cyan
     Get-Process AsrPolychromeRGB -ErrorAction SilentlyContinue | Stop-Process -Force
     if (Get-ScheduledTask -TaskName AsrPolychromeRGB -ErrorAction SilentlyContinue) {
         Disable-ScheduledTask -TaskName AsrPolychromeRGB | Out-Null
-        Write-Host "      OK - desativado (nada foi apagado)." -ForegroundColor Green
-    } else { Write-Host "      nao encontrado, seguindo." }
+        Write-Host "      OK - disabled (nothing deleted)." -ForegroundColor Green
+    } else { Write-Host "      not installed, skipping." }
 
-    Write-Host "[4/4] Driver PawnIO..." -ForegroundColor Cyan
-    if (Get-Service PawnIO -ErrorAction SilentlyContinue) { Write-Host "      ja instalado." }
+    Write-Host "[4/4] PawnIO driver..." -ForegroundColor Cyan
+    if (Get-Service PawnIO -ErrorAction SilentlyContinue) { Write-Host "      already installed." }
     else {
         $setup = Join-Path $dl 'PawnIO_setup.exe'
         if (-not (Test-Path $setup)) {
@@ -55,16 +56,16 @@ try {
             Invoke-WebRequest -UseBasicParsing $url -OutFile $setup
         }
         $sig = Get-AuthenticodeSignature $setup
-        if ($sig.Status -ne 'Valid') { throw "Assinatura do PawnIO_setup.exe invalida: $($sig.Status)" }
+        if ($sig.Status -ne 'Valid') { throw "PawnIO_setup.exe signature is not valid: $($sig.Status)" }
         $p = Start-Process $setup -ArgumentList '-install', '-silent' -Wait -PassThru
-        Write-Host "      OK (codigo $($p.ExitCode))" -ForegroundColor Green
+        Write-Host "      OK (code $($p.ExitCode))" -ForegroundColor Green
     }
 
     Set-Content -Path (Join-Path $base 'configurado.ok') -Value (Get-Date) -Encoding utf8
-    Write-Host "`nPronto! O EasyRGB vai abrir agora." -ForegroundColor Green
+    Write-Host "`nDone! EasyRGB is ready." -ForegroundColor Green
     Start-Sleep 2
 }
 catch {
-    Write-Host "`nERRO: $($_.Exception.Message)" -ForegroundColor Red
-    Read-Host "Enter para fechar"
+    Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Read-Host "Press Enter to close"
 }

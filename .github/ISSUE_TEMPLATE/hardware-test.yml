@@ -1,0 +1,82 @@
+name: Hardware test report
+description: Tell us how EasyRGB works with your RGB devices (any brand)
+title: "[Hardware] <brand> <model>"
+labels: ["hardware-test"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! One report per device is ideal. No personal data is needed.
+  - type: dropdown
+    id: brand
+    attributes:
+      label: Brand
+      options:
+        - ASUS (Aura / ROG / TUF)
+        - MSI (Mystic Light)
+        - Gigabyte / Aorus (RGB Fusion)
+        - ASRock (Polychrome)
+        - Razer
+        - Corsair
+        - Logitech G
+        - SteelSeries
+        - HyperX
+        - NZXT
+        - Cooler Master
+        - Thermaltake
+        - Lian Li
+        - Roccat / Turtle Beach
+        - Kingston FURY
+        - G.Skill
+        - TeamGroup / T-Force
+        - Redragon
+        - Glorious
+        - Other (write it below)
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Device type
+      options: [Motherboard, RAM, Graphics card, Keyboard, Mouse, Headset, Mousepad, Fans / controller, LED strip, Case, Other]
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Exact model
+      placeholder: e.g. Razer BlackWidow V4, ASUS ROG Strix B650-A
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Did it work?
+      options:
+        - Everything works (colors and effects)
+        - Static colors work, effects don't
+        - Detected but colors don't change
+        - Not detected
+    validations:
+      required: true
+  - type: input
+    id: brandapp
+    attributes:
+      label: Brand app running at the same time (if any)
+      placeholder: e.g. Synapse 4, iCUE 5, Armoury Crate, G HUB, none
+  - type: textarea
+    id: notes
+    attributes:
+      label: What happened
+      description: What you tried and what you saw.
+  - type: textarea
+    id: diag
+    attributes:
+      label: Diagnostic report (optional)
+      description: Run `EasyRGB.exe diagnostico` (or `python app/rgb_controller.py diagnostico`) and paste the summary.
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: EasyRGB version
+      description: Shown at the bottom of "How to use".

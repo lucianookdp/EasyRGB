@@ -55,7 +55,9 @@
   .btn.primary:hover{background:var(--primary-hover)}
   .btn.ghost{background:none;border-color:transparent;color:var(--muted)}
   .btn.ghost:hover{background:var(--surface2);color:var(--text)}
-  .btn.ai{border-color:var(--ai-border);color:var(--ai-text);background:var(--ai-bg)}
+  .btn.ai{border-color:transparent;color:#fff;background:linear-gradient(135deg,#8b5cf6,#6366f1);font-weight:600;box-shadow:0 6px 18px -8px #8b5cf6}
+  .btn.ai:hover{filter:brightness(1.12);background:linear-gradient(135deg,#8b5cf6,#6366f1)}
+  .btn.ai .i{color:#fff}
   .btn.sm{height:30px;padding:0 10px;font-size:12.5px;border-radius:8px}
   .btn:disabled{opacity:.5;cursor:progress}
   .ib{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;border:0;background:none;color:var(--muted)}
@@ -126,8 +128,7 @@
   .sect:first-child{margin-top:0}
   .tic.big{width:38px;height:38px;border-radius:10px}
   .tic.big .i{width:19px;height:19px;color:var(--text)}
-  .aibtn{height:36px;padding:0 14px;font-weight:600;border-color:color-mix(in srgb,var(--ai) 55%,transparent);box-shadow:0 0 0 3px var(--ai-bg)}
-  .aibtn:hover{background:color-mix(in srgb,var(--ai) 18%,transparent);border-color:var(--ai)}
+  .aibtn{height:36px;padding:0 15px}
   .fxhead{margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
   .small{font-size:11.5px}
   .perlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
@@ -204,7 +205,6 @@
   .keys span{display:inline-flex;align-items:center;gap:3px}
   .keys em{font-style:normal;margin-left:4px}
   kbd{font:600 10.5px Inter,system-ui,sans-serif;color:var(--text);background:var(--surface2);border:1px solid var(--border2);border-bottom-width:2px;border-radius:5px;padding:1px 5px}
-  .tile.hk:not(.on) .keys{opacity:.55}
   .pgroup{grid-column:1/-1;display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;font-size:12px;font-weight:600;color:var(--text)}
   .pgroup:first-child{margin-top:0}
   .pgroup small{font-weight:400;color:var(--dim)}
@@ -285,6 +285,14 @@
   .srow .sp{flex:1}
   .srow select{padding-right:6px}
   .presets{max-height:360px;overflow:auto;padding-right:2px}
+  /* Paleta e Presets com a mesma altura: o card de presets não estica a linha, só acompanha a paleta e rola */
+  @media(min-width:1101px){
+    .lgrid>section:last-child{height:0;min-height:100%;display:flex;flex-direction:column;overflow:hidden}
+    .lgrid>section:last-child>.cb{flex:1;min-height:0;display:flex;flex-direction:column}
+    .lgrid>section:last-child .presets{flex:1;min-height:0;max-height:none}
+    .lgrid>section:last-child .presearch{flex:none}
+    .lgrid>section:last-child .presets{align-content:start;grid-auto-rows:max-content}
+  }
   .uh{display:flex;align-items:center;gap:10px;padding:12px 12px 0}
   .uic{width:34px;height:34px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;color:var(--muted);flex:none}
   .un{flex:1;min-width:0}
@@ -393,6 +401,128 @@
   .pulse{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 18%,transparent);flex:none}
 
   /* ---------- seletor de cor ---------- */
+  .updpill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:99px;border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok-strong);font-size:12.5px;font-weight:600}
+  .updpill .i{width:14px;height:14px}
+  .updpill:hover{background:color-mix(in srgb,var(--ok) 20%,transparent)}
+  /* ---------- menu do cabeçalho ---------- */
+  .status{cursor:default}
+  .status #stxt{font-size:12px}
+  .menuw{position:relative}
+  .menu{position:absolute;right:0;top:40px;z-index:40;min-width:250px;padding:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 50px -12px #000}
+  .menu button{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;border-radius:8px;background:none;color:var(--text);font-size:13px;text-align:left}
+  .menu button:hover{background:var(--surface3)}
+  .menu button .i{width:16px;height:16px;color:var(--muted)}
+  .menu #off{color:var(--warn-text)}
+  .menu .msep{height:1px;margin:5px 4px;background:var(--border2)}
+  .menu .danger{color:#fca5a5}
+  .menu .danger .i{color:#fca5a5}
+  .askbox{width:min(480px,100%)}
+  .askbox h2{margin:0 0 8px;font-size:18px}
+  .askbody{font-size:13px;color:var(--muted);line-height:1.55}
+  .askbody ul{margin:8px 0;padding-left:18px}
+  .askbody li{margin:3px 0}
+  .askbody label{display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--text)}
+  .btn.danger{background:#dc2626;border-color:#dc2626;color:#fff}
+  .btn.danger:hover{background:#ef4444;border-color:#ef4444}
+  .btn.danger:disabled{opacity:.55}
+  /* ---------- ajuste fino (dentro de cada parte) ---------- */
+  .fine{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+  .fine>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;font-size:13px;color:var(--text)}
+  .fine>summary::-webkit-details-marker{display:none}
+  .fine>summary .i{width:15px;height:15px;color:var(--muted);transition:transform .15s}
+  .fine[open]>summary .i{transform:rotate(90deg)}
+  .fine>summary small{color:var(--dim);font-size:12px}
+  .fine>.devs{margin-top:12px}
+  .pbody{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:12px;margin-top:12px}
+  @media(max-width:760px){.pbody{grid-template-columns:1fr}}
+  .pfx,.pset,.pkeys{border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:11px 12px}
+  .pkeys{margin-top:12px}
+  .plab{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:9px}
+  .plab .i{width:14px;height:14px;color:var(--muted)}
+  .plab small{font-weight:400;color:var(--dim);margin-left:4px}
+  .pfx .pills{margin-top:0}
+  .prange{display:grid;grid-template-columns:76px minmax(0,1fr) 40px;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);margin:6px 0}
+  .prange input{margin:0}
+  .prange b{text-align:right;color:var(--text);font-weight:500}
+  .pkeys .body{padding:0}
+  .pkeys .leds{padding:2px 0 8px}
+  .pkeys .zones{padding:0}
+  .pkeys .keysec{padding:8px 0 0}
+  .pkeys .persist{padding:8px 0 0}
+  .per .fine{margin-top:12px;padding-top:10px}
+  .per .fine .unit{border:0;background:none}
+  .per .fine .body{padding:0}
+  .autogrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+  .autogrid .tile{margin:0}
+  .autogrid .tile.hk{grid-column:1/-1}
+  @media(max-width:760px){.autogrid{grid-template-columns:1fr}}
+  .hklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(250px,100%),1fr));gap:6px 14px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  .tile.hk:not(.on) .hklist,.tile.hk:not(.on) .linkbtn{display:none}
+  .hkrow{display:flex;align-items:center;gap:8px;min-height:34px;font-size:12.5px;color:var(--muted)}
+  .hkrow>span{flex:1}
+  .hkbtn{display:inline-flex;align-items:center;gap:3px;height:30px;padding:0 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer}
+  .hkbtn:hover{border-color:var(--border2)}
+  .hkbtn.rec{border-color:var(--ai);color:var(--ai-text);font-size:12px}
+  .hkbtn.err{border-color:var(--warn)}
+  .hkbtn .none{color:var(--dim);font-size:12px}
+  .hkx{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:6px;background:none;color:var(--dim)}
+  .hkx:hover{background:var(--surface3);color:var(--text)} .hkx .i{width:12px;height:12px}
+  .linkbtn{margin-top:8px;border:0;background:none;padding:0;color:var(--dim);font-size:12px;text-decoration:underline;cursor:pointer}
+  .linkbtn:hover{color:var(--text)}
+  .found{margin-top:12px;border:1px solid var(--border2);border-radius:11px;background:var(--bg);padding:8px}
+  .fhead{display:flex;align-items:center;gap:8px;padding:2px 4px 8px;font-size:12.5px;color:var(--muted)}
+  .frow{display:flex;align-items:center;gap:10px;padding:6px 6px;border-radius:8px;font-size:13px}
+  .frow:hover{background:var(--surface2)}
+  .frow .src{font-size:11px;color:var(--dim);border:1px solid var(--border);border-radius:99px;padding:0 7px}
+  .frow .sp{flex:1}
+  .frow .done{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ok-text)} .frow .done .i{width:13px;height:13px}
+  /* ---------- como usar ---------- */
+  .hbox{width:min(860px,100%)}
+  .hbox .wtop h2{margin:0;font-size:19px}
+  .hgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+  @media(max-width:860px){.hgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:560px){.hgrid{grid-template-columns:1fr}}
+  .hgrid section{border:1px solid var(--border);border-radius:12px;background:var(--bg);padding:12px 14px}
+  .hgrid h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:14px}
+  .hgrid h3 .i{width:16px;height:16px;color:var(--muted)}
+  .hgrid p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.55}
+  .hgrid p .i{display:inline;width:13px;height:13px;vertical-align:-2px}
+  .hgrid .hlang{border-style:dashed}
+  .hai{border:1px solid var(--ai-border);border-radius:12px;background:var(--ai-bg);padding:14px}
+  .haih{display:flex;gap:12px;align-items:flex-start}
+  .haih h3{margin:0 0 3px;font-size:15px}
+  .haih p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .airow{display:flex;align-items:center;gap:10px;margin-top:12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+  .airow .mini{width:44px;height:16px;border-radius:5px;flex:none}
+  .airow b{display:block;font-size:13px} .airow small{display:block;color:var(--dim);font-size:11.5px}
+  .hfoot{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px}
+  .habtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  #pcinfo .pcchip{white-space:normal;max-width:100%}
+  .hlink{display:inline-flex;align-items:center;gap:6px;color:var(--text);text-decoration:none;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-weight:500}
+  .hlink:hover{background:var(--surface3)}
+  .hlink .i{width:14px;height:14px}
+  /* ---------- assistente da primeira vez ---------- */
+  .wiz{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,#000 72%,transparent)}
+  .wbox{width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:20px 22px;box-shadow:0 30px 80px -20px #000}
+  .wtop{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .wdots{flex:1;display:flex;justify-content:center;gap:6px}
+  .wdots i{width:22px;height:4px;border-radius:9px;background:var(--border2)}
+  .wdots i.on{background:var(--g)}
+  .wstep h2{margin:0;font-size:20px;letter-spacing:-.02em}
+  .wsub{margin:6px 0 14px;font-size:13px;color:var(--muted)}
+  .wdevs{display:flex;flex-direction:column;gap:6px}
+  .wdev{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--bg);font-size:13px}
+  .wdev .i{width:16px;height:16px;color:var(--muted)}
+  .wdev small{margin-left:auto;color:var(--dim);font-size:11.5px}
+  .wnote{margin:10px 0 0;font-size:12px;color:var(--warn-text)}
+  .wmiss{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:14px;padding:11px 12px;border:1px dashed var(--border2);border-radius:11px;font-size:12.5px;color:var(--muted)}
+  .wmissb{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .wmissb .btn .i{width:14px;height:14px}
+  .wempty{padding:16px;text-align:center;border:1px solid var(--border);border-radius:11px;background:var(--bg);color:var(--muted);font-size:13px}
+  .wopt{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--bg);cursor:pointer}
+  .wopt b{display:block;font-size:13.5px} .wopt small{display:block;font-size:12px;color:var(--dim);margin-top:2px}
+  .wfoot{display:flex;align-items:center;gap:8px;margin-top:18px}
+  .wfoot .btn .i{width:14px;height:14px}
   .picker{position:fixed;z-index:50;width:264px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:12px;box-shadow:0 24px 60px -12px var(--shadow);display:none}
   .picker.open{display:block}
   .sv{position:relative;height:150px;border-radius:8px;cursor:crosshair;touch-action:none}
@@ -420,7 +550,7 @@
   /* ---------- telas pequenas (celular / janela estreita) ---------- */
   main{overflow-x:clip}
   .lgrid>*,.col,.ctl,.per,.unit{min-width:0}
-  .perlist{grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))}
+  .perlist{grid-template-columns:repeat(auto-fit,minmax(min(560px,100%),1fr))}
   .devs{grid-template-columns:repeat(auto-fill,minmax(min(270px,100%),1fr))}
   .games{grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr))}
   #fxpilltxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
@@ -437,7 +567,7 @@
     #toast{left:12px;right:12px;top:64px;max-width:none}
     .srow{font-size:12.5px}
   }
-  @media(max-width:420px){ .brand .ver,#reconnect,.fxpill,.okstate{display:none!important} .swatch{width:40px;height:40px} }
+  @media(max-width:420px){ .brand .ver,.fxpill,.okstate{display:none!important} .swatch{width:40px;height:40px} }
 </style>
 </head>
 <body>
@@ -445,17 +575,30 @@
 <header class="top"><div class="in">
   <div class="brand"><img src="/icon.png" alt="" width="28" height="28"><b>EasyRGB</b><span class="ver">v1</span></div>
   <div class="sp"></div>
-  <button class="fxpill" id="fxpill" hidden title="As cores estão mudando sozinhas por causa deste efeito. Clique para parar."><span data-i="waves"></span><span id="fxpilltxt">Efeito ativo</span><span class="stopx">Parar</span></button>
-  <div class="status" id="status"><span class="dot"></span><span id="stxt">Desconectado</span></div>
-  <button class="ib" id="reconnect" title="Reconectar e atualizar dispositivos"><span data-i="refresh"></span></button>
-  <button class="btn ghost" id="goAuto" title="Modo jogo, horários, modo noite e atalhos"><span data-i="zap"></span><span class="lbl">Automação</span></button>
-  <button class="btn" id="burn" title="Grava as cores atuais na memória da placa e das RAMs. Elas continuam depois de reiniciar, sem nenhum programa aberto."><span data-i="cpu-save"></span><span class="lbl">Gravar na placa</span></button>
-  <button class="btn ghost" id="off" title="Apagar todas as luzes"><span data-i="power"></span><span class="lbl">Apagar</span></button>
+  <button class="updpill" id="updPill" hidden title="Instala a versão nova e abre o EasyRGB de novo"><span data-i="download"></span><span id="updTxt">Atualizar</span></button>
+  <div class="status" id="status" title="Desconectado"><span class="dot"></span><span id="stxt">Desconectado</span></div>
+  <button class="btn ghost" id="helpBtn"><span data-i="help"></span><span class="lbl">Como usar</span></button>
+  <div class="menuw">
+    <button class="ib" id="menuBtn" title="Mais opções" aria-haspopup="true"><span data-i="more"></span></button>
+    <div class="menu" id="menu" hidden>
+      <button id="goAuto"><span data-i="zap"></span>Automação</button>
+      <button id="burn" title="Grava as cores atuais na memória da placa e das RAMs. Elas continuam depois de reiniciar, sem nenhum programa aberto."><span data-i="cpu-save"></span>Gravar na placa</button>
+      <button id="reconnect"><span data-i="refresh"></span>Procurar dispositivos de novo</button>
+      <button id="off"><span data-i="power"></span>Apagar as luzes</button>
+      <div class="msep"></div>
+      <button id="exportBtn"><span data-i="download"></span>Exportar configurações</button>
+      <button id="importCfgBtn"><span data-i="upload"></span>Importar configurações</button>
+      <div class="msep"></div>
+      <button id="undoBtn" class="danger"><span data-i="reset"></span>Desfazer tudo...</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+  </div>
 </div></header>
 
 <div class="content">
   <div class="glow" aria-hidden="true"></div>
 <main>
+  <div class="conflict" id="conflicts" hidden></div>
   <div class="page" data-page="light">
     <div class="sect"><span>Cores</span></div>
     <div class="lgrid">
@@ -507,8 +650,7 @@
         <div class="tic big"><span data-i="cpuchip"></span></div>
         <div><h2>Computador</h2><p>Placa-mãe, memórias, fitas de LED e coolers.</p></div>
         <div class="sp"></div>
-        <button class="btn ghost sm" id="mcpBtn" title="Deixa o Claude Desktop mudar as luzes direto pelo chat"><span data-i="message"></span>Usar no Claude Desktop</button>
-        <button class="btn ai aibtn" id="aiCopy" title="Copia o prompt para você colar no seu agente de IA (Claude, ChatGPT, Gemini...)"><span data-i="sparkles"></span>Cores com IA</button>
+        <button class="btn ai aibtn" id="aiCopy" title="Copia o prompt para você colar no seu agente de IA (Claude, ChatGPT, Gemini...)"><span data-i="copy"></span>Pedir cores à IA</button>
       </div>
       <div class="cb">
         <div class="thead"><span class="lb2">Peças que recebem a paleta</span><span class="sp"></span><button class="btn sm ghost" id="tAll">Todas</button></div>
@@ -526,6 +668,10 @@
               <button data-v="musica"><span class="pv pv-musica"><i></i></span><span class="fxn"><span data-i="music"></span>Música</span></button>
           </div>
         </div>
+        <details class="fine" data-fine="pc">
+          <summary><span data-i="chevron"></span><b>Ajuste fino</b><small>cor de cada zona da placa e das memórias, e efeitos do próprio chip</small></summary>
+          <div class="devs" id="devsPc"></div>
+        </details>
       </div>
     </section>
 
@@ -534,38 +680,23 @@
       <div class="cb"><div class="perlist" id="periph"></div><p class="fxnote" id="fxnote" hidden></p></div>
     </section>
 
-    <section class="card aicard hero" id="aiHero">
-      <div class="ch">
-        <div class="aimark"><span data-i="sparkles"></span></div>
-        <div><h2>Cores com IA</h2><p>Diga o visual em palavras ("tema GTA VI", "roxo e azul calmo") e a IA aplica no PC inteiro. Ela também configura o PC na primeira vez.</p></div>
-        
-      </div>
-      <div class="cb" id="ai"></div>
-    </section>
-  </div>
-
-  <div class="page" data-page="devices">
-    <div class="sect"><span>Ajuste fino por zona</span></div>
-    <section class="card">
-      <div class="ch"><div><h2>Zonas e teclas</h2><p>Clique numa zona para dar uma cor só para ela, ou escolha um efeito do próprio chip.</p></div><div class="sp"></div><div id="pcinfo"></div></div>
-      <div class="cb"><div class="conflict" id="conflicts" hidden></div><div class="devs" id="devs"></div>
-          <div class="tile restore">
-            <div class="thd"><div class="tic"><span data-i="power"></span></div><div class="ttl"><b>Restaurar ao ligar o PC</b><small id="autostartHint">Devolve suas cores e fecha sozinho.</small></div>
-              <span class="switch"><input type="checkbox" id="autostart" aria-label="Restaurar ao ligar o PC"><span></span></span></div>
-          </div>
-      </div>
-    </section>
   </div>
 
   <div class="page" data-page="auto">
     <div class="sect"><span>Automação</span></div>
     <section class="card" id="autoCard">
-      <div class="ch"><div class="tic"><span data-i="zap"></span></div><div><h2>Automação</h2><p>O PC muda sozinho quando você joga, na hora certa ou pelo teclado.</p></div><div class="sp"></div><span class="dsum" id="autoSum"></span></div>
+      <div class="ch"><div class="tic"><span data-i="zap"></span></div><div><h2>Automação</h2><p>Muda sozinho quando você joga ou na hora certa.</p></div>
+        <div class="sp"></div><span class="dsum" id="autoSum"></span>
+        <button class="btn sm ai" id="autoAi" title="Copia um pedido para a IA montar o modo jogo e o modo noite para você"><span data-i="copy"></span>Criar com IA</button></div>
       <div class="cb">
         <div class="astatus" id="astatus" hidden></div>
-        <div class="tiles">
+        <div class="autogrid">
+          <div class="tile restore">
+            <div class="thd"><div class="tic"><span data-i="power"></span></div><div class="ttl"><b>Restaurar ao ligar o PC</b><small id="autostartHint">Devolve suas cores ao ligar.</small></div>
+              <span class="switch"><input type="checkbox" id="autostart" aria-label="Restaurar ao ligar o PC"><span></span></span></div>
+          </div>
           <div class="tile" id="nightTile">
-            <div class="thd"><div class="tic"><span data-i="moon"></span></div><div class="ttl"><b>Modo noite</b><small>Diminui o brilho à noite e volta ao normal de manhã.</small></div>
+            <div class="thd"><div class="tic"><span data-i="moon"></span></div><div class="ttl"><b>Modo noite</b><small>Brilho menor à noite.</small></div>
               <span class="switch"><input type="checkbox" id="nightOn" aria-label="Modo noite"><span></span></span></div>
             <div class="nightcfg" id="nightCfg">
               <label>Das <input type="time" id="nightFrom"></label>
@@ -573,25 +704,20 @@
               <label>brilho <input type="number" id="nightBri" min="5" max="90" step="5"> %</label>
             </div>
           </div>
-        <div class="tile hk" id="hkTile">
-          <div class="thd"><div class="tic"><span data-i="keyboard"></span></div><div class="ttl"><b>Atalhos de teclado</b><small>Troque cores sem abrir o app. O EasyRGB fica no ícone ao lado do relógio.</small></div>
-            <span class="switch"><input type="checkbox" id="hkOn" aria-label="Atalhos de teclado"><span></span></span></div>
-          <div class="keys">
-            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>→</kbd> <em>Próximo preset</em></span>
-            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>←</kbd> <em>Preset anterior</em></span>
-            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>↑</kbd><kbd>↓</kbd> <em>Brilho</em></span>
-            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>E</kbd> <em>Trocar efeito</em></span>
-            <span><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>L</kbd> <em>Apagar / acender</em></span>
+          <div class="tile hk" id="hkTile">
+            <div class="thd"><div class="tic"><span data-i="keyboard"></span></div><div class="ttl"><b>Atalhos de teclado</b><small>Clique num atalho para trocar.</small></div>
+              <span class="switch"><input type="checkbox" id="hkOn" aria-label="Atalhos de teclado"><span></span></span></div>
+            <div class="hklist" id="hkList"></div>
+            <button class="linkbtn" id="hkReset">Voltar ao padrão</button>
           </div>
         </div>
-        </div>
-
 
         <div class="block">
-          <div class="bhead"><div class="tic"><span data-i="gamepad"></span></div><div class="ttl"><b>Modo jogo</b><small>Abriu o jogo, o PC usa o preset dele. Fechou, volta ao seu visual.</small></div>
-            <button class="btn sm" id="findGames" title="Procura jogos na Steam, Epic, Riot e Xbox"><span data-i="search"></span>Achar meus jogos</button></div>
+          <div class="bhead"><div class="tic"><span data-i="gamepad"></span></div><div class="ttl"><b>Modo jogo</b><small>Cada jogo com as suas cores.</small></div>
+            <button class="btn sm" id="findGames"><span data-i="search"></span>Achar meus jogos</button></div>
+          <div class="found" id="foundGames" hidden></div>
           <div class="games" id="gameRules"></div>
-          <details class="addmore"><summary><span data-i="plus"></span>Adicionar outro jogo pelo executável</summary>
+          <details class="addmore"><summary><span data-i="plus"></span>Adicionar pelo executável</summary>
             <div class="addrow">
               <div class="field"><span data-i="gamepad"></span><input id="gameExe" list="knownExe" placeholder="Ex.: VALORANT-Win64-Shipping.exe"></div>
               <button class="btn" id="addGame">Adicionar</button>
@@ -601,7 +727,7 @@
         </div>
 
         <div class="block">
-          <div class="bhead"><div class="tic"><span data-i="clock"></span></div><div class="ttl"><b>Horários</b><small>Troque as cores sozinho em um horário do dia.</small></div>
+          <div class="bhead"><div class="tic"><span data-i="clock"></span></div><div class="ttl"><b>Horários</b><small>Muda as cores na hora marcada.</small></div>
             <button class="btn sm" id="addSched"><span data-i="plus"></span>Novo horário</button></div>
           <div id="schedRules"></div>
         </div>
@@ -614,6 +740,7 @@
 
 <div class="player">
   <div class="np"><span class="npstrip" id="npStrip"></span><div class="npt"><b id="npName">Paleta personalizada</b><small id="npFx">Estático</small></div></div>
+  <button class="fxpill" id="fxpill" hidden title="As cores estão mudando sozinhas por causa deste efeito. Clique para parar."><span data-i="waves"></span><span id="fxpilltxt">Efeito ativo</span><span class="stopx">Parar</span></button>
   <div class="sp"></div>
   <span class="okstate"><span data-i="check"></span>Aplicado no PC</span>
   <div class="dirty" id="dirty">
@@ -622,6 +749,74 @@
   <button class="btn" id="applySave" title="Aplica e grava na memória da placa e das RAMs"><span data-i="cpu-save"></span>Aplicar e gravar</button>
   <button class="btn primary" id="apply"><span data-i="check"></span>Aplicar</button>
 </div>
+</div>
+
+<div class="wiz" id="wiz" hidden role="dialog" aria-modal="true" aria-labelledby="wizTitle">
+  <div class="wbox">
+    <div class="wtop"><img src="/icon.png" alt="" width="34" height="34"><div class="wdots" id="wizDots"><i></i><i></i></div>
+      <button class="btn ghost sm" id="wizSkip">Pular</button></div>
+    <div class="wstep" data-s="1">
+      <h2 id="wizTitle">Bem-vindo ao EasyRGB</h2>
+      <p class="wsub" id="wizSub">Encontrei estas peças com RGB no seu PC:</p>
+      <div class="wdevs" id="wizDevs"></div>
+      <p class="wnote" id="wizNote" hidden></p>
+      <div class="wmiss">
+        <span>Faltou alguma peça, ou apareceu errada?</span>
+        <div class="wmissb">
+          <button class="btn sm" id="wizRescan"><span data-i="refresh"></span>Procurar de novo</button>
+          <button class="btn sm ai" id="wizAsk" title="Copia um pedido para o seu agente de IA descobrir e resolver o que faltou"><span data-i="sparkles"></span>Procurar com IA</button>
+        </div>
+      </div>
+      <div class="wfoot"><span class="sp"></span><button class="btn primary" data-go="2">Continuar<span data-i="chevron"></span></button></div>
+    </div>
+    <div class="wstep" data-s="2" hidden>
+      <h2>Quase pronto</h2>
+      <label class="wopt"><span class="switch"><input type="checkbox" id="wizAuto"><span></span></span>
+        <span><b>Restaurar as cores ao ligar o PC</b><small id="wizAutoHint">Devolve suas cores depois de reiniciar e fecha sozinho.</small></span></label>
+      <p class="wsub">As cores, os efeitos, o modo jogo e o modo noite você escolhe depois, na tela principal.</p>
+      <div class="wfoot"><button class="btn ghost" data-go="1">Voltar</button><span class="sp"></span><button class="btn primary" id="wizDone"><span data-i="check"></span>Concluir</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="wiz help" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="wbox hbox">
+    <div class="wtop"><img src="/icon.png" alt="" width="30" height="30"><h2 id="helpTitle">Como usar</h2><span class="sp"></span>
+      <button class="ib" id="helpClose" title="Fechar"><span data-i="x"></span></button></div>
+    <section class="hai">
+      <div class="haih"><div class="aimark"><span data-i="sparkles"></span></div>
+        <div><h3>Cores com IA</h3><p>Diga o visual em palavras, como "tema GTA VI" ou "roxo e azul calmo", e a IA aplica no PC inteiro.</p></div></div>
+      <div class="habtn"><button class="btn ai sm" id="helpAi"><span data-i="sparkles"></span>Copiar pedido para a IA</button>
+        <button class="btn sm" id="helpMcp"><span data-i="message"></span>Usar no Claude Desktop</button></div>
+      <div id="ai"></div>
+    </section>
+    <div class="hgrid">
+      <section><h3><span data-i="gradient"></span>Cores</h3>
+        <p>Clique numa cor da paleta para trocar, ou escolha um preset. O PC mostra na hora; use <b>Aplicar</b> na barra de baixo para salvar.</p></section>
+      <section><h3><span data-i="cpuchip"></span>Computador</h3>
+        <p>Placa-mãe, memórias e fitas de LED. Escolha quais peças recebem a paleta e o efeito delas. Em <b>Ajuste fino</b> dá para pintar cada zona com uma cor.</p></section>
+      <section><h3><span data-i="keyboard"></span>Periféricos</h3>
+        <p>Teclado, mouse e outros, cada um com o próprio efeito. No <b>Ajuste fino</b> de cada um você pinta grupos de teclas (WASD, setas, F1–F12...).</p></section>
+      <section><h3><span data-i="zap"></span>Automação</h3>
+        <p>Modo jogo (muda a cor quando o jogo abre), horários, modo noite, atalhos de teclado e <b>Restaurar ao ligar o PC</b>. Fica no menu <span data-i="more"></span>.</p></section>
+      <section><h3><span data-i="cpu-save"></span>Bom saber</h3>
+        <p>Efeitos animados rodam com o EasyRGB aberto (ele fica no ícone perto do relógio). <b>Gravar na placa</b> guarda uma cor fixa no chip, sem programa nenhum.</p></section>
+      <section class="hlang"><h3><span data-i="globe"></span>Seu idioma</h3>
+        <p id="langInfo">O EasyRGB vem em inglês e português. Para usar no seu idioma, peça para um agente de IA traduzir: leva poucos minutos.</p>
+        <div class="habtn"><button class="btn sm" id="langAi"><span data-i="sparkles"></span>Traduzir com IA</button></div></section>
+    </div>
+    <div class="hfoot"><div id="pcinfo"></div><span class="sp"></span>
+      <a class="hlink" href="https://github.com/lucianookdp/EasyRGB" target="_blank" rel="noopener" title="Código, novidades e ajuda no GitHub"><span data-i="github"></span>GitHub</a>
+      <span class="dim" id="helpVer"></span></div>
+  </div>
+</div>
+
+<div class="wiz" id="ask" hidden role="alertdialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="wbox askbox">
+    <h2 id="askTitle"></h2>
+    <div class="askbody" id="askBody"></div>
+    <div class="wfoot"><span class="sp"></span><button class="btn ghost" id="askNo">Cancelar</button><button class="btn primary" id="askYes"></button></div>
+  </div>
 </div>
 
 <div class="picker" id="picker">
@@ -645,6 +840,11 @@ const I = {
   dots:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   grid:'<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
   square:'<rect width="14" height="14" x="5" y="5" rx="2"/>',
+  github:'<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+  more:'<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   wave:'<path d="M2 12c2.5-7 5-7 7.5 0s5 7 7.5 0c1.2-3.5 2.5-5 3.5-5"/>',
   monitor:'<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>',
   waves:'<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
@@ -690,10 +890,18 @@ const I = {
 const icon = (n, cls="") => `<svg class="i ${cls}" viewBox="0 0 24 24">${I[n]||""}</svg>`;
 document.querySelectorAll("[data-i]").forEach(el=>el.outerHTML=icon(el.dataset.i));
 
-/* ===================== idioma (segue o sistema: português ou inglês) ===================== */
-const LANG=(new URLSearchParams(location.search).get("lang")   // ?lang=en ou ?lang=pt força o idioma
-  ||(navigator.languages&&navigator.languages[0])||navigator.language||"pt").toLowerCase().startsWith("pt")?"pt":"en";
-document.documentElement.lang=LANG==="pt"?"pt-BR":"en";
+/* ===================== idioma =====================
+   Segue o Windows. Português e inglês vêm prontos; outros idiomas vêm de app/lang/<código>.json, que um agente
+   de IA cria (veja "Add a language" no AGENTS.md). Sem arquivo do idioma: inglês. ?lang=xx força um idioma. */
+const LANG_CODE=((new URLSearchParams(location.search).get("lang")||(navigator.languages&&navigator.languages[0])
+  ||navigator.language||"en").toLowerCase().split("-")[0]).replace(/[^a-z]/g,"").slice(0,3)||"en";
+const LANG=LANG_CODE==="pt"?"pt":"en";   // lógica interna: português ou "o resto"
+let XT={}, XT_NAME="";
+if(!["pt","en"].includes(LANG_CODE)){
+  try{ const x=new XMLHttpRequest(); x.open("GET","/lang/"+LANG_CODE+".json",false); x.send();
+    if(x.status===200){ const j=JSON.parse(x.responseText); XT=j.strings||{}; XT_NAME=j.name||""; } }catch{}
+}
+document.documentElement.lang=LANG==="pt"?"pt-BR":(Object.keys(XT).length?LANG_CODE:"en");
 const EN={
   // topo e barra de alterações
   "Desconectado":"Disconnected","Reconectar e atualizar dispositivos":"Reconnect and refresh devices",
@@ -848,24 +1056,103 @@ const EN={
   "Usar no Claude Desktop":"Use in Claude Desktop",
   "Deixa o Claude Desktop mudar as luzes direto pelo chat":"Lets Claude Desktop change your lights right from the chat",
   "Pronto! Reinicie o Claude Desktop e peça as cores pelo chat.":"Done! Restart Claude Desktop and ask for colors in the chat.",
+  // assistente da primeira vez
+  "Pular":"Skip","Bem-vindo ao EasyRGB":"Welcome to EasyRGB","Encontrei estas peças com RGB no seu PC:":"I found these RGB parts in your PC:",
+  "Continuar":"Continue",
+  "Voltar":"Back","Quase pronto":"Almost done","Restaurar as cores ao ligar o PC":"Restore colors when the PC starts",
+  "Devolve suas cores depois de reiniciar e fecha sozinho.":"Brings your colors back after a restart and closes by itself.",
+  "Recomendado: algumas peças perdem a cor quando o PC desliga.":"Recommended: some parts lose their color when the PC turns off.",
+  "As cores, os efeitos, o modo jogo e o modo noite você escolhe depois, na tela principal.":"You pick colors, effects, game mode and night mode later, on the main screen.",
+  "Concluir":"Finish","Configurando...":"Setting up...","Pronto! Seu PC está configurado.":"Done! Your PC is set up.",
+  "Instala a versão nova e abre o EasyRGB de novo":"Installs the new version and reopens EasyRGB","Atualizar":"Update",
+  "Atualizar para {v}":"Update to {v}","Baixando a versão {v}... o EasyRGB vai fechar e abrir de novo.":"Downloading version {v}... EasyRGB will close and reopen.",
+  "Faltou alguma peça, ou apareceu errada?":"Missing a part, or one looks wrong?","Procurar de novo":"Search again","Procurar com IA":"Search with AI",
+  "Copia um pedido para o seu agente de IA descobrir e resolver o que faltou":"Copies a request for your AI agent to find and fix what's missing",
+  "Não encontrei nenhuma peça com RGB ainda.":"I haven't found any RGB parts yet.",
+  "O OpenRGB está aberto, mas não achou nada. Use \"Procurar com IA\" para descobrir o motivo.":"OpenRGB is open but found nothing. Use \"Search with AI\" to find out why.",
+  "O OpenRGB ainda não está aberto. Clique em \"Procurar de novo\".":"OpenRGB isn't open yet. Click \"Search again\".",
+  "Copiado! Cole no seu agente de IA. A lista aqui atualiza sozinha quando ele terminar.":"Copied! Paste it into your AI agent. This list updates by itself when it's done.",
+  "Procurando peças com RGB...":"Looking for RGB parts...","{n} peças encontradas.":"{n} parts found.","Nenhuma peça encontrada ainda.":"No parts found yet.",
+  "Pronto! Seu PC está configurado. Escolha as cores e os efeitos quando quiser.":"Done! Your PC is set up. Pick colors and effects whenever you like.",
+  "Como usar":"How to use","Mais opções":"More options","Procurar dispositivos de novo":"Search for devices again","Apagar as luzes":"Turn lights off",
+  "Ajuste fino":"Fine-tune","cor de cada zona da placa e das memórias, e efeitos do próprio chip":"color of each board and memory zone, and the chip's own effects",
+  "cor de grupos de teclas e de cada zona":"color of key groups and of each zone","cor de cada zona":"color of each zone",
+  "Nenhuma peça do computador com RGB encontrada.":"No RGB computer parts found.","Conectado ao OpenRGB":"Connected to OpenRGB",
+  "Fechar":"Close","Copiar pedido para a IA":"Copy request for the AI",
+  "Clique numa cor da paleta para trocar, ou escolha um preset. O PC mostra na hora; use":"Click a palette color to change it, or pick a preset. Your PC shows it right away; use",
+  "para salvar.":"to save.","na barra de baixo para salvar.":"in the bottom bar to save.",
+  "Placa-mãe, memórias e fitas de LED. Escolha quais peças recebem a paleta e o efeito delas. Em":"Motherboard, memory and LED strips. Choose which parts get the palette and their effect. In",
+  "dá para pintar cada zona com uma cor.":"you can paint each zone its own color.",
+  "Teclado, mouse e outros, cada um com o próprio efeito. No":"Keyboard, mouse and others, each with its own effect. In",
+  "de cada um você pinta grupos de teclas (WASD, setas, F1–F12...).":"for each one you paint key groups (WASD, arrows, F1–F12...).",
+  "Modo jogo (muda a cor quando o jogo abre), horários, modo noite, atalhos de teclado e":"Game mode (changes colors when a game opens), schedules, night mode, keyboard shortcuts and",
+  ". Fica no menu":". It's in the menu",
+  "Diga o visual em palavras, como \"tema GTA VI\" ou \"roxo e azul calmo\", e a IA aplica no PC inteiro.":"Describe a look in words, like \"GTA VI theme\" or \"calm purple and blue\", and AI applies it to your whole PC.",
+  "Bom saber":"Good to know",
+  "Efeitos animados rodam com o EasyRGB aberto (ele fica no ícone perto do relógio).":"Animated effects run while EasyRGB is open (it stays in the icon by the clock).",
+  "guarda uma cor fixa no chip, sem programa nenhum.":"keeps a fixed color in the chip, with no program running.",
+  "Seu idioma":"Your language","Traduzir com IA":"Translate with AI",
+  "O EasyRGB vem em inglês e português. Para usar no seu idioma, peça para um agente de IA traduzir: leva poucos minutos.":"EasyRGB comes in English and Portuguese. To use it in your language, ask an AI agent to translate it: it takes a few minutes.",
+  "último visual feito pela IA":"last look made by AI","Este PC ainda não foi configurado":"This PC isn't set up yet",
+  "Configurado pelo assistente":"Set up by the wizard",
+  // automação nova
+  "Muda sozinho quando você joga ou na hora certa.":"Changes by itself when you play or at set times.","Criar com IA":"Create with AI",
+  "Copia um pedido para a IA montar o modo jogo e o modo noite para você":"Copies a request for AI to set up game mode and night mode for you",
+  "Devolve suas cores ao ligar.":"Brings your colors back at startup.","Brilho menor à noite.":"Lower brightness at night.",
+  "Clique num atalho para trocar.":"Click a shortcut to change it.","Voltar ao padrão":"Reset to default","Cada jogo com as suas cores.":"Each game with its own colors.",
+  "Adicionar pelo executável":"Add by executable","Muda as cores na hora marcada.":"Changes colors at a set time.",
+  "Recomendado: {x} perde a cor ao desligar.":"Recommended: {x} loses its color when off.",
+  "Próximo preset":"Next preset","Preset anterior":"Previous preset","Mais brilho":"Brighter","Menos brilho":"Dimmer","Trocar efeito":"Change effect",
+  "sem atalho":"no shortcut","Sem atalho":"No shortcut","Outro programa já usa este atalho":"Another program already uses this shortcut",
+  "Clique e aperte as teclas":"Click and press the keys","Aperte as teclas...":"Press the keys...",
+  "Essa tecla não pode ser usada. Tente uma letra, número, F1–F12 ou as setas.":"That key can't be used. Try a letter, number, F1–F12 or the arrows.",
+  "Use junto com Ctrl, Alt ou Shift, para não atrapalhar quando você digita.":"Use it with Ctrl, Alt or Shift so it doesn't get in the way when you type.",
+  "Atalho salvo: {x}":"Shortcut saved: {x}","Outro programa já usa: {x}. Escolha outro atalho.":"Another program already uses: {x}. Pick another shortcut.",
+  "Atalhos voltaram ao padrão":"Shortcuts reset to default","Atalhos ligados":"Shortcuts on","Espaço":"Space",
+  "Nenhum jogo ainda.":"No games yet.","Nenhum horário.":"No schedules.","{n} jogo encontrado":"{n} game found","{n} jogos encontrados":"{n} games found",
+  "Adicionar todos":"Add all","Na lista":"Added","Nenhum jogo encontrado. Adicione pelo executável.":"No games found. Add one by its executable.",
+  "Copiado! Cole no seu agente de IA. A Automação atualiza sozinha quando ele terminar.":"Copied! Paste it into your AI agent. Automation updates by itself when it's done.",
+  "Ajustes deste aparelho":"Settings for this device","Velocidade":"Speed","Teclas e zonas":"Keys and zones","Zonas":"Zones",
+  "clique para dar uma cor":"click to give it a color","Efeito":"Effect","Pedir cores à IA":"Ask AI for colors",
+  "Código, novidades e ajuda no GitHub":"Code, news and help on GitHub","GitHub":"GitHub",
+  "Exportar configurações":"Export settings","Importar configurações":"Import settings","Desfazer tudo...":"Undo everything...",
+  "Cancelar":"Cancel","Backup salvo na pasta Downloads":"Backup saved to your Downloads folder",
+  "Este arquivo não é um backup do EasyRGB":"This file isn't an EasyRGB backup","Importar configurações?":"Import settings?",
+  "Suas configurações atuais (visual, presets, automações e perfil do PC) serão trocadas pelas do backup de {d}.":"Your current settings (look, presets, automations and PC profile) will be replaced by the backup from {d}.",
+  "Uma cópia das atuais fica guardada, por segurança.":"A copy of the current ones is kept, just in case.","Importar":"Import",
+  "Configurações importadas ({n} partes)":"Settings imported ({n} parts)","Desfazer tudo?":"Undo everything?",
+  "Isto devolve o PC a como ele estava antes do EasyRGB:":"This puts your PC back the way it was before EasyRGB:",
+  "religa o ASRock Polychrome (se existir)":"turns ASRock Polychrome back on (if present)",
+  "tira o \"Restaurar ao ligar o PC\"":"removes \"Restore on PC start\"",
+  "devolve o teclado ao programa da marca (ex.: G HUB)":"gives the keyboard back to the brand's app (e.g. G HUB)",
+  "tira o EasyRGB do Claude Desktop":"removes EasyRGB from Claude Desktop","fecha o EasyRGB e o OpenRGB":"closes EasyRGB and OpenRGB",
+  "Apagar também meus dados (perfil, presets, automações)":"Also delete my data (profile, presets, automations)",
+  "Continuar":"Continue","Tem certeza?":"Are you sure?",
+  "O Windows vai pedir permissão de administrador e o EasyRGB vai fechar.":"Windows will ask for administrator permission and EasyRGB will close.",
+  "Seus dados serão apagados.":"Your data will be deleted.","Uma última cópia fica em app/antes-de-desfazer.json.":"A last copy stays in app/antes-de-desfazer.json.",
+  "Para remover o programa depois: Configurações → Aplicativos → EasyRGB.":"To remove the program afterwards: Settings → Apps → EasyRGB.",
+  "Sim, desfazer tudo":"Yes, undo everything","Desfazendo... aceite o pedido de administrador do Windows":"Undoing... accept the Windows administrator prompt",
+  "Pronto":"Done","O PC voltou a como estava antes do EasyRGB. Pode fechar esta janela.":"Your PC is back to how it was before EasyRGB. You can close this window.",
+  "Para remover o programa: Configurações → Aplicativos → EasyRGB.":"To remove the program: Settings → Apps → EasyRGB.",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
   "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com EASYRGB1-":"Invalid code: it must start with EASYRGB1-",
 };
+const trKey=s=>XT[s]!==undefined&&XT[s]!==""?XT[s]:EN[s];   // idioma extra > inglês > texto original
 function tr(s, vars){
-  let r=(LANG==="en"&&EN[s]!==undefined)?EN[s]:s;
+  let r=LANG==="pt"?s:(trKey(s)??s);
   if(vars) for(const k in vars) r=r.split("{"+k+"}").join(vars[k]);
   return r;
 }
 /* traduz o HTML fixo e tudo que aparece depois na tela */
 function trNode(n){
-  if(LANG!=="en"||!n) return;
-  if(n.nodeType===3){ const v=n.nodeValue, k=v.trim(); if(k && EN[k]!==undefined && !k.includes("{")) n.nodeValue=v.replace(k,EN[k]); return; }
+  if(LANG==="pt"||!n) return;
+  if(n.nodeType===3){ const v=n.nodeValue, k=v.trim(), w=k&&trKey(k); if(w!==undefined && w && !k.includes("{")) n.nodeValue=v.replace(k,w); return; }
   if(n.nodeType!==1||n.tagName==="SCRIPT"||n.tagName==="STYLE") return;
-  for(const a of ["title","placeholder","aria-label"]){ const v=n.getAttribute(a); if(v && EN[v]!==undefined) n.setAttribute(a,EN[v]); }
+  for(const a of ["title","placeholder","aria-label"]){ const v=n.getAttribute(a), w=v&&trKey(v); if(w) n.setAttribute(a,w); }
   n.childNodes.forEach(trNode);
 }
-if(LANG==="en"){
+if(LANG!=="pt"){
   trNode(document.body);
   new MutationObserver(ms=>{ for(const m of ms){
     if(m.type==="childList") m.addedNodes.forEach(trNode); else trNode(m.target); } })
@@ -875,7 +1162,7 @@ if(LANG==="en"){
 /* ===================== estado ===================== */
 const $ = s => document.querySelector(s);
 const S = {
-  colors:["#FF2E88","#FF6B3D","#FFB547","#9B3DFF","#00D9C8"], mode:"gradiente", bri:100, fx:"static", speed:3, dir:"direita", pfx:{},
+  colors:["#FF2E88","#FF6B3D","#FFB547","#9B3DFF","#00D9C8"], mode:"gradiente", bri:100, fx:"static", speed:3, dir:"direita", pfx:{}, pbri:{}, pspd:{},
   overrides:{}, disabled:new Set(), links:{DRAM:"mirror"}, hw:{},
   devices:[], connected:false, palettes:{}, preset:null, pc:null, presetQuery:"",
   claude:{active:null,history:[]}, claudeSeen:null, pcSeen:null, applied:null,
@@ -886,9 +1173,16 @@ const fxOf = d => (isPeriph(d) && S.pfx[d.id]) || S.fx || "static";   // efeito 
 const anim = () => (S.fx && S.fx!=="static") || Object.values(S.pfx).some(v=>v && v!=="static");
 const cleanPfx = () => Object.fromEntries(Object.entries(S.pfx).filter(([,v])=>v));
 const KBFX=["teclas","estrelas","tela"];   // efeitos feitos para o teclado
-$("#goAuto").onclick=()=>$("#autoCard").scrollIntoView({behavior:"smooth",block:"start"});
-const snap = () => JSON.stringify({c:S.colors,m:S.mode,b:S.bri,o:S.overrides,d:[...S.disabled].sort(),l:S.links,f:S.fx,s:S.speed,w:S.dir,x:cleanPfx(),h:S.hw});
-function restore(js){ const o=JSON.parse(js); S.colors=o.c; S.mode=o.m; S.bri=o.b; S.overrides=o.o; S.disabled=new Set(o.d); S.links=o.l; S.fx=o.f; S.speed=o.s; S.dir=o.w||"direita"; S.pfx={...(o.x||{})}; S.hw=o.h||{}; }
+$("#goAuto").onclick=()=>{ closeMenu(); $("#autoCard").scrollIntoView({behavior:"smooth",block:"start"}); };
+function closeMenu(){ $("#menu").hidden=true; }
+$("#menuBtn").onclick=e=>{ e.stopPropagation(); $("#menu").hidden=!$("#menu").hidden; };
+document.addEventListener("click",e=>{ if(!e.target.closest(".menuw")) closeMenu(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeMenu(); $("#help").hidden=true; if(!$("#ask").hidden) $("#askNo").click(); } });
+$("#helpBtn").onclick=()=>{ renderAI(); renderPC(); $("#helpVer").textContent="EasyRGB "+($(".ver").textContent||""); $("#help").hidden=false; };
+$("#helpClose").onclick=()=>$("#help").hidden=true;
+$("#help").onclick=e=>{ if(e.target.id==="help") $("#help").hidden=true; };
+const snap = () => JSON.stringify({c:S.colors,m:S.mode,b:S.bri,o:S.overrides,d:[...S.disabled].sort(),l:S.links,f:S.fx,s:S.speed,w:S.dir,x:cleanPfx(),pb:S.pbri,ps:S.pspd,h:S.hw});
+function restore(js){ const o=JSON.parse(js); S.colors=o.c; S.mode=o.m; S.bri=o.b; S.overrides=o.o; S.disabled=new Set(o.d); S.links=o.l; S.fx=o.f; S.speed=o.s; S.dir=o.w||"direita"; S.pfx={...(o.x||{})}; S.pbri={...(o.pb||{})}; S.pspd={...(o.ps||{})}; S.hw=o.h||{}; }
 
 /* ===================== cor ===================== */
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
@@ -942,7 +1236,7 @@ function plan(){
 function payload(extra={}){
   return {colors:S.colors, mode:S.mode, brightness:S.bri, devices:S.devices.length?enabledIds():null,
           overrides:S.overrides, groups:groups(), hw:S.hw, kind:S.fx, speed:S.speed,
-          ui:{links:S.links, effect:S.fx, speed:S.speed, dir:S.dir, pfx:cleanPfx()}, ...extra};
+          ui:{links:S.links, effect:S.fx, speed:S.speed, dir:S.dir, pfx:cleanPfx(), pbri:S.pbri, pspd:S.pspd}, ...extra};
 }
 
 /* ===================== API ===================== */
@@ -1012,13 +1306,30 @@ function renderPeriph(){
     return `<div class="per ${on?"":"off"}">
       <div class="perh"><div class="uic">${icon(tIcon(d.type))}</div><div class="un"><b>${esc(tName(d.type))}</b><small>${esc(nick(d)||d.name)}</small></div>
         <label class="ptog" title="${on?"Recebe a paleta":"Fica com as cores atuais"}">${tr("Paleta")}<span class="switch"><input type="checkbox" data-pt="${d.id}" ${on?"checked":""}><span></span></span></label></div>
+      <div class="pbody"><div class="pfx">
+      <div class="plab">${icon("waves")}${esc(tr("Efeito"))}</div>
       <div class="pills">${pill("","Igual ao computador")}${PCFX.map(v=>pill(v,v==="static"?"Estático":FXNAME[v])).join("")}
         ${kb?`<span class="plabel">${tr("Só de teclado (usam a posição de cada tecla)")}</span>${KBFX.map(v=>pill(v,FXNAME[v],"kbfx")).join("")}`:""}</div>
+      </div>
+      <div class="pset">
+        <div class="plab">${icon("sun")}${esc(tr("Ajustes deste aparelho"))}</div>
+        <label class="prange"><span>${esc(tr("Brilho"))}</span><input type="range" min="5" max="100" step="5" value="${S.pbri[d.id]??100}" data-pbri="${d.id}"><b>${S.pbri[d.id]??100}%</b></label>
+        ${fxOf(d)!=="static"?`<label class="prange"><span>${esc(tr("Velocidade"))}</span><input type="range" min="1" max="10" value="${S.pspd[d.id]??S.speed}" data-pspd="${d.id}"><b>${S.pspd[d.id]??S.speed}</b></label>`:""}
+      </div>
+      </div>
+      <div class="pkeys">
+        <div class="plab">${icon(kb?"keyboard":"bulb")}${esc(tr(kb?"Teclas e zonas":"Zonas"))}<small>${esc(tr("clique para dar uma cor"))}</small></div>
+        <div id="pdev-${d.id}"></div>
+      </div>
     </div>`;
   }).join("");
   box.querySelectorAll("[data-pe]").forEach(b=>b.onclick=()=>{ const id=+b.dataset.pe, v=b.dataset.v;
     if(v) S.pfx[id]=v; else delete S.pfx[id]; changed();
     if(v&&v!=="static") toast(tr("{x}: deixe o EasyRGB aberto para o efeito continuar.",{x:tr(FXNAME[v])})); });
+  box.querySelectorAll("[data-pbri]").forEach(r=>{ r.oninput=()=>{ r.nextElementSibling.textContent=r.value+"%"; };
+    r.onchange=()=>{ const id=+r.dataset.pbri; if(+r.value===100) delete S.pbri[id]; else S.pbri[id]=+r.value; changed(); }; });
+  box.querySelectorAll("[data-pspd]").forEach(r=>{ r.oninput=()=>{ r.nextElementSibling.textContent=r.value; };
+    r.onchange=()=>{ const id=+r.dataset.pspd; if(+r.value===S.speed) delete S.pspd[id]; else S.pspd[id]=+r.value; changed(); }; });
   box.querySelectorAll("[data-pt]").forEach(c=>c.onchange=()=>{ const id=+c.dataset.pt;
     if(c.checked) S.disabled.delete(id); else S.disabled.add(id);
     if(!enabledIds().length){ S.disabled.delete(id); toast("Deixe pelo menos um dispositivo recebendo a paleta","err"); }
@@ -1129,13 +1440,19 @@ function unitBody(d, ids, p, rows){
   return `${hwRow(d,ids)}<div class="${noColor?"muted-leds":""}">${ledsHTML(rows)}</div>${noColor?"":`<div class="zones">${zonesHTML(d,ids,zoneCols(p,d))}</div>${keysHTML(d,ids,p)}`}`;
 }
 
+/* "Ajuste fino" aberto ou fechado fica lembrado (não fecha sozinho quando a tela atualiza) */
+const FINE=new Set((()=>{ try{ return JSON.parse(localStorage.getItem("easyrgb-fine")||"[]"); }catch{ return []; } })());
+function bindFine(root){
+  root.querySelectorAll("details.fine").forEach(d=>{ if(FINE.has(d.dataset.fine)) d.open=true;
+    d.ontoggle=()=>{ d.open?FINE.add(d.dataset.fine):FINE.delete(d.dataset.fine); try{ localStorage.setItem("easyrgb-fine",JSON.stringify([...FINE])); }catch{} }; });
+}
 function renderDevices(){
-  const box=$("#devs");
-  renderPC();
+  const box=$("#devsPc");
+  renderPC(); bindFine(document);
   if(!S.connected){ box.innerHTML=`<div class="empty unit">${icon("plug")}<div>O OpenRGB não está conectado.</div><button class="btn primary" id="cbtn">Conectar</button></div>`; $("#cbtn").onclick=e=>connect(e.currentTarget); return; }
   if(!S.devices.length){ box.innerHTML=`<div class="empty unit">${icon("alert")}<div>Conectado, mas nenhum dispositivo RGB foi encontrado. Peça para o seu agente de IA rodar o diagnóstico.</div></div>`; return; }
   const p=plan(), html=[];
-  Object.entries(byType()).forEach(([t,ds])=>{
+  Object.entries(byType()).filter(([t])=>!PERIPH.has(t)).forEach(([t,ds])=>{
     const total=ds.reduce((a,d)=>a+d.zones.reduce((x,z)=>x+z.leds,0),0);
     if(ds.length===1){
       const d=ds[0], on=!S.disabled.has(d.id), nk=nick(d);
@@ -1163,7 +1480,14 @@ function renderDevices(){
       <div class="linkbar">${seg}</div>
       <div class="body">${body}</div>${persistHTML(ds)}</div>`);
   });
-  box.innerHTML=html.join("");
+  box.innerHTML=html.join("")||`<p class="thint">${esc(tr("Nenhuma peça do computador com RGB encontrada."))}</p>`;
+  // periféricos: zonas, teclas e efeitos do chip dentro do bloco de cada um
+  S.devices.filter(isPeriph).forEach(d=>{ const el=document.getElementById("pdev-"+d.id);
+    if(el) el.innerHTML=`<div class="body">${unitBody(d,[d.id],p,[p[d.id]||[]])}</div>${persistHTML([d])}`; });
+  wireDevices(box); S.devices.filter(isPeriph).forEach(d=>{ const el=document.getElementById("pdev-"+d.id); if(el) wireDevices(el); });
+  renderConflicts();
+}
+function wireDevices(box){
   box.querySelectorAll("[data-ii]").forEach(el=>el.outerHTML=icon(el.dataset.ii));
   box.querySelectorAll("[data-tog]").forEach(el=>el.onchange=()=>{ el.dataset.tog.split(",").map(Number).forEach(i=>el.checked?S.disabled.delete(i):S.disabled.add(i)); changed(); });
   box.querySelectorAll("[data-link] button").forEach(b=>b.onclick=()=>{
@@ -1176,6 +1500,8 @@ function renderDevices(){
   box.querySelectorAll("[data-hwspd]").forEach(r=>{ r.onchange=()=>{ r.dataset.hwspd.split(",").map(Number).forEach(i=>{ if(S.hw[i]) S.hw[i].speed=+r.value; }); changed(); }; });
   box.querySelectorAll(".zone").forEach(z=>z.onclick=()=>openPicker(z, z.dataset.cur, {kind:"zone", ids:z.dataset.ids.split(",").map(Number), zi:+z.dataset.zi}));
   box.querySelectorAll(".kchip").forEach(k=>k.onclick=()=>openPicker(k, k.dataset.cur, {kind:"keys", ids:k.dataset.kids.split(",").map(Number), leds:k.dataset.leds.split(",").map(Number)}));
+}
+function renderConflicts(){
   const cf=$("#conflicts"), ckey=(S.conflicts||[]).join("|");
   let hidden=""; try{ hidden=localStorage.getItem("easyrgb-hide-conflict")||""; }catch{}
   cf.hidden=!ckey || hidden===ckey;
@@ -1193,9 +1519,10 @@ function persistHTML(ds){
 }
 function renderPC(){
   const el=$("#pcinfo"), pc=S.pc;
-  if(!pc){ el.innerHTML=`<span class="pcchip dim" title="Peça ao seu agente de IA: configure o EasyRGB no meu PC">${icon("scan")}PC ainda não configurado por IA</span>`; return; }
+  if(!pc){ el.innerHTML=`<span class="pcchip dim">${icon("scan")}${tr("Este PC ainda não foi configurado")}</span>`; return; }
   const when=(pc.configured||"").slice(5,10).split("-").reverse().join("/");
-  el.innerHTML=`<span class="pcchip ai" title="${esc(pc.summary||"")}">${icon("sparkles")}${tr("Configurado por IA")}${pc.agent?" · "+esc(pc.agent):""}${when?" · "+when:""}</span>`;
+  const byApp=!pc.agent||pc.agent==="EasyRGB";   // o assistente do próprio app grava agent "EasyRGB"
+  el.innerHTML=`<span class="pcchip ${byApp?"":"ai"}" title="${esc(pc.summary||"")}">${icon(byApp?"check":"sparkles")}${byApp?tr("Configurado pelo assistente"):tr("Configurado por IA")+" · "+esc(pc.agent)}${when?" · "+when:""}</span>`;
 }
 
 function renderDirty(){ $("#dirty").classList.toggle("show", S.applied!==null && snap()!==S.applied); }
@@ -1236,42 +1563,31 @@ async function copyPromptQuick(){
   toast(tr("Copiado! Cole no seu agente de IA."),"ai",3500);
 }
 $("#aiCopy").onclick=copyPromptQuick;
-$("#mcpBtn").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/mcp",{}); toast(tr("Pronto! Reinicie o Claude Desktop e peça as cores pelo chat."),"ai",6000); });
-async function copySetupPrompt(btn){
-  try{ await navigator.clipboard.writeText(SETUP_PROMPT); }
-  catch{ const ta=document.createElement("textarea"); ta.value=SETUP_PROMPT; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
-  btn.classList.add("done"); btn.innerHTML=icon("check")+`<span>${tr("Copiado!")}</span>`;
-  const m=$("#copiedMsg"); if(m) m.hidden=false;
-  toast(tr("Prompt copiado. Cole no seu agente de IA."));
-  clearTimeout(btn._t); btn._t=setTimeout(()=>{ btn.classList.remove("done"); btn.innerHTML=icon("copy")+`<span>${tr("Copiar prompt de configuração")}</span>`; if(m) m.hidden=true; },6000);
+$("#helpAi").onclick=copyPromptQuick;
+/* pedido pronto para um agente de IA traduzir o EasyRGB para o idioma do Windows */
+function langName(code){ try{ return new Intl.DisplayNames([code],{type:"language"}).of(code); }catch{ return code; } }
+function translatePrompt(){
+  const code=["pt","en"].includes(LANG_CODE)?"<language code, e.g. es, ru, de>":LANG_CODE;
+  const name=["pt","en"].includes(LANG_CODE)?"<my language>":`${langName(LANG_CODE)} (${LANG_CODE})`;
+  return `Translate the EasyRGB app into ${name}. Work in the EasyRGB folder${S.folder?` (${S.folder})`:""} and follow the "Add a language" section of AGENTS.md: run the "idioma ${code}" command, translate every value in the file it creates, check it with "idioma ${code} --verificar", then tell me to reopen EasyRGB. Answer me in ${name==="<my language>"?"my language":name}.`;
 }
+$("#langAi").onclick=async()=>{
+  const txt=translatePrompt();
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(tr("Copiado! Cole no seu agente de IA."),"ai",3500);
+};
+if(XT_NAME) $("#langInfo").textContent=`${XT_NAME}: ${Object.keys(XT).length} / ${Object.keys(EN).length}`;
+$("#helpMcp").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/mcp",{}); toast(tr("Pronto! Reinicie o Claude Desktop e peça as cores pelo chat."),"ai",6000); });
 function renderAI(){
-  const box=$("#ai"), a=S.claude.active, hist=S.claude.history||[];
-  let h=`${!S.pc&&S.connected?`<div class="notset">${icon("alert")}<span>${tr("Este PC ainda não foi configurado pela IA.")}</span></div>`:""}
-    <div class="howto">${tr("Copie o prompt e cole num agente de IA aberto na pasta do EasyRGB. Ele faz as perguntas e configura tudo.")}</div>
-    <button class="btn copybig" id="copyPrompt">${icon("copy")}<span>${tr("Copiar prompt de configuração")}</span></button>
-    <div class="copied" id="copiedMsg" hidden>${icon("check")}<span>${tr("Copiado para a área de transferência. Agora é só colar (Ctrl+V) no seu agente de IA.")}</span></div>`;
-  if(a){
-    const nz=(a.zones||[]).length;
-    h+=`<div class="active"><div class="bar" style="background:${grad(a.colors||[])}"></div><div class="ab">
-      <h3>${esc(a.name||"Perfil da IA")}<span class="badge">Ativo</span></h3>
-      ${a.description?`<p>${esc(a.description)}</p>`:""}
-      <div class="meta"><span>${icon("layers")}${MODE[a.mode]||"Gradiente"}</span><span>${icon("sun")}${a.brightness??100}%</span>
-        ${nz?`<span>${icon("pencil")}${tr(nz===1?"{n} ajuste por zona":"{n} ajustes por zona",{n:nz})}</span>`:""}
-        ${(a.effect&&a.effect!=="static")||a.fluir?`<span>${icon("waves")}${tr(FXNAME[a.effect||"fluir"]||"Animado")}</span>`:""}
-        ${(a.hw||[]).length?`<span>${icon("cpuchip")}${plural(a.hw.length,"efeito do chip","efeitos do chip")}</span>`:""}
-        <span>${icon("clock")}${esc((a.created||"").slice(11,16))}</span></div>
-      <div class="abtns"><button class="btn sm" id="aiRe">${icon("refresh")}Reaplicar</button><button class="btn sm" id="aiSave">${icon("bookmark")}Salvar como preset</button></div>
-    </div></div>`;
-    if(hist.length>1) h+=`<div class="hist"><div class="ht">Anteriores</div>${hist.slice(1,7).map((x,k)=>`<button class="hrow" data-h="${k+1}" title="Aplicar de novo"><span class="mini" style="background:${grad(x.colors||[])}"></span><span class="nm">${esc(x.name||"Perfil")}</span><span class="tm">${esc((x.created||"").slice(5,10).split("-").reverse().join("/"))}</span></button>`).join("")}</div>`;
-  }
-  box.innerHTML=h; $("#aiHero").hidden=!a && !!S.pc;
-  $("#copyPrompt").onclick=e=>copySetupPrompt(e.currentTarget);
-  if(a){
-    $("#aiRe").onclick=e=>run(e.currentTarget,()=>useAI(a));
-    $("#aiSave").onclick=e=>run(e.currentTarget,async()=>{ S.palettes=(await api("/api/preset",{name:"IA · "+(a.name||"perfil"),colors:a.colors})).palettes; renderPresets(); toast("Salvo nos presets"); });
-    box.querySelectorAll(".hrow").forEach(r=>r.onclick=()=>run(r,()=>useAI(hist[+r.dataset.h])));
-  }
+  const box=$("#ai"), a=S.claude.active;
+  if(!a){ box.innerHTML=""; return; }
+  box.innerHTML=`<div class="airow"><span class="mini" style="background:${grad(a.colors||[])}"></span>
+    <div class="un"><b>${esc(a.name||tr("Perfil da IA"))}</b><small>${esc(tr("último visual feito pela IA"))} · ${esc((a.created||"").slice(11,16))}</small></div>
+    <span class="sp"></span><button class="btn sm" id="aiRe">${icon("refresh")}${tr("Reaplicar")}</button>
+    <button class="btn sm ghost" id="aiSave" title="${esc(tr("Salvar como preset"))}">${icon("bookmark")}</button></div>`;
+  $("#aiRe").onclick=e=>run(e.currentTarget,()=>useAI(a));
+  $("#aiSave").onclick=e=>run(e.currentTarget,async()=>{ S.palettes=(await api("/api/preset",{name:"IA · "+(a.name||"perfil"),colors:a.colors})).palettes; renderPresets(); toast("Salvo nos presets"); });
 }
 async function useAI(p){
   toast("Aplicando perfil da IA...","busy",0);
@@ -1347,12 +1663,12 @@ document.querySelectorAll("#fxseg button").forEach(b=>b.onclick=()=>{
 $("#pq").addEventListener("input",e=>{ S.presetQuery=e.target.value; renderPresets(); });
 $("#apply").onclick=e=>run(e.currentTarget,()=>commit(false));
 $("#applySave").onclick=e=>run(e.currentTarget,()=>commit(true));
-$("#burn").onclick=e=>run(e.currentTarget,()=>commit(true));
+$("#burn").onclick=e=>run(e.currentTarget,()=>{ closeMenu(); return commit(true); });
 $("#discard").onclick=()=>{ if(!S.applied) return; closePicker(); restore(S.applied); S.preset=null; render(); preview(); toast("Alterações descartadas"); };
-$("#off").onclick=e=>run(e.currentTarget,async()=>{ await api("/api/off",{}); S.fx="static"; S.pfx={}; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
+$("#off").onclick=e=>run(e.currentTarget,async()=>{ closeMenu(); await api("/api/off",{}); S.fx="static"; S.pfx={}; render(); toast("Luzes apagadas. Clique em qualquer cor para acender de novo."); });
 $("#fxpill").onclick=e=>run(e.currentTarget,async()=>{ S.fx="static"; S.pfx={}; await api("/api/effect",{on:false}); await commit(false); render();
   toast("Efeito parado. As cores ficaram fixas e salvas assim."); });
-$("#reconnect").onclick=e=>connect(e.currentTarget);
+$("#reconnect").onclick=e=>{ closeMenu(); connect(e.currentTarget); };
 async function savePreset(){ const n=$("#pname").value.trim(); if(!n){ $("#pname").focus(); return; }
   const j=await api("/api/preset",{name:n,colors:S.colors}); S.palettes=j.palettes; S.userPresets=j.user; S.preset=n; $("#pname").value=""; renderPresets(); toast(tr("Preset \"{x}\" salvo",{x:n})); }
 $("#savePreset").onclick=e=>run(e.currentTarget,async()=>{ await savePreset(); $("#saveRow").hidden=true; });
@@ -1370,10 +1686,41 @@ const GAME_NAMES={"VALORANT-Win64-Shipping.exe":"Valorant","Cyberpunk2077.exe":"
   "Overwatch.exe":"Overwatch 2","eldenring.exe":"Elden Ring","hollow_knight.exe":"Hollow Knight","DOOMEternalx64vk.exe":"DOOM Eternal",
   "DOOMTheDarkAges.exe":"DOOM: The Dark Ages","HaloInfinite.exe":"Halo Infinite","MCC-Win64-Shipping.exe":"Halo MCC",
   "destiny2.exe":"Destiny 2","GenshinImpact.exe":"Genshin Impact","Hades.exe":"Hades","Hades2.exe":"Hades II","Among Us.exe":"Among Us"};
-const gameName=exe=>GAME_NAMES[exe]||String(exe).replace(/\.exe$/i,"").replace(/[-_]Win64[-_]Shipping/i,"");
+const gameName=(exe,name)=>name||GAME_NAMES[exe]||String(exe).replace(/\.exe$/i,"").replace(/[-_]Win64[-_]Shipping/i,"");
+const HK_LABELS={next:"Próximo preset",prev:"Preset anterior",brighter:"Mais brilho",dimmer:"Menos brilho",next_effect:"Trocar efeito",toggle:"Apagar / acender"};
+const HK_DEFAULTS={next:"Ctrl+Alt+Right",prev:"Ctrl+Alt+Left",brighter:"Ctrl+Alt+Up",dimmer:"Ctrl+Alt+Down",next_effect:"Ctrl+Alt+E",toggle:"Ctrl+Alt+L"};
+const HK_SYM={Right:"→",Left:"←",Up:"↑",Down:"↓",Space:"Espaço"};
+let hkRec=null;   // ação sendo gravada
+const kbd=c=>c?c.split("+").map(k=>`<kbd>${esc(tr(HK_SYM[k]||k))}</kbd>`).join(""):`<span class="none">${tr("sem atalho")}</span>`;
+function renderHotkeys(){
+  const m=A.auto.hotkey_map||HK_DEFAULTS, err=new Set(A.hkErr||[]);
+  $("#hkList").innerHTML=Object.keys(HK_LABELS).map(act=>`<div class="hkrow"><span>${tr(HK_LABELS[act])}</span>
+    <button class="hkbtn ${hkRec===act?"rec":""} ${err.has(act)?"err":""}" data-hk="${act}" title="${err.has(act)?tr("Outro programa já usa este atalho"):tr("Clique e aperte as teclas")}">${hkRec===act?tr("Aperte as teclas..."):kbd(m[act])}</button>
+    <button class="hkx" data-hkx="${act}" title="${tr("Sem atalho")}">${icon("x")}</button></div>`).join("");
+  $("#hkList").querySelectorAll("[data-hk]").forEach(b=>b.onclick=()=>{ hkRec=hkRec===b.dataset.hk?null:b.dataset.hk; renderHotkeys(); });
+  $("#hkList").querySelectorAll("[data-hkx]").forEach(b=>b.onclick=()=>{ A.auto.hotkey_map={...m,[b.dataset.hkx]:""}; hkRec=null; renderHotkeys(); saveAuto(); });
+}
+const HK_KEYS={ArrowRight:"Right",ArrowLeft:"Left",ArrowUp:"Up",ArrowDown:"Down"," ":"Space",PageUp:"PageUp",PageDown:"PageDown",Home:"Home",End:"End",Insert:"Insert",Delete:"Delete",Pause:"Pause"};
+document.addEventListener("keydown",e=>{
+  if(!hkRec) return;
+  e.preventDefault(); e.stopPropagation();
+  if(e.key==="Escape"){ hkRec=null; renderHotkeys(); return; }
+  if(["Control","Alt","Shift","Meta"].includes(e.key)) return;
+  let k=HK_KEYS[e.key]||(/^F\d{1,2}$/.test(e.key)?e.key:(/^[a-z0-9]$/i.test(e.key)?e.key.toUpperCase():(/^Key[A-Z]$/.test(e.code)?e.code.slice(3):(/^Digit\d$/.test(e.code)?e.code.slice(5):null))));
+  if(!k){ toast(tr("Essa tecla não pode ser usada. Tente uma letra, número, F1–F12 ou as setas."),"err"); return; }
+  const mods=[e.ctrlKey&&"Ctrl",e.altKey&&"Alt",e.shiftKey&&"Shift",e.metaKey&&"Win"].filter(Boolean);
+  if(!mods.length && !/^F(1[3-9]|2[0-4])$/.test(k)){ toast(tr("Use junto com Ctrl, Alt ou Shift, para não atrapalhar quando você digita."),"err",4500); return; }
+  const combo=[...mods,k].join("+"), m={...(A.auto.hotkey_map||HK_DEFAULTS)};
+  const other=Object.keys(m).find(a=>a!==hkRec && m[a]===combo);
+  if(other) m[other]="";   // o mesmo atalho não faz duas coisas
+  m[hkRec]=combo; A.auto.hotkey_map=m; hkRec=null; renderHotkeys(); saveAuto();
+  toast(tr("Atalho salvo: {x}",{x:combo}));
+},true);
 const ACTIONS={preset:"aplicar o preset",brightness:"mudar o brilho para",off:"apagar as luzes",restore:"voltar ao meu visual"};
 let autoT=null;
-function saveAuto(){ clearTimeout(autoT); autoT=setTimeout(()=>api("/api/auto",A.auto).then(j=>{ A.auto=j.auto; loadAuto(); }).catch(e=>toast(e.message,"err")),300); }
+function saveAuto(){ clearTimeout(autoT); autoT=setTimeout(()=>api("/api/auto",A.auto).then(j=>{ A.auto=j.auto; A.hkErr=j.hotkey_errors||[];
+  if(A.hkErr.length) toast(tr("Outro programa já usa: {x}. Escolha outro atalho.",{x:A.hkErr.map(a=>tr(HK_LABELS[a])).join(", ")}),"err",5000);
+  loadAuto(); }).catch(e=>toast(e.message,"err")),300); }
 function presetOptions(sel){ return Object.keys(S.palettes).map(n=>`<option value="${esc(n)}" ${n===sel?"selected":""}>${esc(n)}</option>`).join(""); }
 const night=()=>{ const s=A.auto.schedule; return {on:s.some(r=>r.tag==="night"), dim:s.find(r=>r.tag==="night"&&r.action==="brightness"), back:s.find(r=>r.tag==="night"&&r.action==="restore")}; };
 
@@ -1381,8 +1728,7 @@ function renderAuto(){
   // restaurar ao ligar o PC
   $("#autostart").checked=A.autostart;
   const lose=S.devices.filter(d=>d.persist==="none"), names=[...new Set(lose.map(d=>nick(d)||tName(d.type)))];
-  $("#autostartHint").textContent=(names.length?tr("Recomendado: {x} perde a cor ao desligar. ",{x:names.join(", ")}):"")
-    +(A.needs_running?tr("Fica aberto em segundo plano (~30 MB) por causa das automações ou do efeito animado."):tr("Devolve suas cores e fecha sozinho."));
+  $("#autostartHint").textContent=names.length?tr("Recomendado: {x} perde a cor ao desligar.",{x:names.join(", ")}):tr("Devolve suas cores ao ligar.");
   const st=$("#astatus"); st.hidden=!A.status; st.innerHTML=A.status?icon("gamepad")+esc(A.status):"";
 
   // resumo na gaveta fechada
@@ -1395,7 +1741,7 @@ function renderAuto(){
   $("#autoSum").textContent=on.length?on.join(" · "):tr("Nada ligado");
 
   // atalhos
-  $("#hkOn").checked=!!A.auto.hotkeys; $("#hkTile").classList.toggle("on",!!A.auto.hotkeys);
+  $("#hkOn").checked=!!A.auto.hotkeys; $("#hkTile").classList.toggle("on",!!A.auto.hotkeys); renderHotkeys();
 
   // modo noite
   const n=night(); $("#nightOn").checked=n.on; $("#nightTile").classList.toggle("on",n.on);
@@ -1406,15 +1752,15 @@ function renderAuto(){
   const g=$("#gameRules");
   g.innerHTML=A.auto.games.length?A.auto.games.map((r,i)=>`<div class="game ${r.enabled===false?"off":""}">
       <div class="gbar" style="background:${grad(S.palettes[r.preset]||[])}"></div>
-      <div class="gb"><div class="gt">${icon("gamepad")}<b title="${esc(r.process)}">${esc(gameName(r.process))}</b>
+      <div class="gb"><div class="gt">${icon("gamepad")}<b title="${esc(r.process)}">${esc(gameName(r.process,r.name))}</b>
         <label class="switch" title="${tr("Ligar ou pausar este jogo")}"><input type="checkbox" data-ge="${i}" ${r.enabled===false?"":"checked"}><span></span></label></div>
         <div class="gexe mono">${esc(r.process)}</div>
         <select class="fxsel" data-gp="${i}" title="${tr("Preset usado enquanto o jogo estiver aberto")}">${presetOptions(r.preset)}</select></div>
       <div class="gfoot"><button class="rm" data-gx="${i}">${icon("trash")}${tr("Remover")}</button></div></div>`).join("")
-    :`<div class="noitems" style="grid-column:1/-1">${tr("Nenhum jogo ainda. Clique em \"Achar meus jogos\".")}</div>`;
+    :`<div class="noitems" style="grid-column:1/-1">${tr("Nenhum jogo ainda.")}</div>`;
   g.querySelectorAll("[data-gp]").forEach(s=>s.onchange=()=>{ A.auto.games[+s.dataset.gp].preset=s.value; renderAuto(); saveAuto(); });
   g.querySelectorAll("[data-ge]").forEach(c=>c.onchange=()=>{ A.auto.games[+c.dataset.ge].enabled=c.checked; renderAuto(); saveAuto(); });
-  g.querySelectorAll("[data-gx]").forEach(b=>b.onclick=()=>{ const r=A.auto.games.splice(+b.dataset.gx,1)[0]; renderAuto(); saveAuto(); toast(tr("{x} removido",{x:gameName(r.process)})); });
+  g.querySelectorAll("[data-gx]").forEach(b=>b.onclick=()=>{ const r=A.auto.games.splice(+b.dataset.gx,1)[0]; renderAuto(); saveAuto(); toast(tr("{x} removido",{x:gameName(r.process,r.name)})); });
 
   // horários (os do modo noite ficam no cartão dele)
   const s=$("#schedRules"), list=A.auto.schedule.map((r,i)=>[r,i]).filter(([r])=>r.tag!=="night");
@@ -1423,26 +1769,49 @@ function renderAuto(){
       <select data-sa="${i}">${Object.entries(ACTIONS).map(([k,v])=>`<option value="${k}" ${k===r.action?"selected":""}>${tr(v)}</option>`).join("")}</select>
       ${r.action==="preset"?`<select data-sv="${i}">${presetOptions(r.value)}</select>`:r.action==="brightness"?`<input type="number" min="5" max="100" step="5" value="${+r.value||30}" data-sv="${i}"><span>%</span>`:""}
       <span class="sp"></span><button class="rm" data-sx="${i}">${icon("trash")}${tr("Remover")}</button></div>`).join("")
-    :`<div class="noitems">${tr("Nenhum horário. Use \"Novo horário\" para trocar as cores numa hora certa.")}</div>`;
+    :`<div class="noitems">${tr("Nenhum horário.")}</div>`;
   s.querySelectorAll("[data-st]").forEach(el=>el.onchange=()=>{ A.auto.schedule[+el.dataset.st].time=el.value; saveAuto(); });
   s.querySelectorAll("[data-sa]").forEach(el=>el.onchange=()=>{ const r=A.auto.schedule[+el.dataset.sa]; r.action=el.value;
     r.value=el.value==="preset"?Object.keys(S.palettes)[0]:el.value==="brightness"?30:null; renderAuto(); saveAuto(); });
   s.querySelectorAll("[data-sv]").forEach(el=>el.onchange=()=>{ const r=A.auto.schedule[+el.dataset.sv]; r.value=r.action==="brightness"?+el.value:el.value; saveAuto(); });
   s.querySelectorAll("[data-sx]").forEach(b=>b.onclick=()=>{ A.auto.schedule.splice(+b.dataset.sx,1); renderAuto(); saveAuto(); toast(tr("Horário removido")); });
 }
-async function loadAuto(){ const j=await api("/api/auto"); Object.assign(A,{auto:j.auto,known:j.known,status:j.status,autostart:j.autostart,needs_running:j.needs_running}); renderAuto(); }
-function addGame(exe,preset){
+async function loadAuto(){ const j=await api("/api/auto"); Object.assign(A,{auto:j.auto,known:j.known,status:j.status,autostart:j.autostart,needs_running:j.needs_running,hkErr:j.hotkey_errors||[]}); renderAuto(); }
+function addGame(exe,preset,name){
   exe=exe.trim(); if(!exe) return false; if(!/\.exe$/i.test(exe)) exe+=".exe";
   if(A.auto.games.some(g=>g.process.toLowerCase()===exe.toLowerCase())) return false;
-  A.auto.games.push({process:exe,preset:preset||A.known[exe]||Object.keys(S.palettes)[0],enabled:true}); return true;
+  A.auto.games.push({process:exe,preset:preset||A.known[exe]||Object.keys(S.palettes)[0],enabled:true,...(name?{name}:{})}); return true;
 }
 $("#addGame").onclick=()=>{ if(addGame($("#gameExe").value)){ $("#gameExe").value=""; renderAuto(); saveAuto(); } };
 $("#gameExe").onkeydown=e=>{ if(e.key==="Enter") $("#addGame").click(); };
+let FOUND=[];
+function renderFound(){
+  const box=$("#foundGames"), has=g=>A.auto.games.some(r=>r.process.toLowerCase()===g.process.toLowerCase());
+  box.hidden=!FOUND.length;
+  box.innerHTML=`<div class="fhead">${icon("search")}<span>${tr(FOUND.length===1?"{n} jogo encontrado":"{n} jogos encontrados",{n:FOUND.length})}</span><span class="sp"></span>
+      ${FOUND.some(g=>!has(g))?`<button class="btn sm" id="fAll">${tr("Adicionar todos")}</button>`:""}<button class="hkx" id="fClose" title="${tr("Fechar")}">${icon("x")}</button></div>`
+    +FOUND.map((g,i)=>`<div class="frow">${icon("gamepad")}<b>${esc(g.name)}</b><span class="src">${esc(g.source)}</span><span class="sp"></span>
+      ${has(g)?`<span class="done">${icon("check")}${tr("Na lista")}</span>`:`<button class="btn sm" data-fadd="${i}">${icon("plus")}${tr("Adicionar")}</button>`}</div>`).join("");
+  box.querySelectorAll("[data-fadd]").forEach(b=>b.onclick=()=>{ const g=FOUND[+b.dataset.fadd]; addGame(g.process,g.preset,g.name); renderAuto(); renderFound(); saveAuto(); });
+  const all=$("#fAll"); if(all) all.onclick=()=>{ FOUND.forEach(g=>addGame(g.process,g.preset,g.name)); renderAuto(); renderFound(); saveAuto(); };
+  $("#fClose").onclick=()=>{ FOUND=[]; renderFound(); };
+}
 $("#findGames").onclick=e=>run(e.currentTarget,async()=>{
   toast(tr("Procurando jogos instalados..."),"busy",0);
-  const j=await api("/api/games"); const added=j.games.filter(g=>addGame(g.process,g.preset));
-  renderAuto(); saveAuto();
-  toast(!j.games.length?tr("Nenhum jogo conhecido encontrado. Adicione pelo executável."):added.length?tr("Adicionado: {x}",{x:added.map(g=>gameName(g.process)).join(", ")}):tr("Seus jogos já estão na lista"), j.games.length?"ok":"err", 4500); });
+  FOUND=(await api("/api/games")).games; renderFound();
+  toast(FOUND.length?tr(FOUND.length===1?"{n} jogo encontrado":"{n} jogos encontrados",{n:FOUND.length}):tr("Nenhum jogo encontrado. Adicione pelo executável."),FOUND.length?"ok":"err");
+});
+/* a IA monta o modo jogo e o modo noite */
+$("#autoAi").onclick=async()=>{
+  const folder=S.folder?` (${S.folder})`:"";
+  const txt=LANG==="pt"
+    ?`Monte as automações do EasyRGB para mim. Siga a seção 3 do AGENTS.md na pasta do EasyRGB${folder}: rode \`jogos\` para ver meus jogos instalados, dê para cada jogo um preset que combine com o visual dele (crie presets novos com cores vivas quando nenhum combinar), salve as regras do modo jogo com \`automacao\` (mantendo as que já existem) e ligue o modo noite das 23:00 às 08:00 com 20% de brilho. Só me pergunte quais jogos incluir.`
+    :`Set up EasyRGB's automations for me. Follow section 3 of AGENTS.md in the EasyRGB folder${folder}: run \`jogos\` to see my installed games, give each game a preset that matches its look (create new presets with vivid colors when none fits), save the game-mode rules with \`automacao\` (keep the existing ones) and turn on night mode from 23:00 to 08:00 at 20% brightness. Only ask me which games to include. Answer in my language.`;
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(tr("Copiado! Cole no seu agente de IA. A Automação atualiza sozinha quando ele terminar."),"ai",5000);
+};
+$("#hkReset").onclick=()=>{ A.auto.hotkey_map={...HK_DEFAULTS}; hkRec=null; renderHotkeys(); saveAuto(); toast(tr("Atalhos voltaram ao padrão")); };
 $("#addSched").onclick=()=>{ A.auto.schedule.push({time:"18:00",action:"preset",value:Object.keys(S.palettes)[0],enabled:true}); renderAuto(); saveAuto(); };
 function setNight(on){
   const keep=A.auto.schedule.filter(r=>r.tag!=="night");
@@ -1454,7 +1823,7 @@ $("#nightOn").onchange=e=>{ setNight(e.target.checked);
   toast(e.target.checked?tr("Modo noite ligado: brilho {b}% das {f} às {t}",{b:$("#nightBri").value,f:$("#nightFrom").value,t:$("#nightTo").value}):tr("Modo noite desligado")); };
 ["nightFrom","nightTo","nightBri"].forEach(id=>$("#"+id).onchange=()=>{ if(night().on) setNight(true); });
 $("#hkOn").onchange=e=>{ A.auto.hotkeys=e.target.checked; renderAuto(); saveAuto();
-  toast(e.target.checked?tr("Atalhos ligados: Ctrl+Alt+setas, E e L"):tr("Atalhos desligados")); };
+  toast(e.target.checked?tr("Atalhos ligados"):tr("Atalhos desligados")); };
 $("#autostart").onchange=e=>run(null,async()=>{ const want=e.target.checked;
   toast(tr("Aceite o pedido de administrador do Windows"),"busy",0);
   const j=await api("/api/autostart",{on:want}); A.autostart=j.autostart; renderAuto();
@@ -1481,10 +1850,11 @@ async function loadState(useLast){
   if(s.version) document.querySelector(".ver").textContent="v"+s.version.split(".").slice(0,2).join(".");
   S.connected=s.connected; S.devices=s.devices||[]; S.palettes=s.palettes||{}; S.userPresets=s.user_presets||[]; S.conflicts=s.conflicts||[];
   $("#status").classList.toggle("on",s.connected);
-  $("#stxt").textContent=s.connected?`OpenRGB · ${plural(S.devices.length,"dispositivo","dispositivos")}`:"Desconectado";
+  $("#stxt").textContent=s.connected?plural(S.devices.length,"dispositivo","dispositivos"):tr("Desconectado");
+  $("#status").title=s.connected?tr("Conectado ao OpenRGB"):tr("Desconectado");
   if(s.error) toast(s.error,"err",5000);
   if(s.claude){ S.claude=s.claude; if(S.claudeSeen===null) S.claudeSeen=s.claude.active?.created||""; }
-  S.pc=s.pc||null; if(S.pcSeen===null) S.pcSeen=S.pc?.configured||"";
+  S.pc=s.pc||null; if(S.pcSeen===null) S.pcSeen=S.pc?.configured||""; S.folder=s.folder||"";
   const liveFx = s.effect ? (s.effect_kind||"fluir") : "static";
   if(useLast){
     const L=s.last||{};
@@ -1499,6 +1869,7 @@ async function loadState(useLast){
     S.speed=ui.speed||3; S.dir=ui.dir||"direita"; S.fx=liveFx;
     // efeito de cada periférico: os parados valem sempre; os animados só se o efeito estiver rodando
     S.pfx=Object.fromEntries(Object.entries(ui.pfx||{}).filter(([,v])=>s.effect||v==="static"));
+    S.pbri={...(ui.pbri||{})}; S.pspd={...(ui.pspd||{})};
     if(s.effect){
       if(Array.isArray(ui.fxdevs)){   // formato antigo: "só estes animam"
         S.devices.forEach(d=>{ if(isPeriph(d)) S.pfx[d.id]=ui.fxdevs.includes(d.id)?ui.effect:"static"; });
@@ -1508,11 +1879,133 @@ async function loadState(useLast){
     S.preset=null;
     S.applied=snap();
   }else{ S.fx=liveFx; if(!s.effect) S.pfx=Object.fromEntries(Object.entries(S.pfx).filter(([,v])=>v==="static")); }
-  renderPresets(); renderAI(); render();
+  renderPresets(); renderAI(); render(); maybeWizard();
+}
+
+/* ===================== confirmação, backup e desfazer ===================== */
+function askConfirm({title,html,ok,danger=false,wait=0}){
+  return new Promise(res=>{
+    $("#askTitle").textContent=tr(title); $("#askBody").innerHTML=html;
+    const y=$("#askYes"), n=$("#askNo"); y.className="btn "+(danger?"danger":"primary"); y.textContent=tr(ok);
+    let left=wait; y.disabled=wait>0;
+    const tick=()=>{ if(left>0){ y.textContent=`${tr(ok)} (${left})`; left--; setTimeout(tick,1000); } else { y.textContent=tr(ok); y.disabled=false; } };
+    if(wait) tick();
+    const done=v=>{ $("#ask").hidden=true; y.onclick=n.onclick=null; res(v); };
+    y.onclick=()=>done(true); n.onclick=()=>done(false); $("#ask").hidden=false; (wait?n:y).focus();
+  });
+}
+$("#exportBtn").onclick=e=>run(e.currentTarget,async()=>{
+  closeMenu();
+  const data=await api("/api/backup"), blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`easyrgb-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast(tr("Backup salvo na pasta Downloads"));
+});
+$("#importCfgBtn").onclick=()=>{ closeMenu(); $("#importFile").value=""; $("#importFile").click(); };
+$("#importFile").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  let data; try{ data=JSON.parse(await f.text()); }catch{ toast(tr("Este arquivo não é um backup do EasyRGB"),"err"); return; }
+  if(data.easyrgb_backup!==1){ toast(tr("Este arquivo não é um backup do EasyRGB"),"err"); return; }
+  const ok=await askConfirm({title:"Importar configurações?",
+    html:`<p>${esc(tr("Suas configurações atuais (visual, presets, automações e perfil do PC) serão trocadas pelas do backup de {d}.",{d:(data.created||"").slice(0,16)}))}</p><p>${esc(tr("Uma cópia das atuais fica guardada, por segurança."))}</p>`,
+    ok:"Importar"});
+  if(!ok) return;
+  run(null,async()=>{ const j=await api("/api/restore",data); await loadState(true); await loadAuto(); toast(tr("Configurações importadas ({n} partes)",{n:j.restored.length})); });
+};
+$("#undoBtn").onclick=async()=>{
+  closeMenu();
+  const step1=await askConfirm({title:"Desfazer tudo?",
+    html:`<p>${esc(tr("Isto devolve o PC a como ele estava antes do EasyRGB:"))}</p><ul>
+      <li>${esc(tr("religa o ASRock Polychrome (se existir)"))}</li><li>${esc(tr("tira o \"Restaurar ao ligar o PC\""))}</li>
+      <li>${esc(tr("devolve o teclado ao programa da marca (ex.: G HUB)"))}</li><li>${esc(tr("tira o EasyRGB do Claude Desktop"))}</li>
+      <li>${esc(tr("fecha o EasyRGB e o OpenRGB"))}</li></ul>
+      <label><input type="checkbox" id="undoData"> ${esc(tr("Apagar também meus dados (perfil, presets, automações)"))}</label>`,
+    ok:"Continuar",danger:true});
+  if(!step1) return;
+  const del=$("#undoData")?.checked;
+  const step2=await askConfirm({title:"Tem certeza?",
+    html:`<p>${esc(tr("O Windows vai pedir permissão de administrador e o EasyRGB vai fechar."))}</p>${del?`<p><b>${esc(tr("Seus dados serão apagados."))}</b> ${esc(tr("Uma última cópia fica em app/antes-de-desfazer.json."))}</p>`:""}<p>${esc(tr("Para remover o programa depois: Configurações → Aplicativos → EasyRGB."))}</p>`,
+    ok:"Sim, desfazer tudo",danger:true,wait:3});
+  if(!step2) return;
+  run(null,async()=>{ toast(tr("Desfazendo... aceite o pedido de administrador do Windows"),"busy",0);
+    await api("/api/undo",{confirm:"DESFAZER",delete_data:!!del});
+    document.body.innerHTML=`<div style="display:grid;place-items:center;min-height:100vh;padding:24px;text-align:center;color:#a1a1aa;font:15px Inter,system-ui"><div><h2 style="color:#fafafa;margin:0 0 8px">${esc(tr("Pronto"))}</h2><p>${esc(tr("O PC voltou a como estava antes do EasyRGB. Pode fechar esta janela."))}</p><p>${esc(tr("Para remover o programa: Configurações → Aplicativos → EasyRGB."))}</p></div></div>`; });
+};
+
+/* ===================== atualização ===================== */
+let UPD=null;
+async function checkUpdate(){
+  try{ UPD=await api("/api/update"); }catch{ return; }
+  $("#updPill").hidden=!UPD.available;
+  if(UPD.available) $("#updTxt").textContent=tr("Atualizar para {v}",{v:UPD.latest});
+}
+$("#updPill").onclick=e=>run(e.currentTarget,async()=>{
+  if(!UPD?.can_install){ window.open(UPD?.page||"https://github.com/lucianookdp/EasyRGB/releases/latest","_blank"); return; }
+  toast(tr("Baixando a versão {v}... o EasyRGB vai fechar e abrir de novo.",{v:UPD.latest}),"busy",0);
+  await api("/api/update",{});
+});
+setTimeout(checkUpdate,4000); setInterval(checkUpdate,6*3600*1000);
+
+/* ===================== assistente da primeira vez (sem precisar de IA) ===================== */
+const WIZ={step:1,pick:null,shown:false};
+function wizStep(n){
+  WIZ.step=n; document.querySelectorAll("#wiz .wstep").forEach(s=>s.hidden=+s.dataset.s!==n);
+  document.querySelectorAll("#wizDots i").forEach((d,i)=>d.classList.toggle("on",i<n));
+}
+function wizDevices(){
+  const grp={}; S.devices.forEach(d=>{ const k=d.type+"|"+d.name; (grp[k] ||= {d,n:0}).n++; });   // 2 RAMs iguais = 1 linha
+  const list=Object.values(grp);
+  $("#wizSub").textContent=tr(list.length?"Encontrei estas peças com RGB no seu PC:":"Não encontrei nenhuma peça com RGB ainda.");
+  $("#wizDevs").innerHTML=list.length?list.map(({d,n})=>`<div class="wdev">${icon(tIcon(d.type))}<span>${esc(tName(d.type))}${n>1?` (${n})`:""}${d.vendor?` · ${esc(d.vendor)}`:""}</span><small>${esc(d.name)}</small></div>`).join("")
+    :`<div class="wempty">${esc(tr(S.connected?"O OpenRGB está aberto, mas não achou nada. Use \"Procurar com IA\" para descobrir o motivo.":"O OpenRGB ainda não está aberto. Clique em \"Procurar de novo\"."))}</div>`;
+  $("#wizNote").hidden=!(S.conflicts||[]).length;
+  if(S.conflicts?.length) $("#wizNote").textContent=tr("{x} está aberto e pode trocar as cores dos seus periféricos. Feche-o ou desative a iluminação nele.",{x:S.conflicts.join(", ")});
+  const lose=S.devices.some(d=>d.persist==="none"); $("#wizAuto").checked=lose;
+  $("#wizAutoHint").textContent=tr(lose?"Recomendado: algumas peças perdem a cor quando o PC desliga.":"Devolve suas cores depois de reiniciar e fecha sozinho.");
+}
+function openWizard(){
+  if(WIZ.shown) return; WIZ.shown=true;
+  wizDevices(); wizStep(1); $("#wiz").hidden=false;
+}
+/* pedido pronto para o agente de IA achar o que faltou (no idioma da pessoa) */
+function missingPrompt(){
+  const found=S.devices.map(d=>`${tName(d.type)} (${d.name})`).join(", ");
+  return LANG==="pt"
+    ? `O EasyRGB ${found?`só encontrou: ${found}.`:"não encontrou nenhuma peça com RGB no meu PC."} Abra-se na pasta do EasyRGB${S.folder?` (${S.folder})`:""} e siga o AGENTS.md: rode \`detectar\`, descubra quais peças com RGB eu tenho de verdade e por que não apareceram (OpenRGB, driver, BIOS, programa da marca, ponte do fabricante) e resolva o que der. Depois me diga em poucas palavras o que achou e o que mudou.`
+    : `EasyRGB ${found?`only found: ${found}.`:"didn't find any RGB parts on my PC."} Work in the EasyRGB folder${S.folder?` (${S.folder})`:""} and follow AGENTS.md: run \`detectar\`, find out which RGB parts I really have and why they didn't show up (OpenRGB, driver, BIOS, vendor app, vendor bridge) and fix what you can. Then tell me in a few words what you found and changed. Answer in my language.`;
+}
+$("#wizAsk").onclick=async()=>{
+  const txt=missingPrompt();
+  try{ await navigator.clipboard.writeText(txt); }
+  catch{ const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+  toast(tr("Copiado! Cole no seu agente de IA. A lista aqui atualiza sozinha quando ele terminar."),"ai",6000);
+};
+$("#wizRescan").onclick=e=>run(e.currentTarget,async()=>{
+  toast("Procurando peças com RGB...","busy",0);
+  try{ await api("/api/connect",{}); }catch{}
+  await loadState(false); wizDevices();
+  toast(tr(S.devices.length?"{n} peças encontradas.":"Nenhuma peça encontrada ainda.",{n:S.devices.length}),S.devices.length?"ok":"err");
+});
+document.querySelectorAll("#wiz [data-go]").forEach(b=>b.onclick=()=>wizStep(+b.dataset.go));
+$("#wizSkip").onclick=()=>{ try{ localStorage.setItem("easyrgb-wizard-skip","1"); }catch{} $("#wiz").hidden=true; };
+$("#wizDone").onclick=e=>run(e.currentTarget,async()=>{
+  toast("Configurando...","busy",0);
+  const j=await api("/api/setup",{colors:S.colors,name:S.preset||Object.keys(S.palettes)[0]||"EasyRGB",autostart:$("#wizAuto").checked,lang:LANG});
+  $("#wiz").hidden=true; await loadState(true); A.autostart=j.autostart??A.autostart; renderAuto();
+  toast(tr("Pronto! Seu PC está configurado. Escolha as cores e os efeitos quando quiser."),"ok",5000);
+});
+function maybeWizard(){
+  const q=new URLSearchParams(location.search);
+  let skip=false; try{ skip=localStorage.getItem("easyrgb-wizard-skip")==="1"; }catch{}
+  if(q.has("wizard")){ try{ localStorage.removeItem("easyrgb-wizard-skip"); }catch{} openWizard(); return; }   // ?wizard abre de novo
+  if(!S.pc && !skip && !q.has("nowizard")) openWizard();
+  else if(WIZ.shown && !$("#wiz").hidden) wizDevices();   // a IA achou mais peças: a lista atualiza sozinha
 }
 
 // quando a IA aplica um perfil pelo chat, a tela atualiza sozinha
 setInterval(async()=>{
+  if(document.hidden) return;   // janela minimizada: não gasta nada
   try{
     const c=await api("/api/claude"); const created=c.active?.created||"";
     if(S.claudeSeen!==null && created && created!==S.claudeSeen){
@@ -1531,7 +2024,8 @@ setInterval(async()=>{
 
 render(); renderAI();
 loadState(true).then(loadAuto).catch(e=>toast(e.message,"err",6000));
-setInterval(()=>api("/api/auto").then(j=>{ if(j.status!==A.status || j.autostart!==A.autostart){ A.status=j.status; A.autostart=j.autostart; renderAuto(); } }).catch(()=>{}),5000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden) loadState(!S.applied||snap()===S.applied).catch(()=>{}); });
+setInterval(()=>!document.hidden&&api("/api/auto").then(j=>{ if(j.status!==A.status || j.autostart!==A.autostart){ A.status=j.status; A.autostart=j.autostart; renderAuto(); } }).catch(()=>{}),5000);
 </script>
 </body>
 </html>

@@ -18,3 +18,7 @@ app/my_presets.json
 *.log
 build/
 dist/
+backup-meu-perfil/
+app/diagnostico.json
+app/backup-*.json
+app/antes-de-*.json

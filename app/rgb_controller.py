@@ -73,7 +73,8 @@ STATE_FILE = HERE / "last_state.json"
 CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
-VERSION = "1.1.0"
+REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
+VERSION = "1.2.0"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -312,7 +313,8 @@ def vendor_route(dev):
     if isinstance(dev, vendors.VirtualDevice):
         return None
     name = _maker(dev)
-    return next((b for b in vendors.BRIDGES if b.key in _vend["keys"] and b.key in name), None)
+    return next((b for b in vendors.BRIDGES if b.key in _vend["keys"] and b.key in name
+                 and getattr(b, "routes_keys", True)), None)
 
 
 def reset_client():
@@ -401,20 +403,30 @@ def persist_kind(dev):
     return "none"
 
 
+def _vendor_name(d):
+    """Marca do dispositivo (o OpenRGB sabe; nos aparelhos das pontes é a marca da ponte)."""
+    if isinstance(d, vendors.VirtualDevice):
+        return d.bridge.app.split()[0]
+    return str(getattr(getattr(d, "metadata", None), "vendor", "") or "").strip()
+
+
 def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
              "backend": getattr(d, "backend", None) or (vendor_route(d).key if vendor_route(d) else "openrgb"),
              "effects": [] if vendor_route(d) or isinstance(d, vendors.VirtualDevice) else hw_effects(d),
-             "persist": persist_kind(d),
+             "persist": persist_kind(d), "vendor": _vendor_name(d),
              "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones],
              **({"led_names": [getattr(l, "name", "") for l in getattr(d, "leds", None) or []]}
                 if dev_type(d) == "KEYBOARD" else {})}
             for i, d in enumerate(all_devices(c))]
 
 
+_sent = {}   # último quadro enviado a cada aparelho (efeitos animados)
+
+
 def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, offset=0.0, fast=False,
-          overrides=None, groups=None, persist=True, ui=None, hw=None, frame=None):
+          overrides=None, groups=None, persist=True, ui=None, hw=None, frame=None, dev_bri=None):
     """Envia as cores para o hardware.
     devices: ids incluídos (None = todos) | overrides: {"<id>": {"<zona>": "#RRGGBB"}}
     hw: {"<id>": {"mode": "Breathing", "speed": 0-100}} -> efeito nativo do chip nesse dispositivo
@@ -424,6 +436,8 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
         raise ValueError("Paleta vazia")
     from openrgb.utils import RGBColor
     hw = {str(k): v for k, v in (hw or {}).items() if v and v.get("mode")}
+    # brilho próprio de um aparelho (ex.: teclado em 60%), multiplicado pelo brilho geral
+    dev_bri = {str(k): v for k, v in (dev_bri if dev_bri is not None else (ui or {}).get("pbri") or {}).items()}
     for attempt in (1, 2):
         try:
             c = client()
@@ -436,12 +450,20 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                     dev, cols = devs[idx], plan.get(idx) or []
                     if not cols:
                         continue
+                    bri = brightness * max(0, min(100, float(dev_bri.get(str(idx), 100)))) / 100
                     if frame:
                         cols = frame(idx, dev, cols)
+                        sig = (round(bri), tuple(cols))
+                        if _sent.get(idx) == sig:   # nada mudou neste aparelho: não manda de novo
+                            report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
+                            continue
+                        _sent[idx] = sig
+                    elif not fast:
+                        _sent.pop(idx, None)
                     try:
                         vb = vendor_route(dev)
                         if vb:   # pinta por cima do programa do fabricante, sem brigar com ele
-                            sc = [scale(x, brightness) for x in cols]
+                            sc = [scale(x, bri) for x in cols]
                             if not vb.paint_keys([getattr(l, "name", "") for l in dev.leds], sc):
                                 raise RuntimeError(f"{vb.app} não respondeu")
                             report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
@@ -450,14 +472,14 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                             if not fast:  # efeitos animados do app não mexem em quem usa efeito do chip
                                 h = hw[str(idx)]
                                 apply_hw(idx, dev, h["mode"], float(h.get("speed", 50)),
-                                         [scale(x, brightness) for x in cols],
-                                         [scale(x, brightness) for x in palette], save, RGBColor)
+                                         [scale(x, bri) for x in cols],
+                                         [scale(x, bri) for x in palette], save, RGBColor)
                                 report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
                             continue
                         _hw_cache.pop(idx, None)
                         if not fast:
                             prepare_device(dev)
-                        dev.set_colors([RGBColor(*scale(x, brightness)) for x in cols], fast=fast)
+                        dev.set_colors([RGBColor(*scale(x, bri)) for x in cols], fast=fast)
                         if save:
                             try:
                                 dev.save_mode()
@@ -694,8 +716,12 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
     ev = threading.Event()
     _effect["stop"] = ev
 
+    pbri = opts.get("pbri") or {}
+    pspd = {str(k): float(v) for k, v in (opts.get("pspd") or {}).items() if v}
+
     def run():
-        apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw)
+        apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw,
+              dev_bri=pbri)
         try:
             n = len(all_devices(client()))
         except Exception:
@@ -731,10 +757,11 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
             def fr(idx, dev, cols, now=now):
                 pos, kb = _positions(idx, dev, len(cols))
                 ctx["idx"] = idx
-                return effect_colors(kinds.get(idx, "static"), palette, cols, pos, kb, now, speed, ctx)
+                return effect_colors(kinds.get(idx, "static"), palette, cols, pos, kb, now,
+                                     pspd.get(str(idx), speed), ctx)
             try:
                 rep = apply(palette, brightness, mode, live, fast=True, overrides=overrides, groups=groups,
-                            persist=False, hw=hw, frame=fr)
+                            persist=False, hw=hw, frame=fr, dev_bri=pbri)
                 for r in rep:
                     if not r.get("ok"):
                         _log_once(f"efeito em {r.get('device')}: {r.get('error')}")
@@ -1048,11 +1075,74 @@ def _bridged(hits):
     return [h for h in hits if h not in apps]
 
 
+_pc_cache = {"key": None, "v": None}
+
+
 def load_pc():
+    """Perfil do PC. Lido de novo só quando o arquivo muda (o efeito animado consulta isto a cada quadro)."""
     try:
-        return json.loads(PC_FILE.read_text(encoding="utf-8"))
-    except Exception:
+        st = PC_FILE.stat()
+        key = (str(PC_FILE), st.st_mtime_ns, st.st_size)
+    except OSError:
+        _pc_cache.update(key=None, v=None)
         return None
+    if key != _pc_cache["key"]:
+        try:
+            _pc_cache.update(key=key, v=json.loads(PC_FILE.read_text(encoding="utf-8")))
+        except Exception:
+            return None
+    return json.loads(json.dumps(_pc_cache["v"])) if _pc_cache["v"] is not None else None
+
+
+_TYPE_NAMES = {
+    "pt": {"MOTHERBOARD": "Placa-mãe", "DRAM": "Memória RAM", "KEYBOARD": "Teclado", "MOUSE": "Mouse",
+           "GPU": "Placa de vídeo", "COOLER": "Cooler", "LEDSTRIP": "Fita de LED", "MOUSEMAT": "Mousepad",
+           "HEADSET": "Headset", "SPEAKER": "Caixa de som", "CASE": "Gabinete"},
+    "en": {"MOTHERBOARD": "Motherboard", "DRAM": "Memory", "KEYBOARD": "Keyboard", "MOUSE": "Mouse",
+           "GPU": "Graphics card", "COOLER": "Cooler", "LEDSTRIP": "LED strip", "MOUSEMAT": "Mousepad",
+           "HEADSET": "Headset", "SPEAKER": "Speaker", "CASE": "Case"}}
+
+
+def auto_profile(devs, lang="pt"):
+    """Perfil do PC feito pelo próprio app (assistente da primeira vez), sem agente de IA:
+    apelidos com a marca ("Teclado Logitech"), RAMs iguais e um resumo curto."""
+    names = _TYPE_NAMES.get(lang, _TYPE_NAMES["en"])
+    nick = {}
+    for d in devs:
+        base = names.get(d.get("type"))
+        if not base:
+            continue
+        v = (d.get("vendor") or "").strip()
+        good_vendor = v and v.lower() not in base.lower() and d.get("type") != "DRAM" and len(v) <= 20
+        nick[str(d["id"])] = f"{base} {v}" if good_vendor else base
+    types = [d.get("type") for d in devs]
+    seen, summary = set(), []
+    for d in devs:
+        n = nick.get(str(d["id"]), d.get("name", ""))
+        if n not in seen:
+            seen.add(n)
+            summary.append(n + (f" ({types.count(d.get('type'))})" if d.get("type") == "DRAM" and types.count("DRAM") > 1 else ""))
+    return {"agent": "EasyRGB", "summary": ", ".join(summary), "nicknames": nick,
+            "links": {"DRAM": "mirror"} if types.count("DRAM") > 1 else {},
+            "notes": ["Configurado pelo assistente do próprio app." if lang == "pt" else "Set up by the app's own wizard."]}
+
+
+def run_setup(body):
+    """Assistente da primeira vez: salva o perfil do PC, aplica o estilo escolhido e (se pedido) liga o
+    "Restaurar ao ligar o PC"."""
+    lang = body.get("lang") if body.get("lang") in _TYPE_NAMES else "pt"
+    devs = device_info()
+    prof = save_pc(auto_profile(devs, lang))
+    colors = parse_colors(body.get("colors") or [])
+    if not colors:
+        raise ValueError("Escolha um estilo")
+    links = {"ram": "mirror"} if prof["links"].get("DRAM") else {}
+    rep, _ = apply_claude({"name": body.get("name") or "Meu estilo", "colors": [to_hex(c) for c in colors],
+                           "mode": "gradiente", "brightness": 100, "effect": "static", "links": links})
+    auto = None
+    if body.get("autostart"):
+        auto = set_autostart(True)
+    return {"ok": True, "pc": prof, "report": rep, "autostart": auto}
 
 
 def save_pc(p):
@@ -1113,6 +1203,7 @@ def load_auto():
     a.setdefault("games", [])
     a.setdefault("schedule", [])
     a.setdefault("hotkeys", False)
+    a["hotkey_map"] = clean_hotkeys(a.get("hotkey_map"))
     a.pop("extras", None)   # sobra da versão com "temperatura do PC" (removida)
     return a
 
@@ -1120,8 +1211,10 @@ def load_auto():
 def save_auto(a):
     clean = {"enabled": bool(a.get("enabled", True)),
              "hotkeys": bool(a.get("hotkeys", False)),
+             "hotkey_map": clean_hotkeys(a.get("hotkey_map")),
              "games": [{"process": str(g["process"]).strip(), "preset": g.get("preset", ""),
-                        "enabled": g.get("enabled", True)} for g in a.get("games", []) if g.get("process")],
+                        "enabled": g.get("enabled", True), **({"name": str(g["name"])[:80]} if g.get("name") else {})}
+                       for g in a.get("games", []) if g.get("process")],
              "schedule": [{"time": str(s["time"])[:5], "action": s.get("action", "preset"), "value": s.get("value"),
                            "enabled": s.get("enabled", True), **({"tag": s["tag"]} if s.get("tag") else {})}
                           for s in a.get("schedule", []) if re.fullmatch(r"\d{2}:\d{2}", str(s.get("time", ""))[:5])]}
@@ -1131,6 +1224,10 @@ def save_auto(a):
 
 def running_processes():
     """Nomes dos executáveis abertos (em minúsculas)."""
+    try:
+        return set(vendors.process_table())
+    except Exception:
+        pass
     out = subprocess.run(["tasklist", "/fo", "csv", "/nh"], capture_output=True, text=True,
                          encoding="utf-8", errors="replace", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
     return {line.split('","')[0].strip('"').lower() for line in out.splitlines() if line.startswith('"')}
@@ -1230,29 +1327,10 @@ def start_auto_engine(interval=4):
         _auto["thread"].start()
 
 
-def find_installed_games():
-    """Procura executáveis de jogos conhecidos nas pastas da Steam, Epic e Riot (até 3 níveis)."""
-    roots = [Path(r"C:\Program Files (x86)\Steam\steamapps\common"), Path(r"C:\Program Files\Epic Games"),
-             Path(r"C:\Riot Games"), Path(r"C:\XboxGames"), Path(r"C:\Program Files (x86)\Battle.net")]
-    vdf = Path(r"C:\Program Files (x86)\Steam\steamapps\libraryfolders.vdf")
-    try:  # outras bibliotecas da Steam (outros discos)
-        for p in re.findall(r'"path"\s+"([^"]+)"', vdf.read_text(encoding="utf-8", errors="ignore")):
-            roots.append(Path(p.replace("\\\\", "\\")) / "steamapps" / "common")
-    except Exception:
-        pass
-    wanted = {k.lower(): k for k in KNOWN_GAMES}
-    found = {}
-    for root in dict.fromkeys(roots):
-        if not root.exists():
-            continue
-        base = len(root.parts)
-        for dirpath, dirnames, filenames in os.walk(root):
-            if len(Path(dirpath).parts) - base >= 4:
-                dirnames[:] = []
-            for f in filenames:
-                if f.lower() in wanted:
-                    found[wanted[f.lower()]] = str(Path(dirpath) / f)
-    return [{"process": exe, "preset": KNOWN_GAMES[exe], "path": path} for exe, path in sorted(found.items())]
+def find_installed_games(force=False):
+    """Jogos instalados (Steam, Epic, GOG, Ubisoft, EA, Xbox, Riot, Battle.net), com o executável principal."""
+    import games
+    return games.find_games(KNOWN_GAMES, force=force)
 
 
 # ---------------------------------------------------------------- iniciar com o Windows
@@ -1260,6 +1338,270 @@ TASK_NAME = "EasyRGB"
 
 
 _autostart_cache = {"t": 0.0, "v": False}
+
+
+# ---------------------------------------------------------------- atualização automática
+_update = {"t": 0.0, "v": None}
+
+
+def _ver(s):
+    return tuple(int(x) for x in re.findall(r"\d+", str(s))[:3]) or (0,)
+
+
+def check_update(force=False):
+    """Vê no GitHub se saiu versão nova (no máximo a cada 6 h). Não manda nenhum dado do PC."""
+    if not force and _update["v"] is not None and time.time() - _update["t"] < 6 * 3600:
+        return _update["v"]
+    import urllib.request
+    info = {"current": VERSION, "available": False}
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/latest",
+                                     headers={"User-Agent": "EasyRGB-updater", "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            j = json.loads(r.read())
+        tag = str(j.get("tag_name", "")).lstrip("vV")
+        asset = next((a["browser_download_url"] for a in j.get("assets", []) if a.get("name", "").endswith(".zip")), None)
+        info.update(latest=tag, available=_ver(tag) > _ver(VERSION), url=asset, page=j.get("html_url"),
+                    can_install=FROZEN and bool(asset))
+    except Exception as e:
+        info["error"] = str(e)
+    _update.update(t=time.time(), v=info)
+    return info
+
+
+def install_update():
+    """Baixa o zip da versão nova, espera o EasyRGB fechar, troca os arquivos e abre de novo.
+    Os dados do PC (pasta app/) e o OpenRGB não são tocados."""
+    info = check_update(force=True)
+    if not info.get("available"):
+        raise RuntimeError("Você já está na versão mais nova.")
+    if not info.get("can_install"):
+        raise RuntimeError("Atualização automática só no EasyRGB.exe. Baixe a versão nova no GitHub.")
+    import tempfile
+    import urllib.request
+    import zipfile
+    work = Path(tempfile.gettempdir()) / "easyrgb-update"
+    shutil_rm(work)
+    work.mkdir(parents=True)
+    zpath = work / "EasyRGB-windows.zip"
+    req = urllib.request.Request(info["url"], headers={"User-Agent": "EasyRGB-updater"})
+    with urllib.request.urlopen(req, timeout=120) as r, open(zpath, "wb") as f:
+        f.write(r.read())
+    with zipfile.ZipFile(zpath) as z:
+        z.extractall(work / "new")
+    src = work / "new" / "EasyRGB"
+    if not (src / "EasyRGB.exe").exists():
+        raise RuntimeError("O download da atualização veio incompleto. Tente de novo.")
+    dst = Path(sys.executable).parent
+    script = work / "atualizar.ps1"
+    script.write_text(f"""$ErrorActionPreference = 'SilentlyContinue'
+Wait-Process -Id {os.getpid()} -Timeout 60
+Start-Sleep 1
+Get-ChildItem -LiteralPath '{src}' | Where-Object {{ $_.Name -notin @('app','OpenRGB','download') }} | ForEach-Object {{
+  Copy-Item -LiteralPath $_.FullName -Destination '{dst}' -Recurse -Force }}
+Start-Process -FilePath '{dst / "EasyRGB.exe"}' -ArgumentList '--no-browser' -WorkingDirectory '{dst}'
+""", encoding="utf-8-sig")
+    cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script)]
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    try:   # sai do "grupo" do EasyRGB, para o atualizador continuar vivo quando o app fechar
+        subprocess.Popen(cmd, creationflags=flags | 0x01000000, close_fds=True)   # CREATE_BREAKAWAY_FROM_JOB
+    except OSError:
+        subprocess.Popen(cmd, creationflags=flags | getattr(subprocess, "DETACHED_PROCESS", 0), close_fds=True)
+    threading.Timer(1.0, lambda: os._exit(0)).start()   # fecha para liberar os arquivos
+    return {"ok": True, "version": info["latest"]}
+
+
+def shutil_rm(path):
+    import shutil
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def vendor_sdks():
+    """Baixa o kit oficial que uma ponte precisa (hoje: iCUE SDK da Corsair), só quando o programa da marca existe."""
+    try:
+        import vendors_more
+        b = vendors_more.CorsairBridge()
+        if b.installed() and not b.dll_path():
+            print("Corsair iCUE SDK:", vendors_more.download_corsair_sdk())
+    except Exception as e:
+        _log_once(f"kit da Corsair: {e!r}")
+
+
+# ---------------------------------------------------------------- idiomas extras (feitos por IA)
+LANG_DIRS = (HERE / "lang", RES / "lang")   # os da pessoa (app/lang) e os que vêm com o app
+
+
+def ui_strings():
+    """Todos os textos da interface: {texto original: inglês}, lidos da tabela EN do index.html."""
+    html = (RES / "index.html").read_text(encoding="utf-8")
+    a = html.index("const EN={") + len("const EN=")
+    b = html.index("\n};", a) + 2
+    body = "\n".join(l for l in html[a:b].splitlines() if not l.strip().startswith("//"))
+    body = re.sub(r",\s*}$", "}", body.strip())
+    return json.loads(body)
+
+
+def lang_file(code):
+    for d in LANG_DIRS:
+        f = d / f"{code}.json"
+        if f.exists():
+            return f
+    return None
+
+
+def lang_template(code):
+    """Cria app/lang/<código>.json com os textos em inglês para traduzir (mantém o que já estiver traduzido)."""
+    if not re.fullmatch(r"[a-z]{2,3}", code or ""):
+        raise ValueError("Use o código do idioma com 2 ou 3 letras, ex.: es, ru, de, fr, ja")
+    src = ui_strings()
+    f = HERE / "lang" / f"{code}.json"
+    old = {}
+    if lang_file(code):
+        old = json.loads(lang_file(code).read_text(encoding="utf-8")).get("strings", {})
+    data = {"code": code, "name": "", "note": "Translate every value (keep the keys, keep {placeholders}, keep it short).",
+            "english": src, "strings": {k: old.get(k, "") for k in src}}
+    f.parent.mkdir(parents=True, exist_ok=True)
+    if f.exists():
+        cur = json.loads(f.read_text(encoding="utf-8"))
+        data["name"] = cur.get("name", "")
+    f.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    return f, sum(1 for v in data["strings"].values() if not v), len(src)
+
+
+def lang_check(code):
+    """Confere uma tradução: o que falta e placeholders {x} que sumiram."""
+    f = lang_file(code)
+    if not f:
+        raise ValueError(f"Não existe app/lang/{code}.json. Rode: idioma {code}")
+    data = json.loads(f.read_text(encoding="utf-8"))
+    src, got = ui_strings(), data.get("strings", {})
+    missing = [k for k in src if not got.get(k)]
+    broken = [k for k in src if got.get(k) and set(re.findall(r"\{\w+\}", k)) != set(re.findall(r"\{\w+\}", got[k]))]
+    return {"file": str(f), "name": data.get("name"), "total": len(src), "missing": len(missing),
+            "broken_placeholders": broken[:20], "examples_missing": missing[:10]}
+
+
+# ---------------------------------------------------------------- backup, diagnóstico e desfazer
+BACKUP_FILES = {"pc": "pc.json", "look": "last_state.json", "automations": "automations.json",
+                "my_presets": "my_presets.json", "ai": "claude_color.json"}
+
+
+def make_backup():
+    """Tudo o que a pessoa configurou, num JSON só (para guardar ou levar para outro PC)."""
+    out = {"easyrgb_backup": 1, "version": VERSION, "created": time.strftime("%Y-%m-%d %H:%M:%S")}
+    for key, name in BACKUP_FILES.items():
+        f = HERE / name
+        if f.exists():
+            try:
+                out[key] = json.loads(f.read_text(encoding="utf-8"))
+            except ValueError:
+                pass
+    return out
+
+
+def restore_backup(data, apply_now=True):
+    """Volta um backup. Só aceita arquivo do EasyRGB; guarda o estado atual antes, em app/antes-de-restaurar.json."""
+    if not isinstance(data, dict) or data.get("easyrgb_backup") != 1:
+        raise ValueError("Este arquivo não é um backup do EasyRGB")
+    (HERE / "antes-de-restaurar.json").write_text(json.dumps(make_backup(), ensure_ascii=False, indent=1), encoding="utf-8")
+    done = []
+    for key, name in BACKUP_FILES.items():
+        if key in data and data[key] is not None:
+            if key == "automations":
+                save_auto(data[key])
+            else:
+                (HERE / name).write_text(json.dumps(data[key], ensure_ascii=False, indent=2), encoding="utf-8")
+            done.append(key)
+    _pc_cache.update(key=None, v=None)
+    if apply_now and "look" in done:
+        try:
+            apply_saved()
+        except Exception:
+            pass
+    sync_hotkeys()
+    return done
+
+
+def diagnostics():
+    """Relatório para um agente de IA achar problemas (não aparece na interface). Sem senhas nem tokens."""
+    import platform
+    rep = {"easyrgb": VERSION, "frozen": FROZEN, "python": sys.version.split()[0], "windows": platform.platform(),
+           "folder": str(ROOT), "time": time.strftime("%Y-%m-%d %H:%M:%S")}
+    checks = {
+        "openrgb_running": openrgb_running,
+        "openrgb_installed": lambda: OPENRGB_EXE.exists(),
+        "pawnio_service": lambda: subprocess.run(["sc", "query", "PawnIO"], capture_output=True,
+                                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).returncode == 0,
+        "configured_ok": lambda: (ROOT / "configurado.ok").exists(),
+        "autostart_task": autostart_task_command,
+        "autostart_ok": lambda: autostart_installed(fresh=True),
+        "devices": lambda: [{k: d.get(k) for k in ("id", "name", "type", "backend", "vendor", "persist")}
+                            | {"leds": sum(z["leds"] for z in d.get("zones", []))} for d in device_info()],
+        "bridges": lambda: vendors.detect_bridges(),
+        "bridge_state": lambda: [{"key": b.key, "active": b.key in _vend["keys"], "ok": getattr(b, "ok", None),
+                                  "connects": getattr(b, "connects", 0), "fails": getattr(b, "fails", 0)} for b in vendors.BRIDGES],
+        "conflicts": running_conflicts,
+        "effect": lambda: {"on": _effect["on"], "kind": _effect.get("kind")},
+        "hotkeys": lambda: {"on": load_auto().get("hotkeys"), "errors": list(_hk["errors"]), "map": load_auto().get("hotkey_map")},
+        "automations": lambda: {"games": len(load_auto().get("games", [])), "schedules": len(load_auto().get("schedule", []))},
+        "update": lambda: check_update(),
+        "selftest_libs": lambda: {n: (__import__(n) and "ok") for n in ("openrgb", "PIL", "pystray")},
+        "files": lambda: {n: (HERE / n).exists() for n in BACKUP_FILES.values()},
+    }
+    for name, fn in checks.items():
+        try:
+            rep[name] = fn()
+        except Exception as e:
+            rep[name] = f"ERRO: {e!r}"
+    try:
+        rep["log_tail"] = (HERE / "easyrgb.log").read_text(encoding="utf-8", errors="replace").splitlines()[-60:]
+    except OSError:
+        rep["log_tail"] = []
+    return rep
+
+
+def undo_everything(delete_data=False):
+    """'Desfazer tudo': devolve o PC ao estado de antes do EasyRGB (menos desinstalar os arquivos).
+    Religa o ASRock Polychrome, tira o 'Restaurar ao ligar o PC', solta o teclado para o programa da marca,
+    tira o EasyRGB do Claude Desktop e (se pedido) apaga os dados da pessoa. Pede administrador uma vez."""
+    stop_effect()
+    for b in vendors.BRIDGES:
+        try:
+            b.stop()   # o G HUB e afins voltam ao perfil deles
+        except Exception:
+            pass
+    import tempfile
+    script = Path(tempfile.gettempdir()) / "easyrgb_desfazer.ps1"
+    script.write_text(f"""$ErrorActionPreference = 'SilentlyContinue'
+Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false
+if (Get-ScheduledTask -TaskName AsrPolychromeRGB) {{ Enable-ScheduledTask -TaskName AsrPolychromeRGB | Out-Null }}
+Get-Process OpenRGB | Stop-Process -Force
+""", encoding="utf-8-sig")
+    subprocess.run(["powershell", "-NoProfile", "-Command",
+                    f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
+                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{script}'"],
+                   check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    done = {"autostart_removed": not autostart_installed(fresh=True)}
+    try:
+        import mcp_server
+        for cfg in mcp_server.claude_desktop_configs():
+            if cfg.exists():
+                d = json.loads(cfg.read_text(encoding="utf-8") or "{}")
+                if d.get("mcpServers", {}).pop("easyrgb", None) is not None:
+                    cfg.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
+        done["claude_desktop"] = True
+    except Exception:
+        done["claude_desktop"] = False
+    if delete_data:
+        (HERE / "antes-de-desfazer.json").write_text(json.dumps(make_backup(), ensure_ascii=False, indent=1),
+                                                    encoding="utf-8")   # última cópia, por segurança
+        for name in BACKUP_FILES.values():
+            try:
+                (HERE / name).unlink()
+            except OSError:
+                pass
+        done["data_deleted"] = True
+    return done
 
 
 def first_run_setup():
@@ -1483,31 +1825,68 @@ def quick(action, value=None):
 
 
 # Ctrl+Alt + tecla
-HOTKEYS = {1: (0x27, "next"), 2: (0x25, "prev"), 3: (0x4C, "toggle"), 4: (0x26, "brighter"), 5: (0x28, "dimmer"),
-           6: (0x45, "next_effect")}   # → ← L ↑ ↓ E
-_hk = {"thread": None, "tid": None}
+# atalhos: ação -> combinação ("Ctrl+Alt+Right"). A pessoa escolhe no app; vazio = desligado.
+HOTKEY_ACTIONS = ("next", "prev", "brighter", "dimmer", "next_effect", "toggle")
+HOTKEY_DEFAULTS = {"next": "Ctrl+Alt+Right", "prev": "Ctrl+Alt+Left", "brighter": "Ctrl+Alt+Up",
+                   "dimmer": "Ctrl+Alt+Down", "next_effect": "Ctrl+Alt+E", "toggle": "Ctrl+Alt+L"}
+_MODS = {"ctrl": 0x0002, "alt": 0x0001, "shift": 0x0004, "win": 0x0008}
+_VK = {"right": 0x27, "left": 0x25, "up": 0x26, "down": 0x28, "space": 0x20, "home": 0x24, "end": 0x23,
+       "pageup": 0x21, "pagedown": 0x22, "insert": 0x2D, "delete": 0x2E, "pause": 0x13,
+       **{chr(c).lower(): c for c in range(0x41, 0x5B)}, **{str(d): 0x30 + d for d in range(10)},
+       **{f"f{n}": 0x6F + n for n in range(1, 25)}, **{f"num{d}": 0x60 + d for d in range(10)}}
+_hk = {"thread": None, "tid": None, "errors": [], "map": None}
 
 
-def start_hotkeys():
+def parse_hotkey(combo):
+    """"Ctrl+Alt+Right" -> (modificadores, tecla). Exige pelo menos um modificador (menos F13-F24),
+    para não roubar uma tecla comum do teclado."""
+    parts = [x.strip().lower() for x in str(combo or "").split("+") if x.strip()]
+    if not parts:
+        return None
+    mods = 0
+    for m in parts[:-1]:
+        if m not in _MODS:
+            return None
+        mods |= _MODS[m]
+    vk = _VK.get(parts[-1])
+    if vk is None or (not mods and not 0x7C <= vk <= 0x87):
+        return None
+    return mods, vk
+
+
+def clean_hotkeys(m):
+    m = m if isinstance(m, dict) else {}
+    out = {}
+    for act in HOTKEY_ACTIONS:
+        v = m.get(act, HOTKEY_DEFAULTS[act])
+        out[act] = v if v == "" or parse_hotkey(v) else HOTKEY_DEFAULTS[act]
+    return out
+
+
+def start_hotkeys(hmap=None):
     """Atalhos globais do Windows (funcionam com qualquer janela em foco). Custo: uma thread parada esperando."""
     if _hk["thread"] and _hk["thread"].is_alive():
         return
+    hmap = clean_hotkeys(hmap if hmap is not None else load_auto().get("hotkey_map"))
+    table = {i + 1: (act, parse_hotkey(c)) for i, (act, c) in enumerate(hmap.items()) if c}
+    _hk.update(map=hmap, errors=[])
 
     def loop():
         import ctypes
         from ctypes import wintypes
         user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
         _hk["tid"] = kernel32.GetCurrentThreadId()
-        for hid, (vk, _) in HOTKEYS.items():
-            user32.RegisterHotKey(None, hid, 0x0002 | 0x0001 | 0x4000, vk)   # Ctrl + Alt, sem repetir
+        for hid, (act, (mods, vk)) in table.items():
+            if not user32.RegisterHotKey(None, hid, mods | 0x4000, vk):   # 0x4000: não repetir segurando
+                _hk["errors"].append(act)   # combinação já usada por outro programa
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            if msg.message == 0x0312 and msg.wParam in HOTKEYS:   # WM_HOTKEY
+            if msg.message == 0x0312 and msg.wParam in table:   # WM_HOTKEY
                 try:
-                    quick(HOTKEYS[msg.wParam][1])
+                    quick(table[msg.wParam][0])
                 except Exception:
                     pass
-        for hid in HOTKEYS:
+        for hid in table:
             user32.UnregisterHotKey(None, hid)
 
     _hk["thread"] = threading.Thread(target=loop, daemon=True)
@@ -1523,7 +1902,12 @@ def stop_hotkeys():
 
 
 def sync_hotkeys():
-    (start_hotkeys if load_auto().get("hotkeys") else stop_hotkeys)()
+    a = load_auto()
+    if not a.get("hotkeys"):
+        return stop_hotkeys()
+    if _hk["thread"] and _hk["map"] != a["hotkey_map"]:   # mudou um atalho: registra de novo
+        stop_hotkeys()
+    start_hotkeys(a["hotkey_map"])
 
 
 # ícone ao lado do relógio
@@ -1593,7 +1977,7 @@ def start_tray(url):
 
     menu = Menu(
         Item(lambda it: f"{APP_NAME}  ·  {_tray_summary()}", None, enabled=False),
-        Item(T("Abrir o EasyRGB", "Open EasyRGB"), lambda i, it: webbrowser.open(url), default=True),
+        Item(T("Abrir o EasyRGB", "Open EasyRGB"), lambda i, it: open_ui(url), default=True),
         Menu.SEPARATOR,
         Item(T("Presets", "Presets"), Menu(lambda: presets_items())),
         Item(T("Efeito", "Effect"), Menu(*[Item(n, act("effect", k), radio=True,
@@ -1640,6 +2024,7 @@ class Handler(BaseHTTPRequestHandler):
                   "effect": _effect["on"],
                   "effect_kind": _effect.get("kind") if _effect["on"] else "static",
                   "connected": openrgb_running(), "devices": [], "last": None, "claude": load_claude(),
+                  "folder": str(ROOT),
                   "pc": load_pc()}
             try:
                 st["last"] = json.loads(STATE_FILE.read_text(encoding="utf-8"))
@@ -1661,14 +2046,26 @@ class Handler(BaseHTTPRequestHandler):
                                         effect_kind=_effect.get("kind") if _effect["on"] else "static",
                                         pc_configured=(load_pc() or {}).get("configured"),
                                         state_rev=_rev["n"]))
+        if self.path == "/api/update":
+            return self._send(200, check_update())
+        if self.path == "/api/backup":
+            return self._send(200, make_backup())
+        m = re.fullmatch(r"/lang/([a-z]{2,3})\.json", self.path)
+        if m:   # tradução extra (app/lang/<código>.json)
+            f = lang_file(m.group(1))
+            if not f:
+                return self._send(404, {"error": "sem tradução"})
+            d = json.loads(f.read_text(encoding="utf-8"))
+            return self._send(200, {"name": d.get("name", ""), "strings": {k: v for k, v in d.get("strings", {}).items() if v}})
         if self.path == "/api/detect":
             return self._send(200, detect_system())
         if self.path == "/api/auto":
             return self._send(200, {"auto": load_auto(), "status": _auto["status"],
                                     "game": _auto["game"], "autostart": autostart_installed(),
-                                    "known": KNOWN_GAMES, "needs_running": needs_running()})
+                                    "known": KNOWN_GAMES, "needs_running": needs_running(),
+                                    "hotkey_errors": list(_hk["errors"])})
         if self.path == "/api/games":
-            return self._send(200, {"games": find_installed_games()})
+            return self._send(200, {"games": find_installed_games(force=True)})
         if self.path == "/api/share":
             L = load_state()
             if not L:
@@ -1712,7 +2109,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/auto":
                 a = save_auto(body)
                 sync_hotkeys()
-                return self._send(200, {"ok": True, "auto": a})
+                time.sleep(0.15)   # dá tempo de o Windows dizer se algum atalho já está em uso
+                return self._send(200, {"ok": True, "auto": a, "hotkey_errors": list(_hk["errors"])})
             if self.path == "/api/quick":
                 quick(body.get("action"), body.get("value"))
                 return self._send(200, {"ok": True})
@@ -1722,6 +2120,19 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get("code"):
                     return self._send(200, {"ok": True, "look": read_share_code(body["code"])})
                 return self._send(200, {"ok": True, "code": share_code(body)})
+            if self.path == "/api/update":   # baixar e instalar a versão nova (só no EasyRGB.exe)
+                return self._send(200, install_update())
+            if self.path == "/api/restore":
+                return self._send(200, {"ok": True, "restored": restore_backup(body)})
+            if self.path == "/api/undo":   # "Desfazer tudo" (a interface pede duas confirmações antes)
+                if body.get("confirm") != "DESFAZER":
+                    raise ValueError("Confirmação ausente")
+                res = undo_everything(bool(body.get("delete_data")))
+                self._send(200, {"ok": True, "done": res})
+                threading.Timer(1.5, lambda: os._exit(0)).start()   # fecha o EasyRGB no fim
+                return
+            if self.path == "/api/setup":   # assistente da primeira vez (sem precisar de IA)
+                return self._send(200, run_setup(body))
             if self.path == "/api/claude":
                 rep, prof = apply_claude(body)
                 return self._send(200, {"ok": True, "report": rep, "profile": prof, "effect": _effect["on"],
@@ -1753,6 +2164,65 @@ class Server(ThreadingHTTPServer):
         super().server_bind()
 
 
+def _edge():
+    """Navegador baseado em Chromium para o modo "app" (janela própria, sem barra de endereço).
+    Edge vem em todo Windows 10/11; Chrome e Brave ficam de reserva. Nenhum: navegador padrão."""
+    rel = [("Microsoft", "Edge", "Application", "msedge.exe"), ("Google", "Chrome", "Application", "chrome.exe"),
+           ("BraveSoftware", "Brave-Browser", "Application", "brave.exe")]
+    bases = [os.environ.get(k, "") for k in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
+    for r in rel:
+        for base in bases:
+            if base and Path(base, *r).exists():
+                return Path(base, *r)
+    return None
+
+
+def _window_size():
+    """Tamanho da janela que cabe em qualquer tela (de notebook 1366x768 a monitor 4K)."""
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        sw, sh = u.GetSystemMetrics(16), u.GetSystemMetrics(17)   # área útil (sem a barra de tarefas)
+        return max(400, min(1280, sw - 60)), max(500, min(880, sh - 40))
+    except Exception:
+        return 1280, 860
+
+
+def _focus_window(title):
+    """Traz para a frente uma janela do EasyRGB que já esteja aberta (em vez de abrir outra)."""
+    try:
+        import ctypes
+        u = ctypes.windll.user32
+        hwnd = u.FindWindowW("Chrome_WidgetWin_1", title)
+        if hwnd:
+            u.ShowWindow(hwnd, 9)   # SW_RESTORE
+            u.SetForegroundWindow(hwnd)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def open_ui(url=None):
+    """Abre a interface numa janela própria (Edge em modo app, perfil separado, ~0 MB a mais no pacote).
+    Sem Edge, abre no navegador padrão."""
+    url = url or f"http://127.0.0.1:{UI_PORT}/"
+    if _focus_window(APP_NAME):
+        return
+    edge = _edge()
+    if edge:
+        profile = Path(os.environ.get("LOCALAPPDATA", str(HERE))) / "EasyRGB" / "janela"
+        try:
+            subprocess.Popen([str(edge), f"--app={url}", f"--user-data-dir={profile}", "--window-size=%d,%d" % _window_size(),
+                              "--no-first-run", "--no-default-browser-check", "--disable-features=Translate",
+                              "--disable-sync", "--disable-extensions"],
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), close_fds=True)
+            return
+        except OSError:
+            pass
+    webbrowser.open(url)
+
+
 def serve():
     url = f"http://127.0.0.1:{UI_PORT}/"
     background = "--background" in sys.argv   # iniciado com o Windows: sem janela e sem navegador
@@ -1761,14 +2231,16 @@ def serve():
     except OSError:  # já tem um EasyRGB aberto: só abre a página dele
         if not background:
             print(f"O {APP_NAME} já está aberto, abrindo no navegador...")
-            webbrowser.open(url)
+            open_ui(url)
         return
     print(f"{APP_NAME} v{VERSION} rodando em {url}  (Ctrl+C para sair)")
     if background:
         threading.Thread(target=restore_on_boot, daemon=True).start()
     elif "--no-browser" not in sys.argv:
-        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.6, lambda: open_ui(url)).start()
     start_auto_engine()
+    threading.Thread(target=check_update, daemon=True).start()   # vê se tem versão nova, sem atrasar nada
+    threading.Thread(target=vendor_sdks, daemon=True).start()     # kit da Corsair, só se o iCUE existir
     start_tray(url)
     sync_hotkeys()
     try:
@@ -1821,6 +2293,30 @@ def cli(argv):
             res[f] = "ok" if (RES / f).exists() else "FALTA"
         print(json.dumps(res, indent=2, ensure_ascii=False))
         sys.exit(0 if all(v == "ok" for k, v in res.items() if k not in ("frozen", "python")) else 1)
+    if cmd == "idioma":   # cria/confere uma tradução feita por IA: idioma <código> [--verificar]
+        code = (argv[1] if len(argv) > 1 else "").lower()
+        if "--verificar" in argv:
+            print(json.dumps(lang_check(code), indent=2, ensure_ascii=False))
+        else:
+            f, todo, total = lang_template(code)
+            print(f"OK: {f}\n{todo} of {total} texts to translate. Fill \"name\" (e.g. \"Español\") and every value in "
+                  f"\"strings\" (keys = original text, \"english\" = meaning). Then: idioma {code} --verificar")
+        return
+    if cmd == "diagnostico":   # para agentes de IA: relatório completo de problemas (não fica na interface)
+        rep = diagnostics()
+        out = HERE / "diagnostico.json"
+        out.write_text(json.dumps(rep, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        print(json.dumps({k: v for k, v in rep.items() if k != "log_tail"}, indent=2, ensure_ascii=False, default=str))
+        print(f"\nFull report (with the last log lines): {out}")
+        return
+    if cmd == "backup":   # backup [arquivo.json]
+        f = Path(argv[1]) if len(argv) > 1 else HERE / f"backup-{time.strftime('%Y%m%d-%H%M')}.json"
+        f.write_text(json.dumps(make_backup(), ensure_ascii=False, indent=1), encoding="utf-8")
+        print("OK:", f)
+        return
+    if cmd == "restaurar":   # restaurar arquivo.json
+        print("OK:", restore_backup(json.loads(Path(argv[1]).read_text(encoding="utf-8")), apply_now=False))
+        return
     if cmd == "bibliotecas":   # usado pelo instalador: instala as bibliotecas para este Python
         ok = ensure_libs()
         print(("OK: bibliotecas em " if ok else "ERRO ao instalar as bibliotecas em ") + str(LIB))

@@ -68,6 +68,8 @@ def key_of(led_name):
 def led_positions(dev):
     """Posição (x, y) de 0 a 1 de cada LED do dispositivo, para efeitos como a onda.
     Teclados usam o mapa físico das teclas; o resto segue a ordem dos LEDs (x) e das zonas (y)."""
+    if getattr(dev, "positions", None):
+        return list(dev.positions), getattr(dev, "type", None) == 5
     leds = getattr(dev, "leds", None) or []
     zones = getattr(dev, "zones", None) or []
     total = sum(len(z.leds) for z in zones) or len(leds)
@@ -130,6 +132,11 @@ class VirtualDevice:
 def _pid(image):
     """PID do processo (ou None). Serve para saber se o programa do fabricante reiniciou."""
     try:
+        pids = process_table().get(image.lower())
+        return min(pids) if pids else None
+    except Exception:
+        pass
+    try:
         out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {image}", "/FO", "CSV", "/NH"], capture_output=True,
                              text=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), timeout=8).stdout
         for line in out.splitlines():
@@ -166,7 +173,39 @@ def uptime():
         return 1e9
 
 
+class _PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [("dwSize", ctypes.c_ulong), ("cntUsage", ctypes.c_ulong), ("th32ProcessID", ctypes.c_ulong),
+                ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", ctypes.c_ulong), ("cntThreads", ctypes.c_ulong),
+                ("th32ParentProcessID", ctypes.c_ulong), ("pcPriClassBase", ctypes.c_long), ("dwFlags", ctypes.c_ulong),
+                ("szExeFile", ctypes.c_wchar * 260)]
+
+
+def process_table():
+    """{nome.exe em minúsculas: [pids]} lido direto do Windows (~1 ms; o tasklist abre um processo e leva ~100 ms)."""
+    k32 = ctypes.windll.kernel32
+    k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)   # TH32CS_SNAPPROCESS
+    if not snap or snap == ctypes.c_void_p(-1).value:
+        raise OSError("snapshot")
+    out = {}
+    try:
+        e = _PROCESSENTRY32W()
+        e.dwSize = ctypes.sizeof(e)
+        ok = k32.Process32FirstW(ctypes.c_void_p(snap), ctypes.byref(e))
+        while ok:
+            out.setdefault(e.szExeFile.lower(), []).append(int(e.th32ProcessID))
+            ok = k32.Process32NextW(ctypes.c_void_p(snap), ctypes.byref(e))
+    finally:
+        k32.CloseHandle(ctypes.c_void_p(snap))
+    return out
+
+
 def _running(*names):
+    try:
+        procs = process_table()
+        return any(n.lower() in procs for n in names)
+    except Exception:
+        pass
     try:
         out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True,
                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), timeout=8).stdout.lower()
@@ -207,6 +246,11 @@ class LogitechBridge:
         except Exception:
             pass
         return next((p for p in cands if p.exists()), None)
+
+    routes_keys = True
+
+    def installed(self):
+        return self.dll_path() is not None
 
     def available(self):
         if self.dll_path() is None:
@@ -321,6 +365,11 @@ class LogitechBridge:
 
 
 BRIDGES = [LogitechBridge()]
+try:   # Razer, SteelSeries e Corsair (beta)
+    import vendors_more
+    BRIDGES += [vendors_more.RazerBridge(), vendors_more.SteelSeriesBridge(), vendors_more.CorsairBridge()]
+except Exception:   # nunca deixa uma ponte nova derrubar o app
+    pass
 # Próximas pontes (mesmo formato): Razer Chroma (REST em localhost:54235), SteelSeries GameSense
 # (JSON local), Corsair iCUE SDK e ASUS Aura SDK. A IA ativa só as que existem no PC (pc.json -> "vendors").
 
@@ -331,5 +380,10 @@ def bridge(key):
 
 def detect_bridges():
     """Quais pontes este PC tem (kit do fabricante instalado e programa aberto). Usado pela IA na instalação."""
-    return [{"key": b.key, "app": b.app, "installed": b.dll_path() is not None, "running": b.available()}
-            for b in BRIDGES]
+    out = []
+    for b in BRIDGES:
+        try:
+            out.append({"key": b.key, "app": b.app, "installed": bool(b.installed()), "running": bool(b.available())})
+        except Exception as e:
+            out.append({"key": b.key, "app": b.app, "installed": False, "running": False, "error": str(e)})
+    return out
