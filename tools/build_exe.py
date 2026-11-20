@@ -47,26 +47,29 @@ def _download(url, dest):
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
     print("> baixando", url, flush=True)
+    import time
     req = urllib.request.Request(url, headers={"User-Agent": "EasyRGB-build"})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        dest.write_bytes(r.read())
-    return dest
+    for tries in range(5):   # servidores com limite de acessos (403/429) ou rede instável: tenta de novo
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                dest.write_bytes(r.read())
+            return dest
+        except OSError as e:
+            if tries == 4:
+                raise
+            print(f"  falhou ({e}); tentando de novo em {15 * (tries + 1)} s", flush=True)
+            time.sleep(15 * (tries + 1))
 
 
 def bundle_openrgb(out):
     """Coloca o OpenRGB e o instalador do driver dentro do pacote: a primeira vez não depende de internet."""
-    import json
-    import urllib.request
     cache = BUILD / "cache"
     z = _download(OPENRGB_URL, cache / "OpenRGB_1.1.zip")
     with zipfile.ZipFile(z) as zf:
         zf.extractall(out / "OpenRGB")
-    req = urllib.request.Request("https://api.github.com/repos/namazso/PawnIO.Setup/releases/latest",
-                                 headers={"User-Agent": "EasyRGB-build", "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        rel = json.loads(r.read())
-    url = next(a["browser_download_url"] for a in rel["assets"] if a["name"] == "PawnIO_setup.exe")
-    pawn = _download(url, cache / f"PawnIO_setup_{rel.get('tag_name', 'latest')}.exe")
+    # link direto do último release (sem a API do GitHub, que tem limite de acessos sem login)
+    pawn = _download("https://github.com/namazso/PawnIO.Setup/releases/latest/download/PawnIO_setup.exe",
+                     cache / "PawnIO_setup.exe")
     (out / "download").mkdir(exist_ok=True)
     shutil.copy2(pawn, out / "download" / "PawnIO_setup.exe")
     (out / "THIRD-PARTY-NOTICES.txt").write_text(NOTICE, encoding="utf-8")
