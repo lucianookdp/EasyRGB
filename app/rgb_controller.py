@@ -30,7 +30,34 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import vendors  # noqa: E402  (pontes com G HUB e outros programas de fabricante)
-sys.path.insert(0, str(HERE / "lib"))  # biblioteca openrgb-python instalada dentro da pasta do app
+# Bibliotecas ficam dentro do app, separadas por versão do Python (Pillow e outras têm partes compiladas:
+# as de um Python não servem em outro). Se o Python do PC mudar, o app instala de novo sozinho.
+LIB = HERE / "lib" / f"py{sys.version_info[0]}{sys.version_info[1]}"
+REQUIREMENTS = ["openrgb-python", "pycaw", "comtypes", "pystray", "pillow"]
+sys.path.insert(0, str(HERE / "lib"))   # pasta antiga: só as bibliotecas sem partes compiladas servem
+sys.path.insert(0, str(LIB))
+
+
+def ensure_libs():
+    """Instala as bibliotecas para o Python atual, uma vez (usa a internet só nessa hora)."""
+    if (LIB / ".ok").exists():
+        return True
+    py = Path(sys.executable).with_name("python.exe")
+    exe = py if py.exists() else Path(sys.executable)
+    try:
+        r = subprocess.run([str(exe), "-m", "pip", "install", "--disable-pip-version-check", "-q", "--upgrade",
+                            "--target", str(LIB), *REQUIREMENTS], capture_output=True, text=True, timeout=900,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except Exception as e:
+        print("Não consegui instalar as bibliotecas:", e)
+        return False
+    if r.returncode == 0:
+        (LIB / ".ok").write_text(sys.version, encoding="utf-8")
+        import importlib
+        importlib.invalidate_caches()
+        return True
+    print("pip falhou:", (r.stderr or r.stdout)[-800:])
+    return False
 PALETTES_FILE = HERE / "palettes.json"
 STATE_FILE = HERE / "last_state.json"
 CLAUDE_FILE = HERE / "claude_color.json"
@@ -368,7 +395,8 @@ def device_info():
     c = client(refresh=True, autostart=False)
     return [{"id": i, "name": d.name, "type": dev_type(d),
              "backend": getattr(d, "backend", None) or (vendor_route(d).key if vendor_route(d) else "openrgb"),
-             "effects": hw_effects(d), "persist": persist_kind(d),
+             "effects": [] if vendor_route(d) or isinstance(d, vendors.VirtualDevice) else hw_effects(d),
+             "persist": persist_kind(d),
              "zones": [{"name": z.name, "leds": len(z.leds)} for z in d.zones],
              **({"led_names": [getattr(l, "name", "") for l in getattr(d, "leds", None) or []]}
                 if dev_type(d) == "KEYBOARD" else {})}
@@ -588,6 +616,16 @@ def ripple_colors(palette, pos, kb, now, speed, hits):
     return out
 
 
+_logged = {}
+
+
+def _log_once(msg, every=60):
+    """Escreve um erro no log no máximo 1 vez por minuto (o efeito roda 20x por segundo)."""
+    if time.time() - _logged.get(msg, 0) > every:
+        _logged[msg] = time.time()
+        print(time.strftime("%H:%M:%S"), msg, flush=True)
+
+
 def effect_map(kind, opts, ids):
     """Efeito de cada dispositivo. kind = efeito do computador; opts["pfx"] = {"<id>": efeito} para periféricos
     (ex.: teclado com onda e PC parado). Formato antigo: opts["fxdevs"] = só esses animam."""
@@ -681,10 +719,13 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
                 ctx["idx"] = idx
                 return effect_colors(kinds.get(idx, "static"), palette, cols, pos, kb, now, speed, ctx)
             try:
-                apply(palette, brightness, mode, live, fast=True, overrides=overrides, groups=groups,
-                      persist=False, hw=hw, frame=fr)
-            except Exception:
-                pass
+                rep = apply(palette, brightness, mode, live, fast=True, overrides=overrides, groups=groups,
+                            persist=False, hw=hw, frame=fr)
+                for r in rep:
+                    if not r.get("ok"):
+                        _log_once(f"efeito em {r.get('device')}: {r.get('error')}")
+            except Exception as e:
+                _log_once(f"efeito: {e!r}")
             ev.wait(1.0 / fps)
 
     th = threading.Thread(target=run, daemon=True)
@@ -1207,20 +1248,42 @@ TASK_NAME = "EasyRGB"
 _autostart_cache = {"t": 0.0, "v": False}
 
 
+def launcher():
+    """Programa que a tarefa de inicialização chama. O pyw.exe do Windows acha o Python instalado na hora,
+    então trocar ou atualizar o Python não quebra o "Restaurar ao ligar o PC"."""
+    pyw = Path(os.environ.get("WINDIR", r"C:\Windows")) / "pyw.exe"
+    if pyw.exists():
+        return pyw
+    own = Path(sys.executable).with_name("pythonw.exe")
+    return own if own.exists() else Path(sys.executable)
+
+
+def autostart_task_command():
+    """Programa que a tarefa chama hoje (None se não existe)."""
+    r = subprocess.run(["schtasks", "/query", "/tn", TASK_NAME, "/xml"], capture_output=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    if r.returncode != 0:
+        return None
+    raw = r.stdout
+    xml = raw.decode("utf-16", errors="ignore") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else \
+        raw.decode("utf-8", errors="ignore")
+    m = re.search(r"<Command>(.*?)</Command>", xml)
+    return m.group(1).strip().strip('"') if m else ""
+
+
 def autostart_installed(fresh=False):
+    """A tarefa existe E o programa que ela chama ainda existe (ex.: o Python antigo não foi desinstalado)."""
     if not fresh and time.time() - _autostart_cache["t"] < 30:
         return _autostart_cache["v"]
-    r = subprocess.run(["schtasks", "/query", "/tn", TASK_NAME], capture_output=True,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    _autostart_cache.update(t=time.time(), v=r.returncode == 0)
+    cmd = autostart_task_command()
+    _autostart_cache.update(t=time.time(), v=bool(cmd) and Path(cmd).exists())
     return _autostart_cache["v"]
 
 
 def set_autostart(on):
     """Cria/remove uma tarefa no logon (como admin, para o OpenRGB acessar o chip sem pedir UAC a cada boot).
     Pede administrador uma vez."""
-    pyw = Path(sys.executable).with_name("pythonw.exe")
-    exe = pyw if pyw.exists() else Path(sys.executable)
+    exe = launcher()
     import tempfile
     user = os.environ.get("USERDOMAIN", "") + "\\" + os.environ.get("USERNAME", "")
     if on:
@@ -1560,6 +1623,9 @@ class Handler(BaseHTTPRequestHandler):
                     reset_client()
                     st["error"] = str(e)
                 st["conflicts"] = running_conflicts()   # depois dos dispositivos: G HUB com ponte não é conflito
+                st["bridges"] = [{"key": b.key, "active": b.key in _vend["keys"], "ok": b.ok,
+                                  "connects": getattr(b, "connects", 0), "fails": getattr(b, "fails", 0)}
+                                 for b in vendors.BRIDGES]
             return self._send(200, st)
         if self.path == "/api/claude":
             return self._send(200, dict(load_claude(), effect=_effect["on"],
@@ -1778,6 +1844,7 @@ if __name__ == "__main__":
         _log = open(HERE / "easyrgb.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stderr = _log
         print(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} {APP_NAME} v{VERSION}")
+    ensure_libs()   # Python novo no PC: instala as bibliotecas para ele (só na primeira vez)
     args = [a for a in sys.argv[1:] if a not in ("--no-browser", "--background")]
     if args:
         cli(args)

@@ -191,6 +191,7 @@ class LogitechBridge:
         self.dll, self.ok, self.lock = None, False, threading.RLock()
         self.pid, self.retry_at, self.fails, self.checked = None, 0.0, 0, 0.0
         self.born, self.young = 0.0, False
+        self.connects = 0
 
     @staticmethod
     def dll_path():
@@ -256,6 +257,7 @@ class LogitechBridge:
             time.sleep(0.4)   # o G HUB leva um instante para aceitar comandos depois de conectar
             self.ok, self.pid, self.fails, self.checked = True, pid, 0, time.time()
             self.born, self.young = born, time.time() - born < self.YOUNG
+            self.connects += 1
             return True
 
     def stop(self):

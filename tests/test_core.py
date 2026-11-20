@@ -399,6 +399,27 @@ class TestAutomation(TempFiles):
         self.assertTrue(all(p == p.lower() for p in procs))
 
 
+class TestStartupTask(unittest.TestCase):
+    """O "Restaurar ao ligar o PC" não pode quebrar quando o Python do PC muda de versão."""
+    def test_broken_task_counts_as_off(self):
+        with mock.patch.object(rc, "autostart_task_command", return_value=r"C:\Nao\Existe\pythonw.exe"):
+            self.assertFalse(rc.autostart_installed(fresh=True))
+        with mock.patch.object(rc, "autostart_task_command", return_value=None):
+            self.assertFalse(rc.autostart_installed(fresh=True))
+        with mock.patch.object(rc, "autostart_task_command", return_value=sys.executable):
+            self.assertTrue(rc.autostart_installed(fresh=True))
+
+    def test_launcher_does_not_pin_a_python_version(self):
+        exe = rc.launcher()
+        self.assertTrue(exe.exists())
+        if (Path(os.environ.get("WINDIR", r"C:\Windows")) / "pyw.exe").exists():
+            self.assertEqual(exe.name.lower(), "pyw.exe")
+
+    def test_libraries_are_per_python_version(self):
+        self.assertEqual(rc.LIB.name, f"py{sys.version_info[0]}{sys.version_info[1]}")
+        self.assertIn("pillow", rc.REQUIREMENTS)
+
+
 # ------------------------------------------------------------------ compartilhar
 class TestOldFiles(TempFiles):
     def test_old_automation_file_with_temperature_extras(self):
