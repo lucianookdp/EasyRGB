@@ -654,12 +654,13 @@ class TestApi(TempFiles):
 
     def test_errors(self):
         code, r = self.call("/api/apply", {"colors": []})
-        self.assertEqual(code, 500)
+        self.assertEqual(code, 400)   # erro da pessoa (sem cores): mensagem clara, não "erro interno"
         self.assertFalse(r["ok"])
+        self.assertIn("cor", r["error"])
         code, _ = self.call("/api/nada")
         self.assertEqual(code, 404)
         code, r = self.call("/api/share", {"code": "lixo"})
-        self.assertEqual(code, 500)
+        self.assertEqual(code, 400)
 
 
 # ------------------------------------------------------------------ interface (index.html)
@@ -820,7 +821,7 @@ class TestVendors(TempFiles):
         self.assertGreaterEqual(len(km), 100)
         self.assertEqual(self.vendors.key_of("Key: A")["sc"], 0x1E)
         self.assertEqual(self.vendors.key_of("Key: Escape")["vk"], 0x1B)
-        self.assertEqual(self.vendors.key_of("Key: \ (ANSI)")["sc"], 0x2B)
+        self.assertEqual(self.vendors.key_of(r"Key: \ (ANSI)")["sc"], 0x2B)
         self.assertLess(km["q"]["x"], km["p"]["x"])
 
     @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
@@ -905,20 +906,38 @@ class TestLogitechStartup(unittest.TestCase):
             self.assertFalse(self.b.start())
         self.dll.LogiLedInitWithName.assert_not_called()
 
-    def test_reconnects_once_after_ghub_settles(self):
+    def test_reconnects_at_each_mark_after_ghub_opens(self):
         now = vendors.time.time()
-        with mock.patch.object(vendors, "_started_at", return_value=now - 30):
+        with mock.patch.object(vendors, "_started_at", return_value=now - 25):
             self.assertTrue(self.b.start())
-        self.assertTrue(self.b.young)
-        self.b.born, self.b.checked = now - 100, 0.0
-        self.assertTrue(self.b.restarted())     # passou do tempo de carregar: reconecta
-        self.assertFalse(self.b.ok)
-        with mock.patch.object(vendors, "_started_at", return_value=now - 100):
-            self.b.retry_at = 0.0
-            self.assertTrue(self.b.start())
-        self.assertFalse(self.b.young)
+        self.assertEqual(self.b.pending, list(vendors.LogitechBridge.REASSERT))
+        hits = 0
+        for age in (29, 31, 95, 170, 185, 310, 610, 2000):   # o G HUB envelhecendo
+            self.b.anchor, self.b.checked = now - age, 0.0
+            if self.b.restarted():
+                hits += 1
+                with mock.patch.object(vendors, "_started_at", return_value=now - 25):
+                    self.b.retry_at = 0.0
+                    self.assertTrue(self.b.start())   # mesmo G HUB: não reagenda
+        self.assertEqual(hits, len(vendors.LogitechBridge.REASSERT))   # uma reconexão por momento, nada mais
+        self.assertEqual(self.b.pending, [])
         self.b.checked = 0.0
         self.assertFalse(self.b.restarted())    # já estável: não fica reconectando
+
+    def test_old_ghub_does_not_trigger_reconnects(self):
+        with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
+            self.assertTrue(self.b.start())
+        self.assertEqual(self.b.pending, [])
+        self.b.checked = 0.0
+        self.assertFalse(self.b.restarted())
+
+    def test_wake_from_sleep_reconnects_and_restarts_marks(self):
+        with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
+            self.assertTrue(self.b.start())
+        self.b._wall -= 3600   # relógio pulou 1 h sem o tempo real passar: o PC dormiu
+        self.assertTrue(self.b.restarted())
+        self.assertFalse(self.b.ok)
+        self.assertEqual(self.b.pending, list(vendors.LogitechBridge.REASSERT))
 
     def test_waits_for_ghub_right_after_boot(self):
         with mock.patch.object(vendors, "uptime", return_value=30), mock.patch.object(vendors, "_running", return_value=False):

@@ -98,7 +98,7 @@ class TestUndo(Base):
         self.assertTrue(done["autostart_removed"])
         self.assertEqual(json.loads(cfg.read_text())["mcpServers"], {"other": {}})   # só tira o EasyRGB
         self.assertTrue((self.tmp / "pc.json").exists())
-        script = (self.tmp / "easyrgb_desfazer.ps1").read_text(encoding="utf-8-sig")
+        script = next(self.tmp.glob("easyrgb_desfazer_*.ps1")).read_text(encoding="utf-8-sig")   # nome único
         self.assertIn("Unregister-ScheduledTask", script)
         self.assertIn("Enable-ScheduledTask -TaskName AsrPolychromeRGB", script)
         self.assertIn("-Verb RunAs", run.call_args[0][0][-1])

@@ -74,7 +74,7 @@ CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
 REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -225,8 +225,8 @@ def start_openrgb():
     # só "--server": o OpenRGB roda como servidor invisível, sem janela e sem ícone próprio na bandeja
     # (o ícone que aparece é só o do EasyRGB). "--startminimized" criaria um segundo ícone.
     args = "--server --noautoconnect"
-    ps = (f"Start-Process -FilePath '{OPENRGB_EXE}' -ArgumentList '{args}' -Verb RunAs -WindowStyle Hidden "
-          f"-WorkingDirectory '{OPENRGB_EXE.parent}'")
+    ps = (f"Start-Process -FilePath '{_ps(OPENRGB_EXE)}' -ArgumentList '{args}' -Verb RunAs -WindowStyle Hidden "
+          f"-WorkingDirectory '{_ps(OPENRGB_EXE.parent)}'")
     subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=False)
     for _ in range(60):  # a detecção de hardware leva alguns segundos
         if openrgb_running():
@@ -433,11 +433,21 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
     persist=False: só pré-visualização (não grava o estado salvo do app).
     frame: função (id, dispositivo, cores) -> cores, usada pelos efeitos que pintam LED por LED (onda...)."""
     if not palette:
-        raise ValueError("Paleta vazia")
+        raise ValueError("Paleta vazia: escolha pelo menos uma cor.")
+    # o que vem da tela, de uma IA ou de um arquivo antigo pode chegar torto: corrige em vez de quebrar
+    brightness = _num(brightness, 100, 0, 100)
+    mode = mode if mode in ("gradiente", "alternado", "zona") else "gradiente"
+    if devices is not None:
+        devices = [int(d) for d in devices if str(d).lstrip("-").isdigit()] if isinstance(devices, (list, tuple)) else None
+    overrides = {str(k): v for k, v in overrides.items() if isinstance(v, dict)} if isinstance(overrides, dict) else {}
+    groups = [g for g in groups if isinstance(g, dict) and isinstance(g.get("ids"), list)] \
+        if isinstance(groups, list) else []
+    ui = ui if isinstance(ui, dict) else {}
     from openrgb.utils import RGBColor
-    hw = {str(k): v for k, v in (hw or {}).items() if v and v.get("mode")}
+    hw = {str(k): v for k, v in (hw if isinstance(hw, dict) else {}).items() if isinstance(v, dict) and v.get("mode")}
     # brilho próprio de um aparelho (ex.: teclado em 60%), multiplicado pelo brilho geral
-    dev_bri = {str(k): v for k, v in (dev_bri if dev_bri is not None else (ui or {}).get("pbri") or {}).items()}
+    pb = dev_bri if dev_bri is not None else ui.get("pbri")
+    dev_bri = {str(k): v for k, v in (pb if isinstance(pb, dict) else {}).items()}
     for attempt in (1, 2):
         try:
             c = client()
@@ -652,6 +662,35 @@ def ripple_colors(palette, pos, kb, now, speed, hits):
     return out
 
 
+def log_error(where, exc=None):
+    """Guarda o erro completo em app/easyrgb.log (para um agente de IA ou o suporte achar a causa)."""
+    import traceback
+    try:
+        detail = "".join(traceback.format_exception(exc)) if exc else traceback.format_exc()
+        with open(HERE / "easyrgb.log", "a", encoding="utf-8") as f:
+            f.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} ERRO em {where}\n{detail}\n")
+    except Exception:
+        pass
+
+
+def friendly_error(exc):
+    """Mensagem que a pessoa entende. Erros previstos (ValueError/RuntimeError) já vêm escritos para ela;
+    falha de conexão com o OpenRGB e erros inesperados ganham um texto claro (o detalhe vai para o log)."""
+    if isinstance(exc, (ValueError, RuntimeError)) and str(exc):
+        return 400, str(exc)
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return 503, "Não consegui falar com o OpenRGB. Clique em Reconectar (ícone de setas no topo) e tente de novo."
+    return 500, "Algo deu errado aqui dentro. O detalhe foi salvo em app/easyrgb.log."
+
+
+def _num(v, default, lo, hi, cast=int):
+    """Número vindo da tela ou de uma IA: aceita "80", 80.0 ou lixo (usa o padrão) e limita à faixa."""
+    try:
+        return max(lo, min(hi, cast(float(v))))
+    except (TypeError, ValueError):
+        return default
+
+
 _logged = {}
 
 
@@ -787,19 +826,27 @@ def stop_effect():
 USER_PRESETS_FILE = HERE / "my_presets.json"
 
 
-def _read_json(path):
+def _read_json(path, default=None):
+    """Lê um JSON do app. Arquivo faltando, estragado ou com o tipo errado (ex.: lista no lugar de objeto)
+    devolve o padrão: o app sempre abre, mesmo se o PC desligou no meio de uma gravação."""
+    default = {} if default is None else default
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        v = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return {}
+        return default
+    return v if isinstance(v, type(default)) else default
+
+
+def _clean_presets(d):
+    return {str(k): v for k, v in d.items() if isinstance(v, list) and parse_colors(v)}
 
 
 def builtin_presets():
-    return _read_json(PALETTES_FILE)
+    return _clean_presets(_read_json(PALETTES_FILE))
 
 
 def user_presets():
-    return _read_json(USER_PRESETS_FILE)
+    return _clean_presets(_read_json(USER_PRESETS_FILE))
 
 
 def load_palettes():
@@ -855,10 +902,10 @@ _ALIASES = {"placa": "MOTHERBOARD", "placa-mae": "MOTHERBOARD", "placa-mãe": "M
 
 
 def load_claude():
-    try:
-        return json.loads(CLAUDE_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {"active": None, "history": []}
+    d = _read_json(CLAUDE_FILE)
+    hist = d.get("history")
+    return {**d, "active": d.get("active") if isinstance(d.get("active"), dict) else None,
+            "history": [h for h in hist if isinstance(h, dict)] if isinstance(hist, list) else []}
 
 
 def _match_devices(sel, devs):
@@ -1088,7 +1135,8 @@ def load_pc():
         return None
     if key != _pc_cache["key"]:
         try:
-            _pc_cache.update(key=key, v=json.loads(PC_FILE.read_text(encoding="utf-8")))
+            v = json.loads(PC_FILE.read_text(encoding="utf-8"))
+            _pc_cache.update(key=key, v=v if isinstance(v, dict) else None)
         except Exception:
             return None
     return json.loads(json.dumps(_pc_cache["v"])) if _pc_cache["v"] is not None else None
@@ -1157,10 +1205,19 @@ def save_pc(p):
 
 # ---------------------------------------------------------------- estado salvo
 def load_state():
-    try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    except Exception:
+    d = _read_json(STATE_FILE)
+    if not d:
         return None
+    if not isinstance(d.get("ui"), dict):
+        d["ui"] = {}
+    for k in ("overrides", "hw"):
+        if not isinstance(d.get(k), dict):
+            d[k] = {}
+    if not isinstance(d.get("groups"), list):
+        d["groups"] = []
+    if d.get("devices") is not None and not isinstance(d.get("devices"), list):
+        d["devices"] = None
+    return d
 
 
 def apply_saved(state=None, persist=False, **changes):
@@ -1195,13 +1252,10 @@ _auto = {"game": None, "fired": {}, "status": "", "thread": None}
 
 
 def load_auto():
-    try:
-        a = json.loads(AUTO_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        a = {}
+    a = _read_json(AUTO_FILE)
     a.setdefault("enabled", True)
-    a.setdefault("games", [])
-    a.setdefault("schedule", [])
+    a["games"] = [g for g in a.get("games", []) if isinstance(g, dict)] if isinstance(a.get("games"), list) else []
+    a["schedule"] = [s for s in a.get("schedule", []) if isinstance(s, dict)] if isinstance(a.get("schedule"), list) else []
     a.setdefault("hotkeys", False)
     a["hotkey_map"] = clean_hotkeys(a.get("hotkey_map"))
     a.pop("extras", None)   # sobra da versão com "temperatura do PC" (removida)
@@ -1384,11 +1438,17 @@ def install_update():
     shutil_rm(work)
     work.mkdir(parents=True)
     zpath = work / "EasyRGB-windows.zip"
+    if not str(info.get("url") or "").startswith(f"https://github.com/{REPO}/releases/download/"):
+        raise RuntimeError("Endereço de atualização inesperado. Baixe a versão nova pelo GitHub.")
     req = urllib.request.Request(info["url"], headers={"User-Agent": "EasyRGB-updater"})
     with urllib.request.urlopen(req, timeout=120) as r, open(zpath, "wb") as f:
         f.write(r.read())
     with zipfile.ZipFile(zpath) as z:
-        z.extractall(work / "new")
+        base = (work / "new").resolve()
+        for m in z.namelist():   # nenhum arquivo do zip pode cair fora da pasta da atualização
+            if not (base / m).resolve().is_relative_to(base):
+                raise RuntimeError("O arquivo da atualização parece adulterado. Baixe pelo GitHub.")
+        z.extractall(base)
     src = work / "new" / "EasyRGB"
     if not (src / "EasyRGB.exe").exists():
         raise RuntimeError("O download da atualização veio incompleto. Tente de novo.")
@@ -1397,9 +1457,9 @@ def install_update():
     script.write_text(f"""$ErrorActionPreference = 'SilentlyContinue'
 Wait-Process -Id {os.getpid()} -Timeout 60
 Start-Sleep 1
-Get-ChildItem -LiteralPath '{src}' | Where-Object {{ $_.Name -notin @('app','OpenRGB','download') }} | ForEach-Object {{
-  Copy-Item -LiteralPath $_.FullName -Destination '{dst}' -Recurse -Force }}
-Start-Process -FilePath '{dst / "EasyRGB.exe"}' -ArgumentList '--no-browser' -WorkingDirectory '{dst}'
+Get-ChildItem -LiteralPath '{_ps(src)}' | Where-Object {{ $_.Name -notin @('app','OpenRGB','download') }} | ForEach-Object {{
+  Copy-Item -LiteralPath $_.FullName -Destination '{_ps(dst)}' -Recurse -Force }}
+Start-Process -FilePath '{_ps(dst / "EasyRGB.exe")}' -ArgumentList '--no-browser' -WorkingDirectory '{_ps(dst)}'
 """, encoding="utf-8-sig")
     cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script)]
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -1571,15 +1631,14 @@ def undo_everything(delete_data=False):
         except Exception:
             pass
     import tempfile
-    script = Path(tempfile.gettempdir()) / "easyrgb_desfazer.ps1"
-    script.write_text(f"""$ErrorActionPreference = 'SilentlyContinue'
+    script = _temp_script("easyrgb_desfazer_", f"""$ErrorActionPreference = 'SilentlyContinue'
 Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false
 if (Get-ScheduledTask -TaskName AsrPolychromeRGB) {{ Enable-ScheduledTask -TaskName AsrPolychromeRGB | Out-Null }}
 Get-Process OpenRGB | Stop-Process -Force
-""", encoding="utf-8-sig")
+""")
     subprocess.run(["powershell", "-NoProfile", "-Command",
                     f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
-                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{script}'"],
+                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"{_ps(script)}\"'"],
                    check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     done = {"autostart_removed": not autostart_installed(fresh=True)}
     try:
@@ -1599,6 +1658,20 @@ Get-Process OpenRGB | Stop-Process -Force
     return done
 
 
+def _ps(s):
+    """Texto seguro dentro de aspas simples do PowerShell ('O''Brien')."""
+    return str(s).replace("'", "''")
+
+
+def _temp_script(prefix, text):
+    """Script temporário com nome único (outro programa não consegue trocar o arquivo antes de rodar como admin)."""
+    import tempfile
+    fd, name = tempfile.mkstemp(prefix=prefix, suffix=".ps1")
+    with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+        f.write(text)
+    return Path(name)
+
+
 def first_run_setup():
     """Primeira vez do EasyRGB.exe: roda o instalador (OpenRGB oficial + driver PawnIO) como administrador e espera."""
     setup = ROOT / "1-Configurar (admin).ps1"
@@ -1606,7 +1679,7 @@ def first_run_setup():
         return False
     subprocess.run(["powershell", "-NoProfile", "-Command",
                     f"Start-Process powershell -Verb RunAs -Wait -ArgumentList "
-                    f"'-NoProfile','-ExecutionPolicy','Bypass','-File','\"{setup}\"'"],
+                    f"'-NoProfile','-ExecutionPolicy','Bypass','-File','\"{_ps(setup)}\"'"],
                    check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     return (ROOT / "configurado.ok").exists()
 
@@ -1653,20 +1726,19 @@ def set_autostart(on):
     user = os.environ.get("USERDOMAIN", "") + "\\" + os.environ.get("USERNAME", "")
     if on:
         arg = "--background" if FROZEN else f'"{SRC / "rgb_controller.py"}" --background'   # o .exe chama ele mesmo
-        ps = (f"$a = New-ScheduledTaskAction -Execute '{exe}' -Argument '{arg}' "
-              f"-WorkingDirectory '{HERE}'\n"
-              f"$t = New-ScheduledTaskTrigger -AtLogOn -User '{user}'\n"
+        ps = (f"$a = New-ScheduledTaskAction -Execute '{_ps(exe)}' -Argument '{_ps(arg)}' "
+              f"-WorkingDirectory '{_ps(HERE)}'\n"
+              f"$t = New-ScheduledTaskTrigger -AtLogOn -User '{_ps(user)}'\n"
               f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
               f"-ExecutionTimeLimit ([TimeSpan]::Zero)\n"
-              f"$p = New-ScheduledTaskPrincipal -UserId '{user}' -LogonType Interactive -RunLevel Highest\n"
+              f"$p = New-ScheduledTaskPrincipal -UserId '{_ps(user)}' -LogonType Interactive -RunLevel Highest\n"
               f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings $s -Principal $p -Force\n")
     else:
         ps = f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false\n"
-    script = Path(tempfile.gettempdir()) / "easyrgb_autostart.ps1"
-    script.write_text(ps, encoding="utf-8-sig")
+    script = _temp_script("easyrgb_autostart_", ps)
     subprocess.run(["powershell", "-NoProfile", "-Command",
                     f"Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden "
-                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{script}'"],
+                    f"-ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"{_ps(script)}\"'"],
                    check=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     try:
         script.unlink()
@@ -1734,13 +1806,24 @@ def read_share_code(code):
     if not prefix:
         raise ValueError("Código inválido: precisa começar com EASYRGB1-")
     b = code[len(prefix):]
-    data = json.loads(base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)).decode("utf-8"))
-    cols = [to_hex(c) for c in parse_colors(data.get("c", []))]
+    if len(b) > 4000:
+        raise ValueError("Código inválido: grande demais")
+    try:
+        data = json.loads(base64.urlsafe_b64decode(b + "=" * (-len(b) % 4)).decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError
+        cols = [to_hex(c) for c in parse_colors(data.get("c", []))][:16]
+        bri = max(0, min(100, int(data.get("b", 100))))
+        speed = max(1, min(10, float(data.get("s", 3))))
+    except Exception:
+        raise ValueError("Código inválido: não consegui ler") from None
     if not cols:
         raise ValueError("Código sem cores")
-    return {"name": data.get("n", ""), "colors": cols, "mode": data.get("m", "gradiente"),
-            "brightness": int(data.get("b", 100)), "effect": data.get("e", "static"),
-            "speed": data.get("s", 3), "links": data.get("l", {})}
+    mode = data.get("m") if data.get("m") in ("gradiente", "alternado", "zona") else "gradiente"
+    eff = data.get("e") if data.get("e") in EFFECTS + ("static",) else "static"
+    links = data.get("l") if isinstance(data.get("l"), dict) else {}
+    return {"name": str(data.get("n", ""))[:60], "colors": cols, "mode": mode, "brightness": bri, "effect": eff,
+            "speed": speed, "links": links}
 
 
 # ---------------------------------------------------------------- ações rápidas (atalhos e bandeja)
@@ -2005,10 +2088,44 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(data)
+        try:
+            self.wfile.write(data)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass   # a página fechou antes da resposta: normal, não é erro
+
+    def _trusted(self):
+        """Só o app (a janela do EasyRGB, a bandeja, a CLI e o servidor MCP) pode falar com a API.
+        Bloqueia sites abertos no navegador (CSRF) e o truque de DNS que faz um site parecer local (rebinding)."""
+        port = self.server.server_address[1]
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        if (self.headers.get("Host") or "").lower() not in hosts:
+            return False
+        origin = self.headers.get("Origin")
+        if origin and origin.lower() not in {f"http://{h}" for h in hosts}:
+            return False
+        if (self.headers.get("Sec-Fetch-Site") or "").lower() == "cross-site":
+            return False
+        return True
+
+    def _deny(self):
+        return self._send(403, {"ok": False, "error": "Pedido bloqueado: só o próprio EasyRGB pode usar esta API."})
+
+    def _fail(self, exc):
+        code, msg = friendly_error(exc)
+        if code >= 500:
+            log_error(f"{self.command} {self.path}", exc)
+        return self._send(code, {"ok": False, "error": msg})
 
     def do_GET(self):
+        try:
+            return self._do_get()
+        except Exception as e:   # nunca deixa a página sem resposta
+            return self._fail(e)
+
+    def _do_get(self):
         self.path = self.path.split("?", 1)[0]   # ignora ?parâmetros (ex.: /?v=2)
+        if not self._trusted():
+            return self._deny()
         if self.path in ("/", "/index.html"):
             return self._send(200, (RES / "index.html").read_bytes(), "text/html")
         if self.path in ("/icon.png", "/favicon.ico"):
@@ -2073,14 +2190,28 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.path = self.path.split("?", 1)[0]
-        n = int(self.headers.get("Content-Length") or 0)
-        body = json.loads(self.rfile.read(n) or b"{}")
+        try:
+            n = max(0, min(int(self.headers.get("Content-Length") or 0), 2_000_000))
+        except ValueError:
+            n = 0
+        raw = self.rfile.read(n) if n else b""
+        if not self._trusted():
+            return self._deny()
+        # JSON obrigatório: um site não consegue mandar esse tipo de pedido para outro endereço sem permissão
+        if not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
+            return self._send(415, {"ok": False, "error": "Use Content-Type: application/json"})
+        try:
+            body = json.loads(raw or b"{}")
+        except ValueError:
+            return self._send(400, {"ok": False, "error": "Corpo do pedido não é um JSON válido"})
+        if not isinstance(body, dict):
+            return self._send(400, {"ok": False, "error": "Corpo do pedido precisa ser um objeto JSON"})
         try:
             if self.path == "/api/connect":
                 return self._send(200, {"ok": start_openrgb()})
             if self.path in ("/api/apply", "/api/preview"):
                 stop_effect()
-                rep = apply(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
+                rep = apply(parse_colors(body.get("colors", [])), _num(body.get("brightness"), 100, 0, 100),
                             body.get("mode", "gradiente"), body.get("devices"), bool(body.get("save")),
                             overrides=body.get("overrides"), groups=body.get("groups"),
                             persist=self.path == "/api/apply", ui=body.get("ui"), hw=body.get("hw"))
@@ -2089,12 +2220,13 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get("on"):
                     stop_effect()
                     if body.get("persist"):  # "Aplicar" com efeito animado: salva o estado também
-                        apply(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
+                        apply(parse_colors(body.get("colors", [])), _num(body.get("brightness"), 100, 0, 100),
                               body.get("mode", "gradiente"), body.get("devices"), False,
                               overrides=body.get("overrides"), groups=body.get("groups"),
                               ui=body.get("ui"), hw=body.get("hw"))
-                    start_effect(parse_colors(body.get("colors", [])), int(body.get("brightness", 100)),
-                                 body.get("mode", "gradiente"), body.get("devices"), float(body.get("speed", 3)),
+                    start_effect(parse_colors(body.get("colors", [])), _num(body.get("brightness"), 100, 0, 100),
+                                 body.get("mode", "gradiente"), body.get("devices"),
+                                 _num(body.get("speed"), 3, 1, 10, float),
                                  body.get("overrides"), body.get("groups"), body.get("kind", "fluir"), body.get("hw"),
                                  body.get("ui"))
                 else:
@@ -2147,7 +2279,7 @@ class Handler(BaseHTTPRequestHandler):
                     save_user_preset(name, body.get("colors", []))
                 return self._send(200, {"ok": True, "palettes": load_palettes(), "user": list(user_presets())})
         except Exception as e:
-            return self._send(500, {"ok": False, "error": str(e)})
+            return self._fail(e)
         self._send(404, {"error": "não encontrado"})
 
 
@@ -2222,7 +2354,15 @@ def open_ui(url=None):
     webbrowser.open(url)
 
 
+def _install_error_logging():
+    """Erro inesperado em qualquer parte (efeitos, automação, bandeja, atalhos) vai para o log com o detalhe,
+    em vez de sumir em silêncio."""
+    sys.excepthook = lambda tp, val, tb: log_error("app", val)
+    threading.excepthook = lambda a: log_error(f"tarefa {getattr(a.thread, 'name', '?')}", a.exc_value)
+
+
 def serve():
+    _install_error_logging()
     url = f"http://127.0.0.1:{UI_PORT}/"
     background = "--background" in sys.argv   # iniciado com o Windows: sem janela e sem navegador
     try:

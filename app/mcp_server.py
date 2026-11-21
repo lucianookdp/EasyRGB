@@ -178,6 +178,10 @@ HANDLERS = {"easyrgb_status": tool_status, "easyrgb_apply_look": tool_apply,
 
 # ---------------------------------------------------------------- MCP (JSON-RPC over stdio)
 def handle(msg):
+    if not isinstance(msg, dict):
+        return {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid request"}}
+    if not isinstance(msg.get("params"), (dict, type(None))):
+        msg = dict(msg, params={})
     method, mid = msg.get("method"), msg.get("id")
     if mid is None:   # notification (e.g. notifications/initialized): no reply
         return None
@@ -185,7 +189,7 @@ def handle(msg):
         ver = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL
         return {"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": ver, "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.1"},
+            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.2"},
             "instructions": INSTRUCTIONS}}
     if method == "ping":
         return {"jsonrpc": "2.0", "id": mid, "result": {}}

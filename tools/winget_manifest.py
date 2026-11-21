@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ID = "lucianookdp.EasyRGB"
 REPO = "https://github.com/lucianookdp/EasyRGB"
-SCHEMA = "1.6.0"
+SCHEMA = "1.28.0"
 
 
 def version_from_code():
@@ -63,7 +63,9 @@ def main(argv):
     out = ROOT / "packaging" / "winget" / version
     out.mkdir(parents=True, exist_ok=True)
     for name, text in manifests(version, sha).items():
-        (out / name).write_text(text, encoding="utf-8")
+        kind = "installer" if ".installer." in name else "defaultLocale" if ".locale." in name else "version"
+        head = f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.{SCHEMA}.schema.json\n\n"
+        (out / name).write_text(head + text, encoding="utf-8")
     print("OK:", out)
 
 

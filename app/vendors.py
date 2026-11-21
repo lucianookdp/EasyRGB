@@ -223,13 +223,17 @@ class LogitechBridge:
 
     AGENT = "lghub_agent.exe"
     SETTLE = 20     # o G HUB acabou de abrir: espera ele terminar de carregar antes de conectar
-    YOUNG = 90      # conectou com o G HUB ainda novo: reconecta uma vez depois disso (ele recarrega o perfil)
+    # Depois que o G HUB abre (ou o PC volta da suspensão) ele pode reassumir o teclado minutos depois, sem fechar:
+    # a conexão continua "aceitando" comandos, mas ele mostra o perfil dele. Reconectar nesses momentos garante.
+    REASSERT = (30, 90, 180, 300, 600)   # segundos depois do G HUB abrir / do PC acordar
+    SLEPT = 30      # relógio andou mais que isto além do tempo real entre duas olhadas: o PC dormiu
     BOOT = 180      # logo depois de ligar o PC, espera o G HUB em vez de mexer no teclado pelo OpenRGB
 
     def __init__(self):
         self.dll, self.ok, self.lock = None, False, threading.RLock()
         self.pid, self.retry_at, self.fails, self.checked = None, 0.0, 0, 0.0
-        self.born, self.young = 0.0, False
+        self.born, self.anchor, self.pending = 0.0, 0.0, []
+        self._wall, self._mono = time.time(), time.monotonic()
         self.connects = 0
 
     @staticmethod
@@ -258,14 +262,26 @@ class LogitechBridge:
         # ao ligar o PC o G HUB abre depois do EasyRGB: o teclado espera por ele (não briga pelo OpenRGB)
         return _running("lghub_agent.exe", "lghub.exe") or uptime() < self.BOOT
 
+    def _woke(self):
+        """True se o PC dormiu desde a última olhada (o relógio pulou mais que o tempo que passou de fato)."""
+        wall, mono = time.time(), time.monotonic()
+        slept = (wall - self._wall) - (mono - self._mono) > self.SLEPT
+        self._wall, self._mono = wall, mono
+        return slept
+
     def restarted(self):
-        """True se o G HUB fechou ou reabriu desde a conexão (aí é preciso conectar de novo). Olha a cada 5 s."""
+        """True quando é preciso conectar de novo: o G HUB fechou/reabriu, o PC acordou da suspensão ou chegou
+        um dos momentos em que o G HUB costuma reassumir o teclado (REASSERT). Olha a cada 5 s."""
         with self.lock:
-            if not self.ok or time.time() - self.checked < 5:
+            woke = self._woke()
+            if woke:   # ao acordar, o G HUB repinta o perfil dele: recomeça a sequência de reconexões
+                self.anchor, self.pending = time.time(), list(self.REASSERT)
+            if not self.ok or (time.time() - self.checked < 5 and not woke):
                 return False
             self.checked = time.time()
-            if self.young and time.time() - self.born >= self.YOUNG:   # o G HUB terminou de carregar
-                self.young = False
+            due = [m for m in self.pending if time.time() - self.anchor >= m]
+            if woke or due:
+                self.pending = [m for m in self.pending if m not in due]
                 self.stop()
                 return True
             if _pid(self.AGENT) != self.pid:
@@ -300,7 +316,9 @@ class LogitechBridge:
                 return False
             time.sleep(0.4)   # o G HUB leva um instante para aceitar comandos depois de conectar
             self.ok, self.pid, self.fails, self.checked = True, pid, 0, time.time()
-            self.born, self.young = born, time.time() - born < self.YOUNG
+            if born != self.born:   # G HUB novo (ligou o PC ou ele reabriu): agenda as reconexões
+                self.born, self.anchor = born, born
+                self.pending = [m for m in self.REASSERT if time.time() - born < m]
             self.connects += 1
             return True
 
