@@ -13,6 +13,7 @@ from unittest import mock
 APP = Path(__file__).resolve().parent.parent / "app"
 sys.path.insert(0, str(APP))
 os.environ["EASYRGB_NO_VENDORS"] = "1"
+os.environ["EASYRGB_NO_EXIT"] = "1"
 import rgb_controller as rc  # noqa: E402
 import vendors_more as vm  # noqa: E402
 
@@ -242,12 +243,13 @@ class TestUpdate(unittest.TestCase):
     def test_versions_compare_as_numbers(self):
         self.assertGreater(rc._ver("1.10.0"), rc._ver("1.9.9"))
 
-    def test_source_install_is_not_replaced(self):
-        if rc.FROZEN:
-            self.skipTest("só no modo código")
-        with mock.patch("urllib.request.urlopen", return_value=self.fake("v9.0.0")):
-            with self.assertRaises(RuntimeError):
-                rc.install_update()
+    def test_source_install_updates_its_own_way(self):
+        """Pelo código, a atualização vai pelo caminho do código (git ou zip do código), nunca pelo do .exe."""
+        with mock.patch("urllib.request.urlopen", return_value=self.fake("v9.0.0")), \
+             mock.patch.object(rc, "FROZEN", False), \
+             mock.patch.object(rc, "_install_update_source", return_value={"ok": True}) as src:
+            self.assertEqual(rc.install_update(), {"ok": True})
+        src.assert_called_once()
 
 
 class TestOwnWindow(unittest.TestCase):

@@ -1474,6 +1474,18 @@ Start-Process -FilePath '{_ps(dst / "EasyRGB.exe")}' -ArgumentList '--no-browser
     return {"ok": True, "version": info["latest"]}
 
 
+def quit_app_now(code=0):
+    """Fecha o EasyRGB na hora. Nos testes automáticos (EASYRGB_NO_EXIT=1) só registra: um teste nunca pode
+    derrubar a bateria inteira e fingir que passou."""
+    if os.environ.get("EASYRGB_NO_EXIT"):
+        _exit_attempts.append(code)
+        return
+    os._exit(code)
+
+
+_exit_attempts = []
+
+
 def _run_after_exit(script):
     """Roda um script do PowerShell que espera o EasyRGB fechar, e fecha o EasyRGB."""
     cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script)]
@@ -1482,7 +1494,7 @@ def _run_after_exit(script):
         subprocess.Popen(cmd, creationflags=flags | 0x01000000, close_fds=True)   # CREATE_BREAKAWAY_FROM_JOB
     except OSError:
         subprocess.Popen(cmd, creationflags=flags | getattr(subprocess, "DETACHED_PROCESS", 0), close_fds=True)
-    threading.Timer(1.0, lambda: os._exit(0)).start()   # fecha para liberar os arquivos
+    threading.Timer(1.0, quit_app_now).start()   # fecha para liberar os arquivos
 
 
 def _install_update_source(info):
@@ -2329,7 +2341,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Confirmação ausente")
                 res = undo_everything(bool(body.get("delete_data")))
                 self._send(200, {"ok": True, "done": res})
-                threading.Timer(1.5, lambda: os._exit(0)).start()   # fecha o EasyRGB no fim
+                threading.Timer(1.5, quit_app_now).start()   # fecha o EasyRGB no fim
                 return
             if self.path == "/api/setup":   # assistente da primeira vez (sem precisar de IA)
                 return self._send(200, run_setup(body))

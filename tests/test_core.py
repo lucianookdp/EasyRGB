@@ -20,7 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 sys.path.insert(0, str(APP))
 
-os.environ["EASYRGB_NO_VENDORS"] = "1"   # testes nao mexem no G HUB de verdade
+os.environ["EASYRGB_NO_VENDORS"] = "1"
+os.environ["EASYRGB_NO_EXIT"] = "1"   # o app nunca fecha o processo dos testes
 import rgb_controller as rc  # noqa: E402
 
 try:

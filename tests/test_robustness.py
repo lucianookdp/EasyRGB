@@ -23,6 +23,7 @@ APP = ROOT / "app"
 sys.path.insert(0, str(APP))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ["EASYRGB_NO_VENDORS"] = "1"
+os.environ["EASYRGB_NO_EXIT"] = "1"
 import rgb_controller as rc  # noqa: E402
 from test_core import FakeClient, FakeDev, FakeMode, FakeZone, HAS_LIB, fake_pc  # noqa: E402
 
@@ -541,7 +542,7 @@ class TestUpdateSafety(Isolated):
     def test_only_downloads_from_the_official_repo(self):
         info = {"available": True, "can_install": True, "latest": "9.9.9",
                 "url": "https://evil.example/EasyRGB-windows.zip"}
-        with mock.patch.object(rc, "check_update", return_value=info), \
+        with mock.patch.object(rc, "check_update", return_value=info), mock.patch.object(rc, "FROZEN", True), \
              mock.patch("urllib.request.urlopen") as net:
             with self.assertRaises(RuntimeError):
                 rc.install_update()
