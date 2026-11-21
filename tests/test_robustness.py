@@ -563,12 +563,104 @@ class TestUpdateSafety(Isolated):
 
             def __exit__(self, *a):
                 return False
-        with mock.patch.object(rc, "check_update", return_value=info), \
+        with mock.patch.object(rc, "check_update", return_value=info), mock.patch.object(rc, "FROZEN", True), \
              mock.patch("urllib.request.urlopen", return_value=Resp(buf.getvalue())), \
-             mock.patch("subprocess.Popen") as run:
+             mock.patch.object(rc, "_run_after_exit") as run:
             with self.assertRaises(RuntimeError):
                 rc.install_update()
             run.assert_not_called()
+
+
+class FakeDownload:
+    """Resposta de download falsa (o conteúdo de um zip)."""
+    def __init__(self, data):
+        import io
+        self.b = io.BytesIO(data)
+
+    def read(self, *a):
+        return self.b.read(*a)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class TestSourceUpdate(Isolated):
+    """Quem roda pelo código (zip do GitHub ou pasta clonada) também atualiza sozinho, sem perder os dados."""
+
+    def setUp(self):
+        super().setUp()
+        self.root = self.tmp / "EasyRGB"
+        (self.root / "app").mkdir(parents=True)
+        (self.root / "app" / "rgb_controller.py").write_text("velho", encoding="utf-8")
+        (self.root / "app" / "pc.json").write_text('{"meu": "perfil"}', encoding="utf-8")
+        self.info = {"available": True, "can_install": True, "latest": "9.9.9", "tag": "v9.9.9"}
+        self.p2 = [mock.patch.object(rc, "ROOT", self.root), mock.patch.object(rc, "FROZEN", False),
+                   mock.patch.object(rc, "check_update", return_value=self.info),
+                   mock.patch.object(rc, "_run_after_exit")]
+        for x in self.p2:
+            x.start()
+
+    def tearDown(self):
+        for x in self.p2:
+            x.stop()
+        super().tearDown()
+
+    def zip_of(self, files):
+        import io
+        import zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            for name, text in files.items():
+                z.writestr(name, text)
+        return buf.getvalue()
+
+    def test_zip_update_replaces_code_and_keeps_data(self):
+        data = self.zip_of({"EasyRGB-9.9.9/app/rgb_controller.py": "novo", "EasyRGB-9.9.9/README.md": "leia"})
+        with mock.patch("urllib.request.urlopen", return_value=FakeDownload(data)) as net:
+            out = rc.install_update()
+        self.assertTrue(out["ok"])
+        self.assertIn(f"github.com/{rc.REPO}/archive/refs/tags/v9.9.9.zip", net.call_args[0][0].full_url)
+        self.assertEqual((self.root / "app" / "rgb_controller.py").read_text(encoding="utf-8"), "novo")
+        self.assertEqual((self.root / "README.md").read_text(encoding="utf-8"), "leia")
+        self.assertEqual(json.loads((self.root / "app" / "pc.json").read_text(encoding="utf-8")), {"meu": "perfil"})
+        rc._run_after_exit.assert_called_once()   # fecha e abre de novo com o código novo
+
+    def test_zip_update_rejects_tricks(self):
+        bad = self.zip_of({"../../fora.txt": "x", "EasyRGB-9.9.9/app/rgb_controller.py": "novo"})
+        with mock.patch("urllib.request.urlopen", return_value=FakeDownload(bad)), self.assertRaises(RuntimeError):
+            rc.install_update()
+        self.assertEqual((self.root / "app" / "rgb_controller.py").read_text(encoding="utf-8"), "velho")
+        self.info["tag"] = "v1; rm -rf /"
+        with mock.patch("urllib.request.urlopen") as net, self.assertRaises(RuntimeError):
+            rc.install_update()
+        net.assert_not_called()
+
+    def test_git_folder_uses_git_pull(self):
+        (self.root / ".git").mkdir()
+        calls = []
+
+        def fake_run(cmd, **kw):
+            calls.append(cmd[3:])
+            return subprocess.CompletedProcess(cmd, 0, stdout="main" if "rev-parse" in cmd else "", stderr="")
+        with mock.patch("shutil.which", return_value="git"), \
+             mock.patch.object(rc.subprocess, "run", side_effect=fake_run):
+            self.assertTrue(rc.install_update()["ok"])
+        self.assertIn(["pull", "--ff-only", "origin", "main"], calls)
+
+    def test_git_folder_with_local_changes_is_not_touched(self):
+        (self.root / ".git").mkdir()
+
+        def fake_run(cmd, **kw):
+            out = " M app/index.html" if "status" in cmd else ""
+            return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
+        with mock.patch("shutil.which", return_value="git"), \
+             mock.patch.object(rc.subprocess, "run", side_effect=fake_run) as run, self.assertRaises(RuntimeError):
+            rc.install_update()
+        self.assertFalse(any("pull" in c[0][0] for c in run.call_args_list))
+        rc._run_after_exit.assert_not_called()
 
 
 class TestPowerShellQuoting(unittest.TestCase):

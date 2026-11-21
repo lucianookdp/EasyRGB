@@ -1177,6 +1177,7 @@ const EN={
   "Sim, desfazer tudo":"Yes, undo everything","Desfazendo... aceite o pedido de administrador do Windows":"Undoing... accept the Windows administrator prompt",
   "Pronto":"Done","O PC voltou a como estava antes do EasyRGB. Pode fechar esta janela.":"Your PC is back to how it was before EasyRGB. You can close this window.",
   "Para remover o programa: Configurações → Aplicativos → EasyRGB.":"To remove the program: Settings → Apps → EasyRGB.",
+  "A atualização está demorando. Abra o EasyRGB de novo pelo atalho.":"The update is taking a while. Open EasyRGB again from its shortcut.",
   // erros do servidor
   "OpenRGB não está rodando (servidor SDK na porta 6742).":"OpenRGB is not running (SDK server on port 6742).","Paleta vazia":"Empty palette",
   "Aplique um visual antes de compartilhar":"Apply a look before sharing","Código inválido: precisa começar com EASYRGB1-":"Invalid code: it must start with EASYRGB1-",
@@ -2020,6 +2021,11 @@ $("#updPill").onclick=e=>run(e.currentTarget,async()=>{
   if(!UPD?.can_install){ window.open(UPD?.page||"https://github.com/lucianookdp/EasyRGB/releases/latest","_blank"); return; }
   toast(tr("Baixando a versão {v}... o EasyRGB vai fechar e abrir de novo.",{v:UPD.latest}),"busy",0);
   await api("/api/update",{});
+  for(let i=0;i<90;i++){   // espera a versão nova abrir e recarrega a página
+    await new Promise(r=>setTimeout(r,2000));
+    try{ const s=await api("/api/state"); if(s.version===UPD.latest){ location.reload(); return; } }catch{}
+  }
+  toast(tr("A atualização está demorando. Abra o EasyRGB de novo pelo atalho."),"err",8000);
 });
 setTimeout(checkUpdate,4000); setInterval(checkUpdate,6*3600*1000);
 

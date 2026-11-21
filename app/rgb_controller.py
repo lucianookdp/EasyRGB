@@ -48,7 +48,12 @@ sys.path.insert(0, str(LIB))
 
 def ensure_libs():
     """Instala as bibliotecas para o Python atual, uma vez (usa a internet só nessa hora)."""
-    if FROZEN or (LIB / ".ok").exists():   # o EasyRGB.exe já vem com tudo
+    want = " ".join(REQUIREMENTS)
+    try:
+        have = (LIB / ".ok").read_text(encoding="utf-8")
+    except OSError:
+        have = None
+    if FROZEN or (have is not None and (want in have or "\n" not in have)):   # .exe já vem com tudo
         return True
     py = Path(sys.executable).with_name("python.exe")
     exe = py if py.exists() else Path(sys.executable)
@@ -60,7 +65,7 @@ def ensure_libs():
         print("Não consegui instalar as bibliotecas:", e)
         return False
     if r.returncode == 0:
-        (LIB / ".ok").write_text(sys.version, encoding="utf-8")
+        (LIB / ".ok").write_text(sys.version + "\n" + " ".join(REQUIREMENTS), encoding="utf-8")
         import importlib
         importlib.invalidate_caches()
         return True
@@ -1413,10 +1418,12 @@ def check_update(force=False):
                                      headers={"User-Agent": "EasyRGB-updater", "Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=8) as r:
             j = json.loads(r.read())
-        tag = str(j.get("tag_name", "")).lstrip("vV")
+        raw_tag = str(j.get("tag_name", ""))
+        tag = raw_tag.lstrip("vV")
         asset = next((a["browser_download_url"] for a in j.get("assets", []) if a.get("name", "").endswith(".zip")), None)
-        info.update(latest=tag, available=_ver(tag) > _ver(VERSION), url=asset, page=j.get("html_url"),
-                    can_install=FROZEN and bool(asset))
+        # .exe: troca pelo zip da versão nova; pelo código: "git pull" (pasta clonada) ou o zip do código da versão
+        info.update(latest=tag, tag=raw_tag, available=_ver(tag) > _ver(VERSION), url=asset, page=j.get("html_url"),
+                    can_install=bool(asset) if FROZEN else bool(raw_tag), mode="exe" if FROZEN else "source")
     except Exception as e:
         info["error"] = str(e)
     _update.update(t=time.time(), v=info)
@@ -1430,7 +1437,9 @@ def install_update():
     if not info.get("available"):
         raise RuntimeError("Você já está na versão mais nova.")
     if not info.get("can_install"):
-        raise RuntimeError("Atualização automática só no EasyRGB.exe. Baixe a versão nova no GitHub.")
+        raise RuntimeError("Não achei os arquivos da versão nova no GitHub. Tente de novo mais tarde.")
+    if not FROZEN:
+        return _install_update_source(info)
     import tempfile
     import urllib.request
     import zipfile
@@ -1461,6 +1470,12 @@ Get-ChildItem -LiteralPath '{_ps(src)}' | Where-Object {{ $_.Name -notin @('app'
   Copy-Item -LiteralPath $_.FullName -Destination '{_ps(dst)}' -Recurse -Force }}
 Start-Process -FilePath '{_ps(dst / "EasyRGB.exe")}' -ArgumentList '--no-browser' -WorkingDirectory '{_ps(dst)}'
 """, encoding="utf-8-sig")
+    _run_after_exit(script)
+    return {"ok": True, "version": info["latest"]}
+
+
+def _run_after_exit(script):
+    """Roda um script do PowerShell que espera o EasyRGB fechar, e fecha o EasyRGB."""
     cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script)]
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     try:   # sai do "grupo" do EasyRGB, para o atualizador continuar vivo quando o app fechar
@@ -1468,6 +1483,61 @@ Start-Process -FilePath '{_ps(dst / "EasyRGB.exe")}' -ArgumentList '--no-browser
     except OSError:
         subprocess.Popen(cmd, creationflags=flags | getattr(subprocess, "DETACHED_PROCESS", 0), close_fds=True)
     threading.Timer(1.0, lambda: os._exit(0)).start()   # fecha para liberar os arquivos
+
+
+def _install_update_source(info):
+    """Atualiza quem roda pelo código (pasta baixada do GitHub ou clonada com git).
+    Só os arquivos do programa mudam: os dados do PC (app/*.json, presets, log), o OpenRGB e as bibliotecas
+    não fazem parte do código, então ficam como estão."""
+    import shutil
+    import tempfile
+    import urllib.request
+    import zipfile
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    git = shutil.which("git")
+    if (ROOT / ".git").exists() and git:
+        def g(*a):
+            return subprocess.run([git, "-C", str(ROOT), *a], capture_output=True, text=True, timeout=180,
+                                  creationflags=flags)
+        if g("status", "--porcelain", "--untracked-files=no").stdout.strip():
+            raise RuntimeError("Esta pasta tem mudanças no código feitas à mão. Salve-as e atualize com 'git pull'.")
+        r = g("pull", "--ff-only", "origin", g("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() or "main")
+        if r.returncode:
+            raise RuntimeError("Não consegui atualizar pelo git: " + (r.stderr or r.stdout).strip()[-300:])
+    else:
+        tag = str(info.get("tag") or "")
+        if not re.fullmatch(r"v?\d+(\.\d+){1,3}", tag):
+            raise RuntimeError("Versão nova com nome inesperado. Baixe pelo GitHub.")
+        url = f"https://github.com/{REPO}/archive/refs/tags/{tag}.zip"
+        work = Path(tempfile.mkdtemp(prefix="easyrgb-update-"))
+        zpath = work / "codigo.zip"
+        req = urllib.request.Request(url, headers={"User-Agent": "EasyRGB-updater"})
+        with urllib.request.urlopen(req, timeout=120) as r, open(zpath, "wb") as f:
+            f.write(r.read())
+        base = (work / "new").resolve()
+        with zipfile.ZipFile(zpath) as z:
+            for m in z.namelist():
+                if not (base / m).resolve().is_relative_to(base):
+                    raise RuntimeError("O arquivo da atualização parece adulterado. Baixe pelo GitHub.")
+            z.extractall(base)
+        tops = [d for d in base.iterdir() if d.is_dir()]
+        src = tops[0] if len(tops) == 1 else base
+        if not (src / "app" / "rgb_controller.py").exists():
+            raise RuntimeError("O download da atualização veio incompleto. Tente de novo.")
+        for item in src.iterdir():   # o zip do código só traz arquivos do programa, nunca os dados do PC
+            dst = ROOT / item.name
+            if item.is_dir():
+                shutil.copytree(item, dst, dirs_exist_ok=True)
+            else:
+                shutil.copy2(item, dst)
+        shutil_rm(work)
+    # abre de novo com o código novo (o Python e as bibliotecas certas são conferidos na abertura)
+    script = _temp_script("easyrgb_reabrir_", f"""$ErrorActionPreference = 'SilentlyContinue'
+Wait-Process -Id {os.getpid()} -Timeout 60
+Start-Sleep 1
+Start-Process -FilePath '{_ps(launcher())}' -ArgumentList '"{_ps(SRC / "rgb_controller.py")}" --no-browser' -WorkingDirectory '{_ps(SRC)}'
+""")
+    _run_after_exit(script)
     return {"ok": True, "version": info["latest"]}
 
 

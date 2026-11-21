@@ -228,7 +228,8 @@ class TestUpdate(unittest.TestCase):
             info = rc.check_update(force=True)
         self.assertTrue(info["available"])
         self.assertEqual(info["latest"], "9.0.0")
-        self.assertEqual(info["can_install"], rc.FROZEN)
+        self.assertTrue(info["can_install"])   # .exe e código: os dois atualizam sozinhos
+        self.assertEqual(info["mode"], "exe" if rc.FROZEN else "source")
 
     def test_same_version_and_offline(self):
         with mock.patch("urllib.request.urlopen", return_value=self.fake("v" + rc.VERSION)):
