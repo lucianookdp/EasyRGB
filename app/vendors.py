@@ -129,6 +129,14 @@ class VirtualDevice:
 
 
 # ---------------------------------------------------------------- Logitech G HUB
+def _log(msg):
+    """Anota no easyrgb.log o que a ponte fez (ajuda a entender um teclado apagado depois)."""
+    try:
+        print(time.strftime("%H:%M:%S"), "[ponte]", msg, flush=True)
+    except Exception:
+        pass
+
+
 def _pid(image):
     """PID do processo (ou None). Serve para saber se o programa do fabricante reiniciou."""
     try:
@@ -223,8 +231,9 @@ class LogitechBridge:
 
     AGENT = "lghub_agent.exe"
     SETTLE = 20     # o G HUB acabou de abrir: espera ele terminar de carregar antes de conectar
-    # Depois que o G HUB abre (ou o PC volta da suspensão) ele pode reassumir o teclado minutos depois, sem fechar:
-    # a conexão continua "aceitando" comandos, mas ele mostra o perfil dele. Reconectar nesses momentos garante.
+    # Depois que o G HUB abre (ou o PC volta da suspensão) ele pode reassumir o teclado minutos depois. Nesses
+    # momentos o EasyRGB repinta tudo pela mesma conexão. Desconectar e conectar de novo várias vezes deixava o
+    # teclado apagado/fraco (o G HUB ficava com sessões velhas), então só reconecta se o G HUB reabrir.
     REASSERT = (30, 90, 180, 300, 600)   # segundos depois do G HUB abrir / do PC acordar
     SLEPT = 30      # relógio andou mais que isto além do tempo real entre duas olhadas: o PC dormiu
     BOOT = 180      # logo depois de ligar o PC, espera o G HUB em vez de mexer no teclado pelo OpenRGB
@@ -235,6 +244,7 @@ class LogitechBridge:
         self.born, self.anchor, self.pending = 0.0, 0.0, []
         self._wall, self._mono = time.time(), time.monotonic()
         self.connects = 0
+        self.repaint = False   # hora de repintar (o G HUB pode ter reassumido o teclado)
 
     @staticmethod
     def dll_path():
@@ -270,24 +280,31 @@ class LogitechBridge:
         return slept
 
     def restarted(self):
-        """True quando é preciso conectar de novo: o G HUB fechou/reabriu, o PC acordou da suspensão ou chegou
-        um dos momentos em que o G HUB costuma reassumir o teclado (REASSERT). Olha a cada 5 s."""
+        """True só quando é preciso conectar de novo: o G HUB fechou ou reabriu. O PC acordar ou chegar um dos
+        momentos em que o G HUB costuma reassumir o teclado (REASSERT) só pede uma repintura (take_repaint).
+        Olha a cada 5 s."""
         with self.lock:
             woke = self._woke()
-            if woke:   # ao acordar, o G HUB repinta o perfil dele: recomeça a sequência de reconexões
+            if woke:   # ao acordar, o G HUB repinta o perfil dele: recomeça a sequência de repinturas
                 self.anchor, self.pending = time.time(), list(self.REASSERT)
-            if not self.ok or (time.time() - self.checked < 5 and not woke):
+                self.repaint = True
+            if not self.ok or time.time() - self.checked < 5:
                 return False
             self.checked = time.time()
             due = [m for m in self.pending if time.time() - self.anchor >= m]
-            if woke or due:
+            if due:
                 self.pending = [m for m in self.pending if m not in due]
-                self.stop()
-                return True
+                self.repaint = True
             if _pid(self.AGENT) != self.pid:
+                _log("G HUB reabriu: reconectando")
                 self.stop()
                 return True
             return False
+
+    def take_repaint(self):
+        """True uma vez depois de cada momento de repintar (e zera o aviso)."""
+        r, self.repaint = getattr(self, "repaint", False), False
+        return r
 
     def start(self):
         with self.lock:
@@ -313,13 +330,21 @@ class LogitechBridge:
                 getattr(d, fn).restype = ctypes.c_bool
             self.dll = d
             if not d.LogiLedInitWithName(b"EasyRGB"):
-                return False
+                # sessão velha presa no G HUB (o app fechou sem se despedir): solta e tenta de novo
+                try:
+                    d.LogiLedShutdown()
+                except Exception:
+                    pass
+                if not d.LogiLedInitWithName(b"EasyRGB"):
+                    _log("G HUB recusou a conexão; tento de novo em 3 s")
+                    return False
             time.sleep(0.4)   # o G HUB leva um instante para aceitar comandos depois de conectar
             self.ok, self.pid, self.fails, self.checked = True, pid, 0, time.time()
             if born != self.born:   # G HUB novo (ligou o PC ou ele reabriu): agenda as reconexões
                 self.born, self.anchor = born, born
                 self.pending = [m for m in self.REASSERT if time.time() - born < m]
             self.connects += 1
+            _log(f"G HUB conectado (conexão {self.connects})")
             return True
 
     def stop(self):
@@ -354,13 +379,26 @@ class LogitechBridge:
             return
         d = self.dll
         with self.lock:
+            d.LogiLedSetTargetDevice(7)   # todos os dispositivos Logitech
             if dev.target == "all" or dev.target not in self.ZONE_TYPES:
-                d.LogiLedSetTargetDevice(7)   # todos os dispositivos Logitech
-                d.LogiLedSetLighting(*self._pct(cols[0]))
-                return
-            d.LogiLedSetTargetDevice(7)
-            for zi, c in enumerate(cols):
-                d.LogiLedSetLightingForTargetZone(self.ZONE_TYPES[dev.target], zi, *self._pct(c))
+                good = bool(d.LogiLedSetLighting(*self._pct(cols[0])))
+            else:
+                good = False
+                for zi, c in enumerate(cols):
+                    good = bool(d.LogiLedSetLightingForTargetZone(self.ZONE_TYPES[dev.target], zi,
+                                                                  *self._pct(c))) or good
+            self._result(good)
+
+    def _result(self, good):
+        """Conta pinturas recusadas seguidas. O SetTargetDevice responde "ok" mesmo com a sessão morta, então só
+        as chamadas de cor dizem se o G HUB ainda está ouvindo; 5 recusas seguidas = reconecta."""
+        self.fails = 0 if good else self.fails + 1
+        if self.fails >= 5:
+            _log("G HUB parou de aceitar as cores: reconectando")
+            self.fails = 0
+            self.stop()
+            return False
+        return True
 
     def paint_keys(self, led_names, cols):
         """Teclado Logitech que o OpenRGB enxerga: pinta tecla por tecla pelo G HUB (sem conflito)."""
@@ -368,16 +406,15 @@ class LogitechBridge:
             return False
         d = self.dll
         with self.lock:
-            good = bool(d.LogiLedSetTargetDevice(4))   # teclados com cor por tecla
+            d.LogiLedSetTargetDevice(4)   # teclados com cor por tecla (responde "ok" até com a sessão morta)
+            good = False
             for name, c in zip(led_names, cols):
                 k = key_of(name)
                 if k and k["sc"] is not None:
                     good = bool(d.LogiLedSetLightingForKeyWithKeyName(k["sc"], *self._pct(c))) or good
                 elif str(name).strip().lower() in ("logo", "g logo"):
-                    d.LogiLedSetLightingForKeyWithKeyName(0xFFFF1, *self._pct(c))
-            self.fails = 0 if good else self.fails + 1
-            if self.fails >= 5:   # o G HUB parou de aceitar: reconecta
-                self.stop()
+                    good = bool(d.LogiLedSetLightingForKeyWithKeyName(0xFFFF1, *self._pct(c))) or good
+            if not self._result(good):
                 return False
         return good
 

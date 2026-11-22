@@ -79,7 +79,7 @@ CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
 REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -428,7 +428,8 @@ def device_info():
             for i, d in enumerate(all_devices(c))]
 
 
-_sent = {}   # último quadro enviado a cada aparelho (efeitos animados)
+_sent = {}   # último quadro enviado a cada aparelho (efeitos animados): {id: (quadro, quando)}
+RESEND = 2.0
 
 
 def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, offset=0.0, fast=False,
@@ -470,10 +471,13 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                     if frame:
                         cols = frame(idx, dev, cols)
                         sig = (round(bri), tuple(cols))
-                        if _sent.get(idx) == sig:   # nada mudou neste aparelho: não manda de novo
+                        last = _sent.get(idx)
+                        # nada mudou neste aparelho: não manda de novo, mas reenvia a cada RESEND s (um quadro
+                        # parado, como a ondulação sem teclas apertadas, cobre o G HUB se ele reassumir o teclado)
+                        if last and last[0] == sig and time.time() - last[1] < RESEND:
                             report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
                             continue
-                        _sent[idx] = sig
+                        _sent[idx] = (sig, time.time())
                     elif not fast:
                         _sent.pop(idx, None)
                     try:
@@ -503,8 +507,10 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                                 pass
                         report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
                     except (ConnectionError, OSError):
+                        _sent.pop(idx, None)
                         raise
                     except Exception as e:
+                        _sent.pop(idx, None)   # não chegou: manda de novo no próximo quadro
                         report.append({"id": idx, "device": dev.name, "ok": False, "error": str(e)})
             break
         except (ConnectionError, OSError):  # OpenRGB reiniciou: reconecta e tenta de novo
@@ -1351,21 +1357,24 @@ def idle_seconds():
         return 0.0
 
 
-def vendor_keepalive(now=None):
+def vendor_keepalive(now=None, force=False):
     """O G HUB (e afins) às vezes volta ao perfil dele por cima do EasyRGB: depois de "apagar quando ocioso",
     ao trocar de perfil de jogo ou de app em foco. Um visual parado não seria repintado sozinho, então:
     enquanto a pessoa usa o PC, repinta os aparelhos do fabricante a cada 10 s, e na hora em que ela volta.
     Ociosa, deixa o "apagar quando ocioso" do G HUB funcionar. Nunca mexe durante uma pré-visualização,
     com as luzes apagadas pela pessoa ou no modo jogo."""
     now = time.time() if now is None else now
-    if _lights["off"] or _auto.get("game") or now - _lights["preview"] < 120:
+    if now - _lights["preview"] < 120:
         return False
     idle = idle_seconds() > 120
     back = _lights["idle"] and not idle
     _lights["idle"] = idle
-    if idle or (not back and now - _lights["keep"] < 10):
+    if idle or (not back and not force and now - _lights["keep"] < 10):
         return False
-    L = load_state()
+    if _lights["off"]:   # a pessoa apagou: se o G HUB reacender o teclado com o perfil dele, apaga de novo
+        _lights["keep"] = now
+        return vendor_off()
+    L = dict(load_state() or {}, **game_look())   # jogando: a paleta do jogo
     pal = parse_colors((L or {}).get("palette") or [])
     if not pal:
         return False
@@ -1391,9 +1400,41 @@ def vendor_keepalive(now=None):
     return True
 
 
+def game_look():
+    """Mudanças do modo jogo sobre o visual salvo ({} fora do jogo)."""
+    return dict((_auto.get("game") or {}).get("look") or {})
+
+
+def vendor_off():
+    """Apaga só os aparelhos pintados pelo programa do fabricante (o resto já está apagado pelo OpenRGB)."""
+    try:
+        c = client(autostart=False)
+        with _lock:
+            for dev in all_devices(c):
+                vb = vendor_route(dev)
+                if vb:
+                    vb.paint_keys([getattr(l, "name", "") for l in dev.leds], [(0, 0, 0)] * len(dev.leds))
+                elif isinstance(dev, vendors.VirtualDevice):
+                    dev.off()
+        return True
+    except Exception as e:
+        _log_once(f"apagar {e!r}")
+        return False
+
+
+def restore_look():
+    """Volta a pintar o que a pessoa está vendo agora: apagado, o visual do jogo ou o visual salvo."""
+    if _lights["off"]:
+        return vendor_off()
+    if time.time() - _lights["preview"] < 120:
+        return False   # pré-visualizando: a tela repinta sozinha
+    apply_saved(**game_look())
+    return True
+
+
 def vendor_tick():
     """O programa do fabricante (G HUB) abriu ou reabriu depois do EasyRGB, por exemplo ao ligar o PC:
-    conecta de novo e repinta o visual salvo por cima dele."""
+    conecta de novo e repinta por cima dele o que a pessoa estava vendo."""
     if os.environ.get("EASYRGB_NO_VENDORS") or not openrgb_running():
         return
     try:
@@ -1403,12 +1444,13 @@ def vendor_tick():
     for b in vendors.BRIDGES:
         if b.key in _vend["keys"] and (b.restarted() or not b.ok) and time.time() >= b.retry_at and load_state():
             try:
-                apply_saved()
+                restore_look()
             except Exception:
                 pass
             return
     if _vend["keys"]:
-        vendor_keepalive()
+        due = any(getattr(b, "take_repaint", lambda: False)() for b in vendors.BRIDGES if b.key in _vend["keys"])
+        vendor_keepalive(force=due)
 
 
 def auto_tick():
@@ -1424,8 +1466,9 @@ def auto_tick():
     if rule and (not cur or cur["process"] != rule["process"]):
         _, hexes = find_preset(rule.get("preset", ""))
         if hexes:
-            apply_saved(palette=hexes, overrides={}, hw={})   # não salva: ao fechar o jogo volta ao normal
-            _auto["game"] = rule
+            look = {"palette": hexes, "overrides": {}, "hw": {}}
+            apply_saved(**look)   # não salva: ao fechar o jogo volta ao normal
+            _auto["game"] = dict(rule, look=look)
             _auto["status"] = f"{rule['process']} aberto: usando {rule['preset']}"
     elif not rule and cur:
         _auto["game"] = None
@@ -1550,14 +1593,30 @@ def quit_app_now(code=0):
 _exit_attempts = []
 
 
+def _launch_outside(cmdline):
+    """Abre um processo FORA do EasyRGB, pelo serviço de gerenciamento do Windows (WMI), escondido.
+    Quando o EasyRGB foi aberto pela tarefa "Restaurar ao ligar o PC", o Windows encerra tudo o que ele abriu
+    assim que ele fecha. Um atualizador aberto do jeito normal morria no meio da troca de arquivos."""
+    ps = ("$si = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}; "
+          f"$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments "
+          f"@{{CommandLine='{_ps(cmdline)}'; ProcessStartupInformation=$si}}; exit $r.ReturnValue")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, timeout=60,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
 def _run_after_exit(script):
     """Roda um script do PowerShell que espera o EasyRGB fechar, e fecha o EasyRGB."""
     cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script)]
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    try:   # sai do "grupo" do EasyRGB, para o atualizador continuar vivo quando o app fechar
-        subprocess.Popen(cmd, creationflags=flags | 0x01000000, close_fds=True)   # CREATE_BREAKAWAY_FROM_JOB
-    except OSError:
-        subprocess.Popen(cmd, creationflags=flags | getattr(subprocess, "DETACHED_PROCESS", 0), close_fds=True)
+    if not _launch_outside(subprocess.list2cmdline(cmd)):
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        try:   # plano B: sai do "grupo" do EasyRGB, se o Windows deixar
+            subprocess.Popen(cmd, creationflags=flags | 0x01000000, close_fds=True)   # CREATE_BREAKAWAY_FROM_JOB
+        except OSError:
+            subprocess.Popen(cmd, creationflags=flags | getattr(subprocess, "DETACHED_PROCESS", 0), close_fds=True)
     threading.Timer(1.0, quit_app_now).start()   # fecha para liberar os arquivos
 
 

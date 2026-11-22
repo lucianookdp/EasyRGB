@@ -720,31 +720,76 @@ class TestVendorKeepalive(Isolated):
         self.assertFalse(self.run_at(1005))
         self.assertTrue(self.run_at(1011))
 
+    def test_forced_repaint_skips_the_10s_wait(self):
+        self.assertTrue(self.run_at(1000))
+        with mock.patch.object(rc, "idle_seconds", return_value=0):
+            self.assertTrue(rc.vendor_keepalive(now=1002, force=True))   # o G HUB pode ter reassumido agora
+
     def test_respects_idle_and_repaints_on_return(self):
         self.assertTrue(self.run_at(1000))
         self.assertFalse(self.run_at(1011, idle=300))   # ocioso: o G HUB pode apagar
         self.assertTrue(self.run_at(1012, idle=0))      # voltou: repinta na hora
 
     def test_never_fights_the_person(self):
-        rc._lights["off"] = True
-        self.assertFalse(self.run_at(1000))
         rc._lights.update(off=False, preview=995.0)
         self.assertFalse(self.run_at(1000))             # pré-visualizando na tela
         rc._lights["preview"] = 0.0
-        rc._auto["game"] = {"process": "cs2.exe"}
-        self.assertFalse(self.run_at(1000))             # modo jogo manda
-        rc._auto["game"] = None
         rc._effect["on"] = True
         (self.tmp / "last_state.json").write_text(json.dumps({
             "palette": ["#F1047A"], "ui": {"effect": "static", "pfx": {"1": "onda"}}}), encoding="utf-8")
         self.assertFalse(self.run_at(1000))             # o efeito já está pintando o teclado
         self.assertEqual(self.applied, [])
 
+    def test_lights_off_stay_off(self):
+        """Apagou as luzes e o G HUB reacendeu o teclado com o perfil dele: apaga de novo, nunca acende o visual."""
+        rc._lights["off"] = True
+        with mock.patch.object(rc, "vendor_off", return_value=True) as off:
+            self.assertTrue(self.run_at(1000))
+            rc.restore_look()
+        self.assertEqual(off.call_count, 2)
+        self.assertEqual(self.applied, [])
+        self.assertTrue(rc._lights["off"])
+
+    def test_game_mode_keeps_the_game_palette(self):
+        rc._auto["game"] = {"process": "cs2.exe", "look": {"palette": ["#FF0000"], "overrides": {}, "hw": {}}}
+        try:
+            self.assertTrue(self.run_at(1000))
+            self.assertEqual(self.applied[-1][0][0], [(255, 0, 0)])   # paleta do jogo, não a salva
+            with mock.patch.object(rc, "apply_saved") as saved:
+                rc.restore_look()                                       # G HUB reabriu durante o jogo
+            self.assertEqual(saved.call_args[1]["palette"], ["#FF0000"])
+        finally:
+            rc._auto["game"] = None
+
+    def test_restore_outside_game_uses_saved_look(self):
+        with mock.patch.object(rc, "apply_saved") as saved:
+            self.assertTrue(rc.restore_look())
+        saved.assert_called_once_with()
+
     def test_turning_off_blocks_until_turned_on(self):
         with mock.patch.object(rc, "start_effect"):
             rc._lights["off"] = True
             rc.apply_saved()
         self.assertFalse(rc._lights["off"])
+
+
+class TestUpdaterSurvivesAppExit(unittest.TestCase):
+    """O atualizador precisa continuar vivo depois que o EasyRGB fecha (aberto pela tarefa do Windows, o
+    EasyRGB leva junto tudo o que abriu): ele é aberto pelo WMI, fora do EasyRGB, e escondido."""
+
+    def test_launches_through_wmi_hidden(self):
+        with mock.patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run,              mock.patch.object(rc.subprocess, "Popen") as popen, mock.patch.object(rc, "quit_app_now"):
+            rc._run_after_exit(Path(r"C:\Temp\O'Brientualizar.ps1"))
+        ps = run.call_args[0][0][-1]
+        self.assertIn("Win32_Process -MethodName Create", ps)
+        self.assertIn("ShowWindow=[uint16]0", ps)
+        self.assertIn("O''Brien", ps)            # caminho com apóstrofo não quebra o comando
+        popen.assert_not_called()
+
+    def test_falls_back_if_wmi_fails(self):
+        with mock.patch.object(rc.subprocess, "run", return_value=subprocess.CompletedProcess([], 9)),              mock.patch.object(rc.subprocess, "Popen") as popen, mock.patch.object(rc, "quit_app_now"):
+            rc._run_after_exit(Path(r"C:\Temptualizar.ps1"))
+        popen.assert_called_once()
 
 
 class TestPowerShellQuoting(unittest.TestCase):

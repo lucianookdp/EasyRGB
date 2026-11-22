@@ -812,10 +812,12 @@ class TestVendors(TempFiles):
         self.p_br = mock.patch.object(vendors, "BRIDGES", [self.br])
         self.p_env.start(); self.p_br.start()
         rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+        rc._lights.update(off=False, preview=0.0, keep=0.0, idle=False)
 
     def tearDown(self):
         self.p_br.stop(); self.p_env.stop()
         rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+        rc._lights.update(off=False, preview=0.0, keep=0.0, idle=False)
         super().tearDown()
 
     def test_keymap_has_the_whole_keyboard(self):
@@ -858,6 +860,31 @@ class TestVendors(TempFiles):
             rc.turn_off()
         self.assertEqual(self.br.keys[-1][1], [(0, 0, 0), (0, 0, 0)])
         self.assertNotIn(("off",), kb.calls)   # o OpenRGB não mexeu no teclado
+
+    @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
+    def test_still_frame_is_resent_and_failed_frame_retried(self):
+        """Um efeito parado (ondulação sem teclas apertadas) manda o mesmo quadro: o app pula repetições, mas
+        reenvia a cada RESEND s (o G HUB pode ter reassumido o teclado) e sempre reenvia um quadro que falhou."""
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 2)], [FakeMode("Direct", 32, 1)])
+        kb.leds = [Led("Key: A"), Led("Key: S")]
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        c = FakeClient([kb])
+        still = lambda i, d, cols: [(9, 9, 9)] * len(cols)
+        rc._sent.clear()
+        with mock.patch.object(rc, "client", return_value=c):
+            rc.all_devices(c)
+            for _ in range(3):
+                rc.apply(HEX("#FF0000"), 100, persist=False, fast=True, frame=still)
+            self.assertEqual(len(self.br.keys), 1)                     # repetições puladas
+            with mock.patch.object(rc.time, "time", return_value=rc.time.time() + rc.RESEND + 1):
+                rc.apply(HEX("#FF0000"), 100, persist=False, fast=True, frame=still)
+            self.assertEqual(len(self.br.keys), 2)                     # mas reenviado depois de um tempo
+            rc._sent.clear()
+            with mock.patch.object(self.br, "paint_keys", return_value=False):
+                rc.apply(HEX("#FF0000"), 100, persist=False, fast=True, frame=still)
+            rc.apply(HEX("#FF0000"), 100, persist=False, fast=True, frame=still)
+            self.assertEqual(len(self.br.keys), 3)                     # o que falhou vai de novo na hora
+        rc._sent.clear()
 
     def test_repaints_when_ghub_opens_after_easyrgb(self):
         """Ao ligar o PC o G HUB abre depois: o EasyRGB conecta de novo e repinta o visual salvo."""
@@ -908,7 +935,9 @@ class TestLogitechStartup(unittest.TestCase):
             self.assertFalse(self.b.start())
         self.dll.LogiLedInitWithName.assert_not_called()
 
-    def test_reconnects_at_each_mark_after_ghub_opens(self):
+    def test_repaints_at_each_mark_without_reconnecting(self):
+        """Nos momentos em que o G HUB costuma reassumir o teclado, repinta pela mesma conexão: reconectar várias
+        vezes deixava o teclado apagado/fraco."""
         now = vendors.time.time()
         with mock.patch.object(vendors, "_started_at", return_value=now - 25):
             self.assertTrue(self.b.start())
@@ -916,30 +945,83 @@ class TestLogitechStartup(unittest.TestCase):
         hits = 0
         for age in (29, 31, 95, 170, 185, 310, 610, 2000):   # o G HUB envelhecendo
             self.b.anchor, self.b.checked = now - age, 0.0
-            if self.b.restarted():
+            self.assertFalse(self.b.restarted())     # nunca desconecta por isso
+            if self.b.take_repaint():
                 hits += 1
-                with mock.patch.object(vendors, "_started_at", return_value=now - 25):
-                    self.b.retry_at = 0.0
-                    self.assertTrue(self.b.start())   # mesmo G HUB: não reagenda
-        self.assertEqual(hits, len(vendors.LogitechBridge.REASSERT))   # uma reconexão por momento, nada mais
+        self.assertEqual(hits, len(vendors.LogitechBridge.REASSERT))   # uma repintura por momento
+        self.assertTrue(self.b.ok)
+        self.assertEqual(self.b.connects, 1)
         self.assertEqual(self.b.pending, [])
-        self.b.checked = 0.0
-        self.assertFalse(self.b.restarted())    # já estável: não fica reconectando
+        self.assertFalse(self.b.take_repaint())
 
-    def test_old_ghub_does_not_trigger_reconnects(self):
+    def test_old_ghub_does_not_trigger_repaints(self):
         with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
             self.assertTrue(self.b.start())
         self.assertEqual(self.b.pending, [])
         self.b.checked = 0.0
         self.assertFalse(self.b.restarted())
+        self.assertFalse(self.b.take_repaint())
 
-    def test_wake_from_sleep_reconnects_and_restarts_marks(self):
+    def test_wake_from_sleep_repaints_and_restarts_marks(self):
         with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
             self.assertTrue(self.b.start())
         self.b._wall -= 3600   # relógio pulou 1 h sem o tempo real passar: o PC dormiu
-        self.assertTrue(self.b.restarted())
-        self.assertFalse(self.b.ok)
+        self.assertFalse(self.b.restarted())
+        self.assertTrue(self.b.ok)                  # continua conectado
+        self.assertTrue(self.b.take_repaint())
         self.assertEqual(self.b.pending, list(vendors.LogitechBridge.REASSERT))
+
+    def test_ghub_reopened_reconnects(self):
+        with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
+            self.assertTrue(self.b.start())
+        self.b.checked = 0.0
+        with mock.patch.object(vendors, "_pid", return_value=999):   # G HUB fechou e abriu de novo
+            self.assertTrue(self.b.restarted())
+        self.assertFalse(self.b.ok)
+
+    def _connected(self):
+        with mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 5000):
+            self.assertTrue(self.b.start())
+
+    def test_dead_session_is_noticed_and_reconnects(self):
+        """Com a sessão morta o G HUB ainda diz "ok" ao SetTargetDevice, mas recusa as cores: o EasyRGB tem que
+        perceber e reconectar (antes ficava achando que pintava, com o teclado apagado)."""
+        self._connected()
+        self.dll.LogiLedSetTargetDevice.return_value = True
+        self.dll.LogiLedSetLightingForKeyWithKeyName.return_value = False
+        for _ in range(4):
+            self.assertFalse(self.b.paint_keys(["Key: A"], [(255, 0, 0)]))
+            self.assertTrue(self.b.ok)
+        self.assertFalse(self.b.paint_keys(["Key: A"], [(255, 0, 0)]))
+        self.assertFalse(self.b.ok)                         # 5 recusas seguidas: desconectou
+        self.dll.LogiLedShutdown.assert_called()
+        self.dll.LogiLedSetLightingForKeyWithKeyName.return_value = True
+        self.b.retry_at = 0
+        self.assertTrue(self.b.paint_keys(["Key: A"], [(255, 0, 0)]))   # e voltou sozinho
+        self.assertEqual(self.b.connects, 2)
+
+    def test_one_refused_frame_does_not_reconnect(self):
+        self._connected()
+        self.dll.LogiLedSetLightingForKeyWithKeyName.side_effect = [False, True, False, True] * 5
+        for _ in range(20):
+            self.b.paint_keys(["Key: A"], [(255, 0, 0)])
+        self.assertTrue(self.b.ok)
+        self.assertEqual(self.b.connects, 1)
+
+    def test_zone_paint_also_detects_dead_session(self):
+        self._connected()
+        self.dll.LogiLedSetLighting.return_value = False
+        dev = self.b.devices(None)[0]
+        for _ in range(5):
+            self.b.paint(dev, [(255, 0, 0)])
+        self.assertFalse(self.b.ok)
+
+    def test_stale_session_left_by_a_crash_is_released(self):
+        """O app fechou sem se despedir: o G HUB recusa a 1ª conexão. Solta a sessão velha e conecta de primeira."""
+        self.dll.LogiLedInitWithName.side_effect = [False, True]
+        self._connected()
+        self.dll.LogiLedShutdown.assert_called_once()
+        self.assertEqual(self.b.connects, 1)
 
     def test_waits_for_ghub_right_after_boot(self):
         with mock.patch.object(vendors, "uptime", return_value=30), mock.patch.object(vendors, "_running", return_value=False):
