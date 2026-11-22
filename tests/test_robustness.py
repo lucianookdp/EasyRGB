@@ -354,7 +354,7 @@ class TestInstallScripts(unittest.TestCase):
         for f in ps1:
             cmd = ("$e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile("
                    f"'{f}',[ref]$null,[ref]$e); $e.Count")
-            out = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True,
+            out = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), text=True,
                                  timeout=60).stdout.strip()
             with self.subTest(script=f.name):
                 self.assertEqual(out, "0")
@@ -401,6 +401,22 @@ class TestCodeHygiene(unittest.TestCase):
                 warnings.simplefilter("error")   # ex.: "\W" num texto vira erro no Python novo
                 compile(f.read_text(encoding="utf-8"), str(f), "exec")
 
+    def test_no_command_flashes_a_window(self):
+        """Toda janela de comando que o app abre fica escondida: uma janela piscando tira o foco do jogo."""
+        import ast
+        for f in list(APP.glob("*.py")) + list((ROOT / "tests").glob("*.py")):
+            tree = ast.parse(f.read_text(encoding="utf-8"))
+            for n in ast.walk(tree):
+                if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and                         n.func.attr in ("run", "Popen", "call", "check_output") and                         getattr(n.func.value, "id", "") == "subprocess":
+                    if any(k.arg == "creationflags" for k in n.keywords):
+                        continue
+                    first = n.args[0] if n.args else None
+                    cmd = ast.unparse(first) if first is not None else ""
+                    if "Edge" in cmd or "edge" in cmd:
+                        continue   # a janela do app é para aparecer
+                    with self.subTest(file=f.name, line=n.lineno):
+                        self.fail(f"subprocess sem creationflags (pode piscar janela): {cmd[:60]}")
+
     def test_javascript_parses(self):
         node = shutil.which("node")
         if not node:
@@ -414,7 +430,7 @@ class TestCodeHygiene(unittest.TestCase):
             for i, s in enumerate(scripts):
                 f = tmp / f"s{i}.js"
                 f.write_text(s, encoding="utf-8")
-                r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True, timeout=60)
+                r = subprocess.run([node, "--check", str(f)], capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), text=True, timeout=60)
                 with self.subTest(script=i):
                     self.assertEqual(r.returncode, 0, r.stderr[-800:])
         finally:
@@ -664,6 +680,73 @@ class TestSourceUpdate(Isolated):
         rc._run_after_exit.assert_not_called()
 
 
+class TestVendorKeepalive(Isolated):
+    """O G HUB volta ao perfil dele depois de ficar ocioso: o EasyRGB repinta o teclado quando a pessoa volta."""
+
+    def setUp(self):
+        super().setUp()
+        import vendors
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 2)], [FakeMode("Direct", 32, 1)])
+        kb.leds = [type("L", (), {"name": "Key: A"})(), type("L", (), {"name": "Key: S"})()]
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        self.devs = fake_pc()[:1] + [kb]
+        (self.tmp / "last_state.json").write_text(json.dumps({
+            "palette": ["#F1047A", "#0B32F4"], "brightness": 100, "mode": "gradiente", "devices": None,
+            "overrides": {}, "groups": [], "hw": {}, "ui": {"effect": "static", "pfx": {}}}), encoding="utf-8")
+        self.applied = []
+        self.p3 = [mock.patch.object(rc, "client", return_value=FakeClient(self.devs)),
+                   mock.patch.object(rc, "vendor_route", side_effect=lambda d: object() if d is kb else None),
+                   mock.patch.object(rc, "apply", side_effect=lambda *a, **k: self.applied.append((a, k)) or [])]
+        for x in self.p3:
+            x.start()
+        rc._lights.update(off=False, preview=0.0, keep=0.0, idle=False)
+        rc._auto["game"] = None
+        rc._effect["on"] = False
+
+    def tearDown(self):
+        for x in self.p3:
+            x.stop()
+        rc._lights.update(off=False, preview=0.0, keep=0.0, idle=False)
+        super().tearDown()
+
+    def run_at(self, t, idle=0):
+        with mock.patch.object(rc, "idle_seconds", return_value=idle):
+            return rc.vendor_keepalive(now=t)
+
+    def test_repaints_only_the_vendor_device_every_10s(self):
+        self.assertTrue(self.run_at(1000))
+        self.assertEqual(self.applied[-1][0][3], [1])   # só o teclado do G HUB, não a placa
+        self.assertFalse(self.applied[-1][1]["persist"])
+        self.assertFalse(self.run_at(1005))
+        self.assertTrue(self.run_at(1011))
+
+    def test_respects_idle_and_repaints_on_return(self):
+        self.assertTrue(self.run_at(1000))
+        self.assertFalse(self.run_at(1011, idle=300))   # ocioso: o G HUB pode apagar
+        self.assertTrue(self.run_at(1012, idle=0))      # voltou: repinta na hora
+
+    def test_never_fights_the_person(self):
+        rc._lights["off"] = True
+        self.assertFalse(self.run_at(1000))
+        rc._lights.update(off=False, preview=995.0)
+        self.assertFalse(self.run_at(1000))             # pré-visualizando na tela
+        rc._lights["preview"] = 0.0
+        rc._auto["game"] = {"process": "cs2.exe"}
+        self.assertFalse(self.run_at(1000))             # modo jogo manda
+        rc._auto["game"] = None
+        rc._effect["on"] = True
+        (self.tmp / "last_state.json").write_text(json.dumps({
+            "palette": ["#F1047A"], "ui": {"effect": "static", "pfx": {"1": "onda"}}}), encoding="utf-8")
+        self.assertFalse(self.run_at(1000))             # o efeito já está pintando o teclado
+        self.assertEqual(self.applied, [])
+
+    def test_turning_off_blocks_until_turned_on(self):
+        with mock.patch.object(rc, "start_effect"):
+            rc._lights["off"] = True
+            rc.apply_saved()
+        self.assertFalse(rc._lights["off"])
+
+
 class TestPowerShellQuoting(unittest.TestCase):
     def test_apostrophes_in_paths(self):
         self.assertEqual(rc._ps(r"C:\Users\O'Brien\EasyRGB"), r"C:\Users\O''Brien\EasyRGB")
@@ -671,7 +754,8 @@ class TestPowerShellQuoting(unittest.TestCase):
             self.skipTest("sem PowerShell")
         path = r"C:\Users\O'Brien; Remove-Item x\EasyRGB"
         out = subprocess.run(["powershell", "-NoProfile", "-Command", f"Write-Output '{rc._ps(path)}'"],
-                             capture_output=True, text=True, timeout=60).stdout.strip()
+                             capture_output=True, text=True, timeout=60,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout.strip()
         self.assertEqual(out, path)   # vira texto, nunca comando
 
     def test_temp_scripts_have_unique_names(self):
@@ -689,7 +773,7 @@ class TestNoSecretsInRepo(unittest.TestCase):
         import re
         if not shutil.which("git"):
             self.skipTest("sem git")
-        files = [f for f in subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True,
+        files = [f for f in subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                                             text=True).stdout.split(chr(0)) if f]
         pats = [r"ghp_[A-Za-z0-9]{20,}", r"github_pat_[A-Za-z0-9_]{20,}", r"sk-[A-Za-z0-9]{20,}",
                 r"AKIA[0-9A-Z]{16}", r"-----BEGIN [A-Z ]*PRIVATE KEY-----", r"xox[baprs]-[A-Za-z0-9-]{10,}"]

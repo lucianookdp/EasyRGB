@@ -189,7 +189,7 @@ def handle(msg):
         ver = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL
         return {"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": ver, "capabilities": {"tools": {"listChanged": False}},
-            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.2"},
+            "serverInfo": {"name": "easyrgb", "title": "EasyRGB", "version": "1.2.3"},
             "instructions": INSTRUCTIONS}}
     if method == "ping":
         return {"jsonrpc": "2.0", "id": mid, "result": {}}

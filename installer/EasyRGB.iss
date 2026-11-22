@@ -100,6 +100,11 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Fil
   WorkingDir: "{app}"; StatusMsg: "{cm:Driver}"; Flags: runhidden waituntilterminated; Check: NotConfigured and not WizardSilent
 Filename: "{app}\EasyRGB.exe"; Description: "{cm:Open}"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent
 
+[InstallDelete]
+; numa atualização, apaga os arquivos do programa da versão anterior antes de copiar os novos
+; (os dados do PC, na pasta app, ficam)
+Type: filesandordirs; Name: "{app}\_internal"
+
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/im EasyRGB.exe /f"; Flags: runhidden; RunOnceId: "KillApp"
 ; tira o "Restaurar ao ligar o PC" (a tarefa foi criada como admin: o Windows pede permissão)

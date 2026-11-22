@@ -757,6 +757,7 @@ class TestParity(unittest.TestCase):
                               "overrides": {"3": {"1": "#FFFFFF", "L10": "#123456"}, "1": {"0": "#00FF00"}} if mode == "zona" else {"3": {"L7": "#ABCDEF"}},
                               "devices": devs, "disabled": [2] if links["DRAM"] == "separate" and mode == "zona" else []})
         res = subprocess.run([NODE, "-e", JS_RUNNER, str(APP / "index.html")], input=json.dumps(cases),
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                              capture_output=True, text=True, encoding="utf-8", timeout=60)
         self.assertEqual(res.returncode, 0, res.stderr)
         js = json.loads(res.stdout)

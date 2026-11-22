@@ -53,7 +53,7 @@ class TestBrowser(Isolated):
         super().tearDown()
 
     def test_page_in_a_real_browser(self):
-        r = subprocess.run(["node", str(ROOT / "tests" / "browser_check.mjs"), self.url], capture_output=True,
+        r = subprocess.run(["node", str(ROOT / "tests" / "browser_check.mjs"), self.url], capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                            text=True, timeout=180)
         out = json.loads(r.stdout.strip().splitlines()[-1])
         if out.get("skip"):

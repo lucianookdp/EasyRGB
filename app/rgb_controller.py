@@ -79,7 +79,7 @@ CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
 REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
-VERSION = "1.2.2"
+VERSION = "1.2.3"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -232,7 +232,8 @@ def start_openrgb():
     args = "--server --noautoconnect"
     ps = (f"Start-Process -FilePath '{_ps(OPENRGB_EXE)}' -ArgumentList '{args}' -Verb RunAs -WindowStyle Hidden "
           f"-WorkingDirectory '{_ps(OPENRGB_EXE.parent)}'")
-    subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=False)
+    subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=False,
+                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))   # sem piscar janela (atrapalha jogos)
     for _ in range(60):  # a detecção de hardware leva alguns segundos
         if openrgb_running():
             time.sleep(1.5)
@@ -519,6 +520,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
 
 
 def turn_off():
+    _lights["off"] = True
     c = client()
     with _lock:
         for dev in all_devices(c):
@@ -1051,7 +1053,8 @@ $o | ConvertTo-Json -Depth 4 -Compress
 def detect_system():
     """Relatório do PC para um agente de IA configurar o EasyRGB sozinho."""
     raw = subprocess.run(["powershell", "-NoProfile", "-Command", _DETECT_PS], capture_output=True,
-                         text=True, encoding="utf-8", errors="replace", timeout=90).stdout
+                         text=True, encoding="utf-8", errors="replace", timeout=90,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
     def tidy(v):  # o Windows devolve textos com espaços sobrando
         if isinstance(v, str):
             return v.strip()
@@ -1227,6 +1230,7 @@ def load_state():
 
 def apply_saved(state=None, persist=False, **changes):
     """Reaplica o último estado salvo (ou outro), com mudanças opcionais (ex.: palette, brightness)."""
+    _lights["off"] = False
     L = dict(state or load_state() or {})
     L.update({k: v for k, v in changes.items() if v is not None})
     pal = parse_colors(L.get("palette") or ["#FFFFFF"])
@@ -1329,6 +1333,64 @@ def run_schedule(s):
             apply_saved(persist=True, palette=hexes, overrides={}, hw={})
 
 
+_lights = {"off": False, "preview": 0.0, "keep": 0.0, "idle": False}
+
+
+def idle_seconds():
+    """Há quantos segundos ninguém mexe no mouse ou no teclado (Windows)."""
+    try:
+        import ctypes
+
+        class LII(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+        lii = LII(ctypes.sizeof(LII), 0)
+        if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+            return 0.0
+        return ((ctypes.windll.kernel32.GetTickCount() - lii.dwTime) & 0xFFFFFFFF) / 1000.0
+    except Exception:
+        return 0.0
+
+
+def vendor_keepalive(now=None):
+    """O G HUB (e afins) às vezes volta ao perfil dele por cima do EasyRGB: depois de "apagar quando ocioso",
+    ao trocar de perfil de jogo ou de app em foco. Um visual parado não seria repintado sozinho, então:
+    enquanto a pessoa usa o PC, repinta os aparelhos do fabricante a cada 10 s, e na hora em que ela volta.
+    Ociosa, deixa o "apagar quando ocioso" do G HUB funcionar. Nunca mexe durante uma pré-visualização,
+    com as luzes apagadas pela pessoa ou no modo jogo."""
+    now = time.time() if now is None else now
+    if _lights["off"] or _auto.get("game") or now - _lights["preview"] < 120:
+        return False
+    idle = idle_seconds() > 120
+    back = _lights["idle"] and not idle
+    _lights["idle"] = idle
+    if idle or (not back and now - _lights["keep"] < 10):
+        return False
+    L = load_state()
+    pal = parse_colors((L or {}).get("palette") or [])
+    if not pal:
+        return False
+    ui = L.get("ui") or {}
+    try:
+        devs = all_devices(client(autostart=False))
+    except Exception:
+        return False
+    chosen = L.get("devices")
+    ids = [i for i, d in enumerate(devs) if vendor_route(d) or isinstance(d, vendors.VirtualDevice)]
+    ids = [i for i in ids if chosen is None or i in chosen]
+    kinds = effect_map(ui.get("effect", "static"), ui, ids)
+    ids = [i for i in ids if kinds.get(i) not in EFFECTS or not _effect.get("on")]   # o efeito já repinta os animados
+    if not ids:
+        return False
+    _lights["keep"] = now
+    try:
+        apply(pal, L.get("brightness", 100), L.get("mode", "gradiente"), ids, overrides=L.get("overrides"),
+              groups=L.get("groups"), persist=False, fast=True, ui=ui, hw=L.get("hw"))
+    except Exception as e:
+        _log_once(f"repintar {e!r}")
+        return False
+    return True
+
+
 def vendor_tick():
     """O programa do fabricante (G HUB) abriu ou reabriu depois do EasyRGB, por exemplo ao ligar o PC:
     conecta de novo e repinta o visual salvo por cima dele."""
@@ -1345,6 +1407,8 @@ def vendor_tick():
             except Exception:
                 pass
             return
+    if _vend["keys"]:
+        vendor_keepalive()
 
 
 def auto_tick():
@@ -2292,6 +2356,9 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/connect":
                 return self._send(200, {"ok": start_openrgb()})
             if self.path in ("/api/apply", "/api/preview"):
+                _lights["off"] = False
+                if self.path == "/api/preview":
+                    _lights["preview"] = time.time()
                 stop_effect()
                 rep = apply(parse_colors(body.get("colors", [])), _num(body.get("brightness"), 100, 0, 100),
                             body.get("mode", "gradiente"), body.get("devices"), bool(body.get("save")),
@@ -2299,6 +2366,9 @@ class Handler(BaseHTTPRequestHandler):
                             persist=self.path == "/api/apply", ui=body.get("ui"), hw=body.get("hw"))
                 return self._send(200, {"ok": True, "report": rep})
             if self.path == "/api/effect":
+                _lights["off"] = False
+                if not body.get("persist"):
+                    _lights["preview"] = time.time()
                 if body.get("on"):
                     stop_effect()
                     if body.get("persist"):  # "Aplicar" com efeito animado: salva o estado também
