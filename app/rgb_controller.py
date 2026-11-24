@@ -79,7 +79,7 @@ CLAUDE_FILE = HERE / "claude_color.json"
 OPENRGB_EXE = ROOT / "OpenRGB" / "OpenRGB Windows 64-bit" / "OpenRGB.exe"
 APP_NAME = "EasyRGB"
 REPO = "lucianookdp/EasyRGB"   # de onde vêm as atualizações (GitHub Releases)
-VERSION = "1.2.4"
+VERSION = "1.2.5"
 UI_PORT = 6750
 SDK_PORT = 6742
 
@@ -262,6 +262,7 @@ def client(refresh=False, autostart=True):
         for _ in range(10):
             try:
                 _client = OpenRGBClient("127.0.0.1", SDK_PORT, APP_NAME)
+                diag("openrgb-connected", devices=[getattr(d, "name", None) for d in _client.devices])
                 return _client
             except Exception as e:  # servidor ainda subindo
                 last = e
@@ -278,7 +279,12 @@ def vendor_devices(openrgb_devs=()):
     if os.environ.get("EASYRGB_NO_VENDORS"):
         return []
     cfg = (load_pc() or {}).get("vendors") or {}
-    has = {b.key: any(b.key in _maker(d) for d in openrgb_devs) for b in vendors.BRIDGES}
+    # "já visto pelo OpenRGB" também vale para o que o layout salvo diz que existe: logo depois de ligar o PC o
+    # OpenRGB leva uns 15 s para achar o teclado, e o "todas as luzes Logitech" ficaria no lugar (e no número)
+    # dele, pegando a onda do teclado
+    expect = [s for s in saved_layout() if not s.startswith("virtual:")]
+    has = {b.key: any(b.key in _maker(d) for d in openrgb_devs) or any(b.key in s for s in expect)
+           for b in vendors.BRIDGES}
     sig = json.dumps([cfg, has], sort_keys=True)
     if time.time() - _vend["t"] < 15 and sig == _vend["sig"]:
         return _vend["devs"]
@@ -312,6 +318,72 @@ def _maker(dev):
 def all_devices(c):
     """Dispositivos do OpenRGB + os controlados por cima do programa do fabricante (ids depois dos do OpenRGB)."""
     return list(c.devices) + vendor_devices(c.devices)
+
+
+# ---------------------------------------------------------------- layout: qual aparelho é cada número
+# A tela e o estado salvo chamam os aparelhos pelo número (posição na lista). A lista muda: ao ligar o PC o
+# OpenRGB acha os aparelhos aos poucos e um teclado que reconecta no USB volta no fim. Por isso o estado salvo
+# guarda também QUEM era cada número, e o app traduz para os números de agora antes de pintar.
+_layout_mem = {"saved": None, "file": None}
+
+
+def layout_of(devs):
+    return [("virtual:" if isinstance(d, vendors.VirtualDevice) else "") + _maker(d).strip() for d in devs]
+
+
+def saved_layout():
+    """Layout do estado salvo (lido do disco uma vez; o app atualiza a cópia ao salvar)."""
+    if _layout_mem["saved"] is None or _layout_mem["file"] != str(STATE_FILE):
+        lay = _read_json(STATE_FILE).get("layout")
+        _layout_mem.update(saved=[str(x) for x in lay] if isinstance(lay, list) else [], file=str(STATE_FILE))
+    return _layout_mem["saved"]
+
+
+def remember_layout(lay):
+    """Estado salvo antes desta versão (sem layout): guarda o layout completo assim que ele aparece."""
+    L = _read_json(STATE_FILE)
+    if L and not L.get("layout"):
+        L["layout"] = lay
+        STATE_FILE.write_text(json.dumps(L, ensure_ascii=False), encoding="utf-8")
+        _layout_mem.update(saved=list(lay), file=str(STATE_FILE))
+
+
+def id_map(old, new):
+    """{número antigo: número de agora} casando os aparelhos pelo nome (dois iguais, como as RAMs, na ordem)."""
+    used, out = set(), {}
+    for i, k in enumerate(old):
+        j = next((j for j, n in enumerate(new) if n == k and j not in used), None)
+        if j is not None:
+            used.add(j)
+            out[i] = j
+    return out
+
+
+def remap_state(L, new):
+    """Traduz os números do estado salvo para a lista de aparelhos de agora. Aparelho que ainda não apareceu
+    fica de fora (em vez de o efeito dele cair em outro aparelho)."""
+    old = L.get("layout")
+    if not isinstance(old, list) or not old:
+        return L
+    m = id_map([str(x) for x in old], new)
+    if all(m.get(i) == i for i in range(len(old))):
+        return L
+
+    def keys(d):
+        return {str(m[int(k)]): v for k, v in (d or {}).items() if str(k).isdigit() and int(k) in m} \
+            if isinstance(d, dict) else d
+    L = dict(L)
+    if isinstance(L.get("devices"), list):
+        L["devices"] = [m[int(i)] for i in L["devices"] if str(i).isdigit() and int(i) in m]
+    L["overrides"], L["hw"] = keys(L.get("overrides")), keys(L.get("hw"))
+    if isinstance(L.get("groups"), list):
+        L["groups"] = [dict(g, ids=[m[int(i)] for i in g.get("ids", []) if str(i).isdigit() and int(i) in m])
+                       for g in L["groups"] if isinstance(g, dict)]
+        L["groups"] = [g for g in L["groups"] if g["ids"]]
+    if isinstance(L.get("ui"), dict):
+        L["ui"] = dict(L["ui"], **{k: keys(L["ui"].get(k)) for k in ("pfx", "pbri", "pspd") if k in L["ui"]})
+    L["layout"] = new
+    return L
 
 
 def vendor_route(dev):
@@ -428,6 +500,30 @@ def device_info():
             for i, d in enumerate(all_devices(c))]
 
 
+_fx_stats = {}   # por aparelho, desde o último resumo no diag.log: quadros enviados, pulados (iguais) e erros
+
+
+def _stat(idx, dev, kind, sample=None, err=None):
+    s = _fx_stats.setdefault(idx, {"name": getattr(dev, "name", "?"), "sent": 0, "skipped": 0, "errors": 0})
+    s["name"] = getattr(dev, "name", "?")
+    s[kind] += 1
+    if sample is not None:
+        s["last"] = [to_hex(c) for c in list(sample)[:3]]
+    if err:
+        if s.get("err") != err:   # erro novo neste aparelho: anota na hora (os repetidos só contam)
+            diag("paint-error", id=idx, name=s["name"], error=err)
+        s["err"] = err
+
+
+def _via(dev):
+    vb = vendor_route(dev)
+    if vb:
+        return vb.key
+    if isinstance(dev, vendors.VirtualDevice):
+        return "virtual:" + dev.backend
+    return "openrgb" + ("+disputado" if contested(dev) else "")
+
+
 _sent = {}   # último quadro enviado a cada aparelho (efeitos animados): {id: (quadro, quando)}
 RESEND = 2.0
 
@@ -459,7 +555,8 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
         try:
             c = client()
             devs = all_devices(c)
-            ids = [i for i in range(len(devs)) if devices is None or i in devices]
+            # None: o OpenRGB está relendo a lista de aparelhos neste instante
+            ids = [i for i in range(len(devs)) if (devices is None or i in devices) and devs[i] is not None]
             plan = plan_colors(devs, ids, palette, mode, offset, overrides, groups)
             report = []
             with _lock:
@@ -475,6 +572,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                         # nada mudou neste aparelho: não manda de novo, mas reenvia a cada RESEND s (um quadro
                         # parado, como a ondulação sem teclas apertadas, cobre o G HUB se ele reassumir o teclado)
                         if last and last[0] == sig and time.time() - last[1] < RESEND:
+                            _stat(idx, dev, "skipped")
                             report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
                             continue
                         _sent[idx] = (sig, time.time())
@@ -486,6 +584,7 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                             sc = [scale(x, bri) for x in cols]
                             if not vb.paint_keys([getattr(l, "name", "") for l in dev.leds], sc):
                                 raise RuntimeError(f"{vb.app} não respondeu")
+                            _stat(idx, dev, "sent", sc)
                             report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
                             continue
                         if str(idx) in hw:
@@ -500,32 +599,47 @@ def apply(palette, brightness=100, mode="gradiente", devices=None, save=False, o
                         if not fast:
                             prepare_device(dev)
                         dev.set_colors([RGBColor(*scale(x, bri)) for x in cols], fast=fast)
+                        _stat(idx, dev, "sent", [scale(x, bri) for x in cols[:3]])
                         if save:
                             try:
                                 dev.save_mode()
                             except Exception:
                                 pass
                         report.append({"id": idx, "device": dev.name, "leds": len(cols), "ok": True})
-                    except (ConnectionError, OSError):
+                    except (ConnectionError, OSError) as e:
                         _sent.pop(idx, None)
+                        _stat(idx, dev, "errors", err=repr(e))
                         raise
                     except Exception as e:
                         _sent.pop(idx, None)   # não chegou: manda de novo no próximo quadro
+                        _stat(idx, dev, "errors", err=repr(e))
                         report.append({"id": idx, "device": dev.name, "ok": False, "error": str(e)})
             break
-        except (ConnectionError, OSError):  # OpenRGB reiniciou: reconecta e tenta de novo
+        except (ConnectionError, OSError) as e:  # OpenRGB reiniciou: reconecta e tenta de novo
+            diag("openrgb-lost", attempt=attempt, error=repr(e))
             reset_client()
             if attempt == 2:
                 raise
+    if not fast:
+        diag("paint-full", persist=persist, mode=mode, brightness=brightness,
+             devices=[{"id": r["id"], "name": r.get("device"), "ok": r.get("ok"), **({"error": r["error"]} if r.get("error") else {}),
+                       "via": _via(devs[r["id"]]), **({"hw": hw[str(r["id"])].get("mode")} if str(r["id"]) in hw else {})}
+                      for r in report])
+    if not fast:   # a lista de aparelhos com que o visual foi pintado (layout_tick repinta se ela mudar)
+        _layout_mem["applied"] = layout_of(devs)
     if persist and not fast:
+        lay = layout_of(devs)
+        _layout_mem.update(saved=lay, file=str(STATE_FILE))
         STATE_FILE.write_text(json.dumps({
             "palette": [to_hex(x) for x in palette], "brightness": brightness, "mode": mode,
-            "devices": devices, "overrides": overrides or {}, "groups": groups or [], "hw": hw, "ui": ui or {}},
+            "devices": devices, "overrides": overrides or {}, "groups": groups or [], "hw": hw, "ui": ui or {},
+            "layout": lay},
             ensure_ascii=False), encoding="utf-8")
     return report
 
 
 def turn_off():
+    diag("lights-off", by=sys._getframe(1).f_code.co_name)
     _lights["off"] = True
     c = client()
     with _lock:
@@ -686,6 +800,32 @@ def log_error(where, exc=None):
         pass
 
 
+_diag_lock = threading.Lock()
+DIAG_MAX = 2_000_000   # passou disso: vira diag.old.log e começa outro (guarda no máximo ~4 MB)
+
+
+def diag(event, **info):
+    """Diário do que o app fez com as luzes, em app/diag.log: uma linha por acontecimento, com a hora e há quanto
+    tempo o Windows está ligado. Serve para achar a causa EXATA de um problema (ex.: teclado com a cor errada
+    depois de ligar o PC) sem precisar reproduzir. Nunca derruba o app."""
+    if "unittest" in sys.modules and not os.environ.get("EASYRGB_DIAG"):
+        return   # rodando os testes: não suja o diário de verdade
+    try:
+        path = HERE / "diag.log"
+        with _diag_lock:
+            if path.exists() and path.stat().st_size > DIAG_MAX:
+                path.replace(HERE / "diag.old.log")
+            line = (f"{time.strftime('%Y-%m-%d %H:%M:%S')} up={vendors.uptime():.0f}s {event} "
+                    + json.dumps(info, ensure_ascii=False, default=str, separators=(",", ":")))
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception:
+        pass
+
+
+vendors.DIAG = lambda event, **info: diag("ghub-" + event, **info)   # a ponte também escreve no diário
+
+
 def friendly_error(exc):
     """Mensagem que a pessoa entende. Erros previstos (ValueError/RuntimeError) já vêm escritos para ela;
     falha de conexão com o OpenRGB e erros inesperados ganham um texto claro (o detalhe vai para o log)."""
@@ -772,14 +912,29 @@ def start_effect(palette, brightness, mode, devices, speed, overrides=None, grou
     pspd = {str(k): float(v) for k, v in (opts.get("pspd") or {}).items() if v}
 
     def run():
+        try:
+            loop()
+            diag("effect-end", reason="parado" if ev.is_set() else "sem aparelho animado")
+        except Exception as e:   # nunca morre calado: o diário diz por quê
+            diag("effect-crash", error=repr(e))
+            log_error("efeito", e)
+        finally:
+            if _effect.get("stop") is ev and _effect.get("thread") is threading.current_thread():
+                _effect["on"] = False   # o repintar a cada 10 s volta a cuidar desses aparelhos
+
+    def loop():
         apply(palette, brightness, mode, devices, overrides=overrides, groups=groups, persist=False, hw=hw,
               dev_bri=pbri)
         try:
-            n = len(all_devices(client()))
-        except Exception:
+            devs = all_devices(client())
+        except Exception as e:
+            diag("effect-no-devices", error=repr(e))
             return
+        n = len(devs)
         kinds = {i: k for i, k in effect_map(kind, opts, [i for i in range(n) if devices is None or i in devices]).items()
                  if k in EFFECTS}
+        diag("effect-start", kind=kind, pfx=opts.get("pfx"), speed=speed,
+             animated={str(i): f"{k} -> {getattr(devs[i], 'name', None)}" for i, k in kinds.items()})
         if not kinds:
             return   # tudo parado: a paleta já foi aplicada
         need = set(kinds.values())
@@ -1238,6 +1393,14 @@ def apply_saved(state=None, persist=False, **changes):
     """Reaplica o último estado salvo (ou outro), com mudanças opcionais (ex.: palette, brightness)."""
     _lights["off"] = False
     L = dict(state or load_state() or {})
+    try:   # os números salvos apontam para os aparelhos certos mesmo se a lista mudou de ordem
+        L = remap_state(L, layout_of(all_devices(client())))
+    except Exception:
+        pass
+    diag("look-restore", by=sys._getframe(1).f_code.co_name, changes=sorted(k for k, v in changes.items() if v is not None),
+         saved_layout=(state or load_state() or {}).get("layout"), now_layout=_layout_mem.get("seen"),
+         pfx=(L.get("ui") or {}).get("pfx"), devices=L.get("devices"))
+    L.pop("layout", None)
     L.update({k: v for k, v in changes.items() if v is not None})
     pal = parse_colors(L.get("palette") or ["#FFFFFF"])
     ui = L.get("ui") or {}
@@ -1368,36 +1531,74 @@ def vendor_keepalive(now=None, force=False):
         return False
     idle = idle_seconds() > 120
     back = _lights["idle"] and not idle
+    if idle != _lights["idle"]:
+        diag("idle" if idle else "back-from-idle")
     _lights["idle"] = idle
     if idle or (not back and not force and now - _lights["keep"] < 10):
         return False
     if _lights["off"]:   # a pessoa apagou: se o G HUB reacender o teclado com o perfil dele, apaga de novo
+        if force or back:
+            diag("keepalive-off", reason="luzes apagadas pela pessoa: apaga de novo")
         _lights["keep"] = now
         return vendor_off()
     L = dict(load_state() or {}, **game_look())   # jogando: a paleta do jogo
     pal = parse_colors((L or {}).get("palette") or [])
     if not pal:
         return False
-    ui = L.get("ui") or {}
     try:
         devs = all_devices(client(autostart=False))
     except Exception:
         return False
+    L = remap_state(L, layout_of(devs))
+    ui = L.get("ui") or {}
     chosen = L.get("devices")
-    ids = [i for i, d in enumerate(devs) if vendor_route(d) or isinstance(d, vendors.VirtualDevice)]
-    ids = [i for i in ids if chosen is None or i in chosen]
+    ids = [i for i, d in enumerate(devs) if contested(d) and (chosen is None or i in chosen)]
+    if force or back:   # o G HUB acabou de repor o perfil dele: o teclado saiu do modo Direct do OpenRGB
+        diag("keepalive", reason="G HUB pode ter reassumido" if force else "voltou do ocioso",
+             devices=[getattr(devs[i], "name", None) for i in ids], effect_on=_effect.get("on"))
+        retake([devs[i] for i in ids])
     kinds = effect_map(ui.get("effect", "static"), ui, ids)
     ids = [i for i in ids if kinds.get(i) not in EFFECTS or not _effect.get("on")]   # o efeito já repinta os animados
     if not ids:
-        return False
+        return bool(force or back)
     _lights["keep"] = now
     try:
+        if force or back:
+            for i in ids:
+                _hw_cache.pop(i, None)   # efeito do chip: manda o modo de novo
         apply(pal, L.get("brightness", 100), L.get("mode", "gradiente"), ids, overrides=L.get("overrides"),
-              groups=L.get("groups"), persist=False, fast=True, ui=ui, hw=L.get("hw"))
+              groups=L.get("groups"), persist=False, fast=not (force or back), ui=ui, hw=L.get("hw"))
     except Exception as e:
         _log_once(f"repintar {e!r}")
         return False
     return True
+
+
+def contested(dev):
+    """Aparelho que o programa do fabricante também pinta (pode trocar as cores por cima do EasyRGB): os da ponte
+    (G HUB...) e os do OpenRGB dessa marca com o programa aberto (ex.: teclado Logitech com o G HUB)."""
+    if dev is None:
+        return False
+    if vendor_route(dev) or isinstance(dev, vendors.VirtualDevice):
+        return True
+    name = _maker(dev)
+    return any(b.key in _vend["keys"] and b.key in name for b in vendors.BRIDGES)
+
+
+def retake(devs):
+    """Põe de novo no modo Direct os aparelhos do OpenRGB que o programa do fabricante pode ter reassumido."""
+    with _lock:
+        for dev in devs:
+            if dev is None or vendor_route(dev) or isinstance(dev, vendors.VirtualDevice):
+                continue
+            try:
+                m = next((m for m in dev.modes if m.name.lower() == "direct"), None)
+                if m is not None:
+                    dev.set_mode(m)
+                    diag("retake", device=getattr(dev, "name", None), mode="Direct")
+            except Exception as e:
+                diag("retake-error", device=getattr(dev, "name", None), error=repr(e))
+                _log_once(f"retomar {getattr(dev, 'name', '?')}: {e!r}")
 
 
 def game_look():
@@ -1414,7 +1615,7 @@ def vendor_off():
                 vb = vendor_route(dev)
                 if vb:
                     vb.paint_keys([getattr(l, "name", "") for l in dev.leds], [(0, 0, 0)] * len(dev.leds))
-                elif isinstance(dev, vendors.VirtualDevice):
+                elif contested(dev):
                     dev.off()
         return True
     except Exception as e:
@@ -1432,6 +1633,40 @@ def restore_look():
     return True
 
 
+def layout_tick():
+    """O OpenRGB achou ou perdeu aparelhos (ao ligar o PC ele acha o teclado uns 15 s depois; um teclado que
+    reconecta no USB some e volta): repinta tudo com cada efeito no aparelho certo."""
+    if not openrgb_running():
+        return False
+    try:
+        c = client(autostart=False)
+        with _lock:
+            c.comms.requestDeviceNum()   # lê o aviso de "lista mudou" que o OpenRGB deixou esperando
+        lay = layout_of(all_devices(c))
+    except Exception:
+        reset_client()
+        return False
+    if any(not s for s in lay):
+        return False   # o OpenRGB ainda está relendo a lista
+    if _layout_mem.get("seen") != lay:
+        diag("devices", before=_layout_mem.get("seen"), now=lay, painted_with=_layout_mem.get("applied"))
+    stable, _layout_mem["seen"] = _layout_mem.get("seen") == lay, lay
+    if stable and vendors.uptime() > vendors.LogitechBridge.BOOT and not saved_layout():
+        remember_layout(lay)
+    applied = _layout_mem.get("applied")
+    if applied is None or applied == lay or not load_state():
+        return False
+    print(time.strftime("%H:%M:%S"), "[aparelhos] a lista mudou: repintando", flush=True)
+    diag("devices-repaint", reason="a lista mudou depois da última pintura", off=_lights["off"],
+         game=(_auto.get("game") or {}).get("process"))
+    _layout_mem["applied"] = lay
+    try:
+        restore_look()
+    except Exception as e:
+        _log_once(f"repintar {e!r}")
+    return True
+
+
 def vendor_tick():
     """O programa do fabricante (G HUB) abriu ou reabriu depois do EasyRGB, por exemplo ao ligar o PC:
     conecta de novo e repinta por cima dele o que a pessoa estava vendo."""
@@ -1441,8 +1676,18 @@ def vendor_tick():
         vendor_devices(client(autostart=False).devices)
     except Exception:
         return
+    try:
+        c = client(autostart=False)
+        used = {getattr(d, "backend", None) for d in _vend["devs"]} | \
+               {vb.key for vb in (vendor_route(d) for d in c.devices if d is not None) if vb}
+    except Exception:
+        used = set()
     for b in vendors.BRIDGES:
-        if b.key in _vend["keys"] and (b.restarted() or not b.ok) and time.time() >= b.retry_at and load_state():
+        if b.key not in _vend["keys"]:
+            continue
+        again = b.restarted()   # também acompanha o G HUB quando nada passa por ele (avisa para repintar)
+        # só reconecta se algum aparelho é pintado pela ponte (senão ficaria repintando tudo a cada 4 s)
+        if b.key in used and (again or not b.ok) and time.time() >= b.retry_at and load_state():
             try:
                 restore_look()
             except Exception:
@@ -1453,8 +1698,38 @@ def vendor_tick():
         vendor_keepalive(force=due)
 
 
+_beat = {"t": 0.0}
+BEAT = 60
+
+
+def heartbeat(now=None):
+    """Resumo a cada minuto no diag.log: o efeito está vivo? quantos quadros cada aparelho recebeu? o G HUB está
+    aberto? Se o teclado ficar errado, dá para ver se o app parou de pintar ou se pintou e alguém cobriu."""
+    now = time.time() if now is None else now
+    if now - _beat["t"] < BEAT:
+        return False
+    _beat["t"] = now
+    th = _effect.get("thread")
+    try:
+        procs = vendors.process_table()
+    except Exception:
+        procs = {}
+    stats = {str(k): dict(v) for k, v in _fx_stats.items()}
+    _fx_stats.clear()
+    diag("heartbeat", effect_on=_effect.get("on"), effect_kind=_effect.get("kind"),
+         effect_alive=bool(th and th.is_alive()), off=_lights["off"], idle=_lights["idle"],
+         preview=time.time() - _lights["preview"] < 120, game=(_auto.get("game") or {}).get("process"),
+         ghub=procs.get("lghub_agent.exe"), openrgb=bool(procs.get("openrgb.exe")),
+         bridges={b.key: {"ok": b.ok, "connects": getattr(b, "connects", 0)} for b in vendors.BRIDGES
+                  if b.key in _vend["keys"]},
+         devices=_layout_mem.get("seen"), paint=stats)
+    return True
+
+
 def auto_tick():
     """Um passo do motor de automação (chamado a cada poucos segundos)."""
+    heartbeat()
+    layout_tick()
     vendor_tick()
     auto = load_auto()
     if not _auto["game"] and not (auto.get("enabled", True) and (auto.get("games") or auto.get("schedule"))):
@@ -1469,10 +1744,12 @@ def auto_tick():
             look = {"palette": hexes, "overrides": {}, "hw": {}}
             apply_saved(**look)   # não salva: ao fechar o jogo volta ao normal
             _auto["game"] = dict(rule, look=look)
+            diag("game-on", process=rule.get("process"), preset=rule.get("preset"))
             _auto["status"] = f"{rule['process']} aberto: usando {rule['preset']}"
     elif not rule and cur:
         _auto["game"] = None
         _auto["status"] = ""
+        diag("game-off", process=cur.get("process"))
         apply_saved()
     now = time.localtime()
     for s in due_schedules(auto, time.strftime("%H:%M", now), time.strftime("%Y-%m-%d", now), _auto["fired"]):
@@ -1778,6 +2055,7 @@ def restore_backup(data, apply_now=True):
                 (HERE / name).write_text(json.dumps(data[key], ensure_ascii=False, indent=2), encoding="utf-8")
             done.append(key)
     _pc_cache.update(key=None, v=None)
+    _layout_mem.update(saved=None)
     if apply_now and "look" in done:
         try:
             apply_saved()
@@ -1822,6 +2100,11 @@ def diagnostics():
         rep["log_tail"] = (HERE / "easyrgb.log").read_text(encoding="utf-8", errors="replace").splitlines()[-60:]
     except OSError:
         rep["log_tail"] = []
+    try:   # o diário (app/diag.log): os últimos eventos, sem os resumos de minuto em minuto
+        lines = (HERE / "diag.log").read_text(encoding="utf-8", errors="replace").splitlines()
+        rep["diag_tail"] = [l for l in lines if " heartbeat " not in l][-40:] + [l for l in lines if " heartbeat " in l][-1:]
+    except OSError:
+        rep["diag_tail"] = []
     return rep
 
 
@@ -1970,19 +2253,23 @@ def restore_on_boot():
     rodando (modo jogo, horários ou efeito animado), fecha o OpenRGB e o EasyRGB: não fica nada na memória.
     As cores continuam nos chips até o PC desligar."""
     was_open = openrgb_running()
+    diag("boot", openrgb_was_open=was_open)
     for _ in range(3):
         if start_openrgb():
             break
         time.sleep(5)
     for _ in range(30):
         try:
-            client(refresh=True)
+            c = client(refresh=True)
+            diag("boot-devices", devices=[getattr(d, "name", None) for d in c.devices])
             if load_state():
                 apply_saved()
             break
-        except Exception:
+        except Exception as e:
+            diag("boot-wait", error=repr(e))
             time.sleep(2)
     if not needs_running():
+        diag("boot-exit", reason="nada precisa ficar rodando")
         time.sleep(1)
         if not was_open:
             subprocess.run(["taskkill", "/im", "OpenRGB.exe", "/f"], capture_output=True,
@@ -2350,6 +2637,8 @@ class Handler(BaseHTTPRequestHandler):
             if st["connected"]:
                 try:
                     st["devices"] = device_info()
+                    if isinstance(st["last"], dict):   # a tela vê os números de agora
+                        st["last"] = remap_state(st["last"], layout_of(all_devices(client(autostart=False))))
                 except Exception as e:
                     reset_client()
                     st["error"] = str(e)
@@ -2414,6 +2703,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path == "/api/connect":
                 return self._send(200, {"ok": start_openrgb()})
+            if self.path in ("/api/apply", "/api/preview", "/api/effect", "/api/off"):
+                diag("request", path=self.path, effect=body.get("kind"), on=body.get("on"),
+                     persist=body.get("persist"), pfx=(body.get("ui") or {}).get("pfx") if isinstance(body.get("ui"), dict) else None)
             if self.path in ("/api/apply", "/api/preview"):
                 _lights["off"] = False
                 if self.path == "/api/preview":
@@ -2584,6 +2876,12 @@ def serve():
             open_ui(url)
         return
     print(f"{APP_NAME} v{VERSION} rodando em {url}  (Ctrl+C para sair)")
+    try:
+        procs = vendors.process_table()
+    except Exception:
+        procs = {}
+    diag("app-start", version=VERSION, exe=FROZEN, background=background, openrgb=openrgb_running(),
+         ghub=bool(procs.get("lghub_agent.exe")), saved_layout=saved_layout())
     if background:
         threading.Thread(target=restore_on_boot, daemon=True).start()
     elif "--no-browser" not in sys.argv:

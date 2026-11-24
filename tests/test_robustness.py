@@ -47,8 +47,10 @@ class Isolated(unittest.TestCase):
         rc._hw_cache.clear()
         if hasattr(rc, "_pc_cache"):
             rc._pc_cache.update(key=None, v=None)
+        rc._layout_mem.update(saved=None, file=None, applied=None, seen=None)
 
     def tearDown(self):
+        rc._layout_mem.update(saved=None, file=None, applied=None, seen=None)
         rc.stop_effect()
         for p in self.patches:
             p.stop()
@@ -771,6 +773,187 @@ class TestVendorKeepalive(Isolated):
             rc._lights["off"] = True
             rc.apply_saved()
         self.assertFalse(rc._lights["off"])
+
+
+class TestDeviceLayout(Isolated):
+    """Os efeitos são salvos pelo número do aparelho, mas a lista muda: ao ligar o PC o OpenRGB acha o teclado
+    uns 15 s depois, e um teclado que reconecta no USB volta no fim. A onda do teclado nunca pode cair em outro
+    aparelho (foi o que deixou o teclado "uma cor por vez" e depois parado no azul)."""
+
+    BOARD, RAM, KB = "asrock x570", "ene dram", "pro gaming keyboard logitech"
+
+    def state(self, **kw):
+        s = {"palette": ["#F1047A", "#BB08F7", "#0B32F4"], "brightness": 100, "mode": "gradiente", "devices": None,
+             "overrides": {"3": {"0": "#FFFFFF"}}, "groups": [{"ids": [1, 2], "mode": "mirror"}], "hw": {},
+             "ui": {"effect": "static", "pfx": {"3": "onda"}, "pspd": {"3": 4}, "pbri": {"3": 60}},
+             "layout": [self.BOARD, self.RAM, self.RAM, self.KB]}
+        s.update(kw)
+        (self.tmp / "last_state.json").write_text(json.dumps(s), encoding="utf-8")
+        return s
+
+    def test_keyboard_not_found_yet_gets_nothing(self):
+        L = rc.remap_state(self.state(), [self.BOARD, self.RAM, self.RAM, "virtual:logitech (g hub)"])
+        self.assertEqual(L["ui"]["pfx"], {})              # a onda não vai para o "todas as luzes Logitech"
+        self.assertEqual(L["overrides"], {})
+        self.assertEqual(L["groups"], [{"ids": [1, 2], "mode": "mirror"}])
+
+    def test_reordered_list_follows_each_device(self):
+        L = rc.remap_state(self.state(), [self.KB, self.BOARD, self.RAM, self.RAM])
+        self.assertEqual(L["ui"]["pfx"], {"0": "onda"})
+        self.assertEqual(L["ui"]["pspd"], {"0": 4})
+        self.assertEqual(L["ui"]["pbri"], {"0": 60})
+        self.assertEqual(L["overrides"], {"0": {"0": "#FFFFFF"}})
+        self.assertEqual(L["groups"][0]["ids"], [2, 3])
+        L = rc.remap_state(self.state(devices=[0, 3]), [self.KB, self.BOARD, self.RAM, self.RAM])
+        self.assertEqual(L["devices"], [1, 0])
+
+    def test_same_list_and_old_state_untouched(self):
+        s = self.state()
+        self.assertIs(rc.remap_state(s, list(s["layout"])), s)
+        old = dict(s)
+        old.pop("layout")
+        self.assertIs(rc.remap_state(old, [self.KB]), old)   # estado de antes desta versão: como era
+
+    @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
+    def test_saving_records_the_layout(self):
+        with mock.patch.object(rc, "client", return_value=FakeClient(fake_pc())), \
+                mock.patch.dict(os.environ, {"EASYRGB_NO_VENDORS": "1"}):
+            rc.apply(rc.parse_colors(["#FF0000"]), 100, persist=True)
+        lay = json.loads((self.tmp / "last_state.json").read_text(encoding="utf-8"))["layout"]
+        self.assertEqual(len(lay), 4)
+        self.assertEqual(lay[1], lay[2])
+        self.assertEqual(rc.saved_layout(), lay)
+
+    def test_no_all_logitech_device_while_the_keyboard_is_still_loading(self):
+        import vendors
+        from test_core import FakeBridge
+        self.state()
+        devs = fake_pc()[:3]   # o OpenRGB ainda não achou o teclado
+        with mock.patch.dict(os.environ, {"EASYRGB_NO_VENDORS": ""}), \
+                mock.patch.object(vendors, "BRIDGES", [FakeBridge()]):
+            rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+            self.assertEqual(rc.vendor_devices(devs), [])
+            (self.tmp / "last_state.json").unlink()
+            rc._layout_mem.update(saved=None)
+            rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+            self.assertEqual(len(rc.vendor_devices(devs)), 1)   # sem layout salvo: o comportamento de antes
+            rc._vend.update(t=0.0, devs=[], keys=[], sig=None)
+
+    def tick(self, devs, uptime=1000):
+        c = FakeClient(devs)
+        c.comms = mock.MagicMock()
+        with mock.patch.object(rc, "client", return_value=c), mock.patch.object(rc, "openrgb_running", return_value=True), \
+                mock.patch.dict(os.environ, {"EASYRGB_NO_VENDORS": "1"}), \
+                mock.patch.object(rc.vendors, "uptime", return_value=uptime), \
+                mock.patch.object(rc, "restore_look") as again:
+            changed = rc.layout_tick()
+        c.comms.requestDeviceNum.assert_called_once()        # pede ao OpenRGB a lista de agora
+        return changed, again.call_count
+
+    def test_repaints_when_the_keyboard_shows_up(self):
+        self.state()
+        pc = fake_pc()
+        rc._layout_mem["applied"] = rc.layout_of(pc[:3])     # pintado no boot, antes do teclado aparecer
+        self.assertEqual(self.tick(pc), (True, 1))
+        self.assertEqual(self.tick(pc), (False, 0))          # uma vez só
+        self.assertEqual(self.tick(pc[:3]), (True, 1))       # teclado sumiu (USB) ...
+        self.assertEqual(self.tick(pc), (True, 1))           # ... e voltou
+
+    def test_waits_while_openrgb_rereads_the_list(self):
+        self.state()
+        pc = fake_pc()
+        rc._layout_mem["applied"] = rc.layout_of(pc[:3])
+        self.assertEqual(self.tick(pc[:3] + [None]), (False, 0))
+
+    def test_old_saved_state_learns_the_layout(self):
+        s = self.state()
+        s.pop("layout")
+        (self.tmp / "last_state.json").write_text(json.dumps(s), encoding="utf-8")
+        pc = fake_pc()
+        self.tick(pc)                                    # 1ª vez: ainda pode estar carregando
+        self.tick(pc, uptime=30)                         # logo depois de ligar o PC: espera
+        self.assertNotIn("layout", json.loads((self.tmp / "last_state.json").read_text(encoding="utf-8")))
+        self.tick(pc)                                    # mesma lista de novo, PC ligado há tempo: guarda
+        saved = json.loads((self.tmp / "last_state.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["layout"], rc.layout_of(pc))
+        self.assertEqual(saved["ui"]["pfx"], {"3": "onda"})   # o resto do visual intacto
+
+
+class TestDiagnosticLog(Isolated):
+    """app/diag.log: o diário que diz a causa exata de um problema nas luzes depois de reiniciar o PC."""
+
+    def setUp(self):
+        super().setUp()
+        self.env = mock.patch.dict(os.environ, {"EASYRGB_DIAG": "1"})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        rc._fx_stats.clear()
+        super().tearDown()
+
+    def lines(self):
+        p = self.tmp / "diag.log"
+        return [ln.split(" ", 4) for ln in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+
+    def test_one_line_per_event_with_time_and_uptime(self):
+        rc.diag("devices", now=["asrock", "pro gaming keyboard logitech"])
+        (day, hour, up, event, info) = self.lines()[-1]
+        self.assertRegex(f"{day} {hour}", r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$")
+        self.assertRegex(up, r"^up=\d+s$")
+        self.assertEqual(event, "devices")
+        self.assertEqual(json.loads(info)["now"][1], "pro gaming keyboard logitech")
+
+    def test_rotates_and_never_breaks_the_app(self):
+        with mock.patch.object(rc, "DIAG_MAX", 200):
+            for i in range(20):
+                rc.diag("x", i=i, pad="a" * 30)
+        self.assertTrue((self.tmp / "diag.old.log").exists())
+        self.assertLess((self.tmp / "diag.log").stat().st_size, 400)
+        with mock.patch("builtins.open", side_effect=PermissionError("travado")):
+            rc.diag("y")   # disco cheio / arquivo travado: segue a vida
+
+    def test_heartbeat_reports_paint_stats_once_a_minute(self):
+        dev = type("D", (), {"name": "PRO Gaming Keyboard"})()
+        for _ in range(3):
+            rc._stat(3, dev, "sent", [(255, 0, 0)])
+        rc._stat(3, dev, "skipped")
+        rc._stat(3, dev, "errors", err="RuntimeError('x')")
+        rc._beat["t"] = 0.0
+        self.assertTrue(rc.heartbeat(now=10_000))
+        self.assertFalse(rc.heartbeat(now=10_030))           # 1 por minuto
+        beat = [json.loads(x[4]) for x in self.lines() if x[3] == "heartbeat"][-1]
+        kb = beat["paint"]["3"]
+        self.assertEqual((kb["sent"], kb["skipped"], kb["errors"]), (3, 1, 1))
+        self.assertEqual(kb["last"], ["#FF0000"])
+        self.assertIn("effect_alive", beat)
+        self.assertEqual([x[3] for x in self.lines()].count("paint-error"), 1)   # o erro novo, na hora
+        self.assertEqual(rc._fx_stats, {})                    # o próximo resumo começa do zero
+
+    def test_ghub_events_reach_the_diary(self):
+        import vendors
+        b = vendors.LogitechBridge()
+        b.ok, b.checked = False, 0.0
+        with mock.patch.object(vendors, "_pid", return_value=55), \
+                mock.patch.object(vendors, "_started_at", return_value=vendors.time.time() - 1):
+            b.restarted()
+        self.assertIn("ghub-process", [x[3] for x in self.lines()])
+
+    @unittest.skipUnless(HAS_LIB, "precisa da biblioteca openrgb-python")
+    def test_effect_start_names_the_device_that_animates(self):
+        (self.tmp / "last_state.json").write_text("{}", encoding="utf-8")
+        with mock.patch.object(rc, "client", return_value=FakeClient(fake_pc())), \
+                mock.patch.dict(os.environ, {"EASYRGB_NO_VENDORS": "1"}):
+            rc.start_effect(rc.parse_colors(["#FF0000", "#0000FF"]), 100, "gradiente", None, 3,
+                            kind="static", opts={"pfx": {"3": "onda"}})
+            for _ in range(50):
+                if "effect-start" in [x[3] for x in self.lines()]:
+                    break
+                rc.time.sleep(0.05)
+            rc.stop_effect()
+        start = [json.loads(x[4]) for x in self.lines() if x[3] == "effect-start"][-1]
+        self.assertEqual(start["animated"], {"3": "onda -> PRO Gaming Keyboard"})
+        self.assertIn("paint-full", [x[3] for x in self.lines()])
 
 
 class TestUpdaterSurvivesAppExit(unittest.TestCase):

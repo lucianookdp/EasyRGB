@@ -850,7 +850,7 @@ class TestVendors(TempFiles):
         self.assertEqual(len(rc.all_devices(c)), 4)
 
     @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
-    def test_lights_off_goes_through_ghub(self):
+    def test_lights_off_goes_straight_to_the_keyboard(self):
         kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 2)], [FakeMode("Direct", 32, 1)])
         kb.leds = [Led("Key: A"), Led("Key: S")]
         kb.metadata = type("M", (), {"vendor": "Logitech"})()
@@ -858,8 +858,8 @@ class TestVendors(TempFiles):
         with mock.patch.object(rc, "client", return_value=c):
             rc.all_devices(c)
             rc.turn_off()
-        self.assertEqual(self.br.keys[-1][1], [(0, 0, 0), (0, 0, 0)])
-        self.assertNotIn(("off",), kb.calls)   # o OpenRGB não mexeu no teclado
+        self.assertIn(("off",), kb.calls)   # pelo OpenRGB, direto no teclado
+        self.assertEqual(self.br.keys, [])  # nada pelo G HUB
 
     @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
     def test_still_frame_is_resent_and_failed_frame_retried(self):
@@ -871,7 +871,7 @@ class TestVendors(TempFiles):
         c = FakeClient([kb])
         still = lambda i, d, cols: [(9, 9, 9)] * len(cols)
         rc._sent.clear()
-        with mock.patch.object(rc, "client", return_value=c):
+        with mock.patch.object(rc, "client", return_value=c), mock.patch.object(self.br, "routes_keys", True, create=True):
             rc.all_devices(c)
             for _ in range(3):
                 rc.apply(HEX("#FF0000"), 100, persist=False, fast=True, frame=still)
@@ -887,12 +887,11 @@ class TestVendors(TempFiles):
         rc._sent.clear()
 
     def test_repaints_when_ghub_opens_after_easyrgb(self):
-        """Ao ligar o PC o G HUB abre depois: o EasyRGB conecta de novo e repinta o visual salvo."""
-        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 1)], [FakeMode("Direct", 32, 1)])
-        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        """Ao ligar o PC o G HUB abre depois: o EasyRGB conecta de novo e repinta o visual salvo (aparelhos que só
+        o G HUB enxerga, como um mouse Logitech sem o teclado no OpenRGB)."""
         self.br.ok, self.br.retry_at = False, 0.0
         self.br.restarted = lambda: False
-        with mock.patch.object(rc, "openrgb_running", return_value=True),              mock.patch.object(rc, "client", return_value=FakeClient([kb])),              mock.patch.object(rc, "load_state", return_value={"palette": ["#FF0000"]}),              mock.patch.object(rc, "apply_saved") as again:
+        with mock.patch.object(rc, "openrgb_running", return_value=True),              mock.patch.object(rc, "client", return_value=FakeClient([])),              mock.patch.object(rc, "load_state", return_value={"palette": ["#FF0000"]}),              mock.patch.object(rc, "apply_saved") as again:
             rc.vendor_tick()
             again.assert_called_once()
             self.br.ok = True
@@ -901,7 +900,9 @@ class TestVendors(TempFiles):
             again.assert_not_called()   # conectado e sem reinício: não repinta à toa
 
     @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
-    def test_logitech_keyboard_seen_by_openrgb_goes_through_ghub(self):
+    def test_logitech_keyboard_seen_by_openrgb_is_painted_directly(self):
+        """O kit do G HUB às vezes aceita as cores e continua mostrando um quadro velho (teclado parado numa cor).
+        O teclado que o OpenRGB enxerga é pintado direto pelo USB; o G HUB fica só como aviso de "reassumiu"."""
         kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 3)], [FakeMode("Direct", 32, 1)])
         kb.leds = [Led("Key: A"), Led("Key: S"), Led("Logo")]
         kb.metadata = type("M", (), {"vendor": "Logitech"})()   # o nome não diz a marca; o OpenRGB diz
@@ -909,8 +910,60 @@ class TestVendors(TempFiles):
         with mock.patch.object(rc, "client", return_value=c):
             self.assertEqual(len(rc.all_devices(c)), 1)   # não cria o "todas as luzes" de novo
             rc.apply(HEX("#FF0000"), 100, persist=False)
-        self.assertEqual(self.br.keys[-1][0], ["Key: A", "Key: S", "Logo"])
-        self.assertFalse([x for x in kb.calls if x[0] == "colors"])   # OpenRGB não mexeu (sem conflito)
+            self.assertIsNone(rc.vendor_route(kb))
+            self.assertTrue(rc.contested(kb))              # o G HUB pode pintar por cima: vigiado
+        self.assertEqual(self.br.keys, [])
+        self.assertTrue([x for x in kb.calls if x[0] == "colors"])
+
+    @unittest.skipUnless(HAS_LIB, "bibliotecas ainda não instaladas")
+    def test_ghub_event_puts_the_keyboard_back_in_direct_mode(self):
+        """O G HUB abriu, o PC acordou ou a pessoa voltou do ocioso: o G HUB pode ter reposto o perfil dele no
+        teclado. O EasyRGB põe o teclado de novo no modo Direct e repinta, mesmo com a onda rodando."""
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 2)], [FakeMode("Direct", 32, 1)])
+        kb.leds = [Led("Key: A"), Led("Key: S")]
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        board = FakeDev("ASRock", 0, [FakeZone("RGB", 1)], [FakeMode("Direct", 32, 1)])
+        c = FakeClient([board, kb])
+        rc.STATE_FILE.write_text(json.dumps({"palette": ["#FF0000"], "ui": {"effect": "static"}}), encoding="utf-8")
+        rc._lights.update(off=False, preview=0.0, keep=0.0, idle=False)
+        with mock.patch.object(rc, "client", return_value=c), mock.patch.object(rc, "idle_seconds", return_value=0):
+            rc.all_devices(c)
+            self.assertTrue(rc.vendor_keepalive(now=1000, force=True))
+            self.assertIn("Direct", [x[1] for x in kb.calls if x[0] == "mode"])
+            self.assertTrue([x for x in kb.calls if x[0] == "colors"])
+            self.assertEqual(board.calls, [])             # a placa não é do G HUB: fica quieta
+            kb.calls.clear()
+            self.assertTrue(rc.vendor_keepalive(now=1011))   # 10 s depois: só repinta, sem trocar o modo
+            self.assertFalse([x for x in kb.calls if x[0] == "mode"])
+            self.assertTrue([x for x in kb.calls if x[0] == "colors"])
+
+    def test_tracks_ghub_opening_without_a_connection(self):
+        b = self.vendors.LogitechBridge()
+        b.ok, b.checked = False, 0.0
+        now = self.vendors.time.time()
+        with mock.patch.object(self.vendors, "_pid", return_value=321), \
+                mock.patch.object(self.vendors, "_started_at", return_value=now - 2):
+            self.assertFalse(b.restarted())
+        self.assertTrue(b.take_repaint())                       # G HUB abriu: repinta já
+        self.assertEqual(b.pending, list(self.vendors.LogitechBridge.REASSERT))   # e de novo quando ele reassume
+        b.anchor, b.checked = now - 35, 0.0
+        with mock.patch.object(self.vendors, "_pid", return_value=321):
+            self.assertFalse(b.restarted())
+        self.assertTrue(b.take_repaint())
+        self.assertFalse(b.ok)                                  # nunca conectou ao G HUB para isso
+
+    def test_unused_bridge_does_not_repaint_every_tick(self):
+        kb = FakeDev("PRO Gaming Keyboard", 5, [FakeZone("Keyboard", 1)], [FakeMode("Direct", 32, 1)])
+        kb.metadata = type("M", (), {"vendor": "Logitech"})()
+        self.br.ok, self.br.retry_at = False, 0.0
+        self.br.restarted = lambda: False
+        with mock.patch.object(rc, "openrgb_running", return_value=True), \
+                mock.patch.object(rc, "client", return_value=FakeClient([kb])), \
+                mock.patch.object(rc, "load_state", return_value={"palette": ["#FF0000"]}), \
+                mock.patch.object(rc, "vendor_keepalive"), mock.patch.object(rc, "apply_saved") as again:
+            rc.vendor_tick()
+            rc.vendor_tick()
+        again.assert_not_called()   # o teclado vai pelo OpenRGB: a ponte desconectada não é problema
 
 
 class TestLogitechStartup(unittest.TestCase):

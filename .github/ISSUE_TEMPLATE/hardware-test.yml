@@ -75,6 +75,11 @@ body:
       label: Diagnostic report (optional)
       description: Run `EasyRGB.exe diagnostico` (or `python app/rgb_controller.py diagnostico`) and paste the summary.
       render: json
+  - type: textarea
+    id: diary
+    attributes:
+      label: Diagnostic diary (optional, best for "it worked, then it broke")
+      description: Attach or paste `app/diag.log` from the EasyRGB folder (installed copy is in `%LOCALAPPDATA%\Programs\EasyRGB\app`). It stays on your PC and only lists devices, colors and events, with timestamps. Tell us roughly when the problem happened.
   - type: input
     id: version
     attributes:

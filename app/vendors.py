@@ -129,10 +129,22 @@ class VirtualDevice:
 
 
 # ---------------------------------------------------------------- Logitech G HUB
+DIAG = None   # o rgb_controller liga aqui o diário dele (app/diag.log)
+
+
+def _event(name, **info):
+    try:
+        if DIAG:
+            DIAG(name, **info)
+    except Exception:
+        pass
+
+
 def _log(msg):
     """Anota no easyrgb.log o que a ponte fez (ajuda a entender um teclado apagado depois)."""
     try:
         print(time.strftime("%H:%M:%S"), "[ponte]", msg, flush=True)
+        _event("bridge", msg=msg)
     except Exception:
         pass
 
@@ -261,7 +273,11 @@ class LogitechBridge:
             pass
         return next((p for p in cands if p.exists()), None)
 
-    routes_keys = True
+    # Teclado Logitech que o OpenRGB enxerga é pintado DIRETO pelo OpenRGB (USB), não pelo G HUB. O kit do G HUB
+    # (sdk_legacy_led) responde "ok" a tudo, mas depois de reconectar às vezes continua mostrando um quadro velho
+    # (teclado parado no azul/vermelho) e não há como o EasyRGB perceber. A ponte fica só para o que o OpenRGB
+    # não vê (mouse, headset...) e para avisar quando o G HUB pode ter reassumido as luzes (abriu, acordou).
+    routes_keys = False
 
     def installed(self):
         return self.dll_path() is not None
@@ -288,13 +304,28 @@ class LogitechBridge:
             if woke:   # ao acordar, o G HUB repinta o perfil dele: recomeça a sequência de repinturas
                 self.anchor, self.pending = time.time(), list(self.REASSERT)
                 self.repaint = True
-            if not self.ok or time.time() - self.checked < 5:
+                _event("woke", note="o PC voltou da suspensão: repinta e repete nos próximos minutos")
+            if time.time() - self.checked < 5:
                 return False
             self.checked = time.time()
+            if not self.ok:   # sem conexão (o teclado é pintado direto pelo OpenRGB): só acompanha o G HUB
+                pid = _pid(self.AGENT)
+                if pid != self.pid:
+                    _event("process", pid=pid, before=self.pid, age=round(time.time() - (_started_at(pid) or time.time()))
+                           if pid else None)
+                if pid and pid != self.pid:   # G HUB abriu (ou reabriu): ele vai repor o perfil dele
+                    born = _started_at(pid) or time.time()
+                    self.pid, self.anchor, self.repaint = pid, born, True
+                    self.pending = [m for m in self.REASSERT if time.time() - born < m]
+                elif not pid:
+                    self.pid = None
             due = [m for m in self.pending if time.time() - self.anchor >= m]
             if due:
                 self.pending = [m for m in self.pending if m not in due]
                 self.repaint = True
+                _event("reassert-mark", seconds=due, note="momento em que o G HUB costuma repor o perfil: repinta")
+            if not self.ok:
+                return False
             if _pid(self.AGENT) != self.pid:
                 _log("G HUB reabriu: reconectando")
                 self.stop()
