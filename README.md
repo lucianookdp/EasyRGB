@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.2-a78bfa?style=flat-square">
+  <a href="../../releases/latest"><img alt="Version" src="https://img.shields.io/github/v/release/lucianookdp/EasyRGB?style=flat-square&label=version&color=a78bfa"></a>
   <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square">
   <img alt="OpenRGB" src="https://img.shields.io/badge/OpenRGB-1.1-22c55e?style=flat-square">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-server-22c55e?style=flat-square">
